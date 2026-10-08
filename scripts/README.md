@@ -10,4 +10,6 @@ OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows r
 | `table_export.py` | 5 | `persons.jsonl` → region-filtered `roster.csv` + `roster.md` (+ Coverage block, + `.out-of-region.json`), cut to `--max-rows` |
 
 All scripts read/write UTF-8, exit non-zero on malformed input, and print a one-line summary to stderr.
+`table_export.py` writes CSV as UTF-8 with a BOM (`utf-8-sig`) so Windows Excel reads accented names correctly;
+Markdown and JSON output remain plain UTF-8 without a BOM.
 If no interpreter is available, each stage file describes the manual equivalent.

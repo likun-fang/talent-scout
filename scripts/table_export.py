@@ -6,6 +6,7 @@
 Rows whose country is outside the region go to <out>.out-of-region.json. With --max-rows the table is cut
 after sorting and the Coverage block says how many rows were cut. --coverage-dir appends every
 *.coverage.md it finds to roster.md. Standard library only.
+Ranking uses eligible channel count, strongest signal, newest signal date, then name.
 """
 from __future__ import annotations
 import argparse, csv, datetime, glob, json, os, sys
@@ -19,11 +20,28 @@ def region_codes(spec: str) -> set[str]:
     return {c for part in spec.split("+") for c in REGIONS.get(part.strip().upper(), [])}
 
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
-           "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes"]
+           "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes",
+           "fit", "first_pub_year", "latest_role", "homepage", "ranked_channels"]
+
+STRENGTH = {"high": 3, "medium": 2, "low": 1}
+
+def signal_date(signal: dict) -> datetime.date:
+    value = (signal.get("date") or "")[:10]
+    value += "-01-01" if len(value) == 4 else "-01" if len(value) == 7 else ""
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        return datetime.date.min
+
+def ranked_channels(p: dict) -> int:
+    return len({s["channel"] for s in p.get("signals", []) if s.get("channel") and
+                (s.get("hop_depth", 0) == 0 or s.get("strength") in {"high", "medium"})})
 
 def row_for(p: dict, domain: str, date: str) -> dict:
     sigs = p.get("signals", [])
-    newest = max(sigs, key=lambda s: s.get("date") or "", default={})
+    newest = max(sigs, key=signal_date, default={})
+    fits = {s["fit"] for s in sigs if s.get("fit")}
+    fit = "" if not fits else "core" if fits == {"core"} else "adjacent" if fits == {"adjacent"} else "mixed"
     roles = [s.get("role") for s in sigs if s.get("role") and s.get("role") != "unknown"]
     role = max(set(roles), key=roles.count) if roles else "unknown"
     return {
@@ -41,11 +59,18 @@ def row_for(p: dict, domain: str, date: str) -> dict:
         "affiliation_source": p.get("affiliation_source") or f"evidence {newest.get('date','')}",
         "last_verified": date,
         "notes": p.get("notes", ""),
+        "fit": fit,
+        "first_pub_year": p.get("first_pub_year", ""),
+        "latest_role": newest.get("role") or "unknown",
+        "homepage": next((s["homepage"] for s in sigs if s.get("homepage")), ""),
+        "ranked_channels": ranked_channels(p),
     }
 
-def sort_key(r: dict) -> tuple:
-    rank = {"high": 0, "medium": 1, "low": 2, "ambiguous": 3}
-    return (-len(r["channels_hit"].split(";")) if r["channels_hit"] else 0, rank.get(r["merge_confidence"], 9), r["name"])
+def sort_key(p: dict) -> tuple:
+    sigs = p.get("signals", [])
+    strongest = max((STRENGTH.get(s.get("strength"), 0) for s in sigs), default=0)
+    newest = max((signal_date(s) for s in sigs), default=datetime.date.min)
+    return (-ranked_channels(p), -strongest, -newest.toordinal(), p.get("name", ""))
 
 def write_md(rows: list[dict], path: str, coverage: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
@@ -73,13 +98,13 @@ def main() -> None:
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"bad input: {exc}")
     codes = region_codes(a.region)
-    all_rows = sorted((row_for(x, a.domain, a.date) for x in persons), key=sort_key)
+    all_rows = [row_for(x, a.domain, a.date) for x in sorted(persons, key=sort_key)]
     all_rows = [r for r in all_rows if r["evidence_urls"]]  # a row carries evidence or it is not a row
     in_region = [r for r in all_rows if r["country"] in codes]
     outside = [r for r in all_rows if r["country"] not in codes]
     rows = in_region[: a.max_rows] if a.max_rows else in_region
     cut = len(in_region) - len(rows)
-    with open(f"{a.out}.csv", "w", encoding="utf-8", newline="") as f:
+    with open(f"{a.out}.csv", "w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=COLUMNS); w.writeheader(); w.writerows(rows)
     with open(f"{a.out}.out-of-region.json", "w", encoding="utf-8") as f:
         json.dump([{k: r[k] for k in ("name", "current_affiliation", "country", "affiliation_source")} for r in outside], f, ensure_ascii=False, indent=1)
