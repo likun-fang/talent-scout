@@ -6,20 +6,27 @@ only the dated fields (awards, competitions) instead of starting over.
 
 ## 1. Venues and labs — OpenAlex (keyless JSON)
 
-- Topics: `https://api.openalex.org/topics?search=<phrase>` → take the top 1–3 topic ids.
+- Topics: `https://api.openalex.org/topics?search=<phrase>` → read the top 10 and **choose** the ones that are the
+  domain (`scripts/openalex_lookup.py --topic` lists them). The third hit for "robot learning" was "Smart Agriculture
+  and AI"; a topic such as "Reinforcement Learning in Robotics" also carries game theory and LLM fine-tuning, so plan a
+  title keyword filter when you use it downstream.
 - Venues: `https://api.openalex.org/works?filter=topics.id:<id>,publication_year:>YYYY,authorships.countries:<region codes joined by |>&group_by=primary_location.source.id`
-  → top 15 sources by count = the domain's venues as seen from Europe. Keep conferences and journals separately.
-- Labs: same query with `group_by=authorships.institutions.id` → top 30 institutions in region.
-- Prolific authors (seed list, not final): `group_by=authorships.author.id` top 50. These are **leads**, not rows yet.
+  → the domain's venues as seen from Europe (`--topics T1,T2` in the script). Drop repositories (arXiv, Zenodo, HAL)
+  from the list. PMLR proceedings such as CoRL rarely surface here: add the field's known conferences by hand and
+  say so in `sources_used`.
+- Labs: same query with `group_by=authorships.institutions.id` → top 30 institutions. The filter means "any author in
+  region", so non-European institutions appear through collaborations; keep only in-region ones.
+- Prolific authors (`group_by=authorships.author.id`, top 50) are **leads for hops**, not rows: production ranking
+  favours senior PIs and misses newer directions (VLA, humanoids). Awards, competitions and open source carry those.
 
 Manual path: open `https://openalex.org`, search the phrase, read the "Sources" and "Institutions"
 facets with a Europe filter.
 
 ## 2. Funding codes — ERC panels and EuroSciVoc (universal tables in `assets/`)
 
-- Pick ERC panel codes whose descriptions match the domain (`assets/erc-panels.yaml`). Computer
-  science is PE6; systems / robotics / electronics are PE7; materials & devices often PE5/PE8.
-  Choose 1–3 panels; record why.
+- ERC panel codes (`assets/erc-panels.yaml`) are a weak proxy: PE7 is mostly electronics and communications, soft
+  robotics sits in PE8, learning in PE6. Use panels to order the sweep, then match **titles and abstracts by keyword
+  across all PE panels**; record which panels you swept.
 - Pick EuroSciVoc paths (`assets/euroscivoc-paths.md`) for CORDIS filtering.
 
 ## 3. Award pages — derived from the venue list

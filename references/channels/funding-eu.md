@@ -1,8 +1,16 @@
 # Channel: EU funding
 
+## Discovery vs names
+CORDIS has abstracts, call ids and host organisations but **no PI names and no panel codes**; ERC results PDFs have
+names and panels but no abstracts. Use both: CORDIS search API for discovery
+(`https://cordis.europa.eu/search?q=<query>&format=json`, about 10 records per page, acronyms repeat across
+projects), then the ERC PDF for the PI name. Fetch erc.europa.eu **serially**: parallel requests get HTTP 200 "Sorry"
+pages or 429. PDF names vary (`-results-pe.pdf`, `-result-pe.pdf`, `-results-all-domains.pdf`); some funded PIs appear
+only on reserve lists.
+
 ## ERC (highest yield per page)
 - Results PDFs per call: `https://erc.europa.eu/system/files/<year-month>/erc-<year>-<stg|cog|adg|syg>-results-all-domains.pdf`, plus per-domain variants (`-pe.pdf`). Columns: last name, first name, host institution, host institution local name, host country, acronym, title, panel.
-- Filter rows by the panel codes in the domain map, then by title keywords. Emit `person` signals with `role: pi`, `signal_type: erc_<stg|cog|adg|syg>`, strength high.
+- Sweep every PE row by title keywords (panels are only a weak proxy, see stage 1), then read the matching rows. Emit `person` signals with `role: pi`, `signal_type: erc_<stg|cog|adg|syg>`, strength high.
 - Read the PDF directly (or its extracted text). Cells wrap over several lines, so read record by record: a record is
   the line carrying `<last name> … <country code> <acronym> … <panel>` plus the title lines around it. Keep the rows
   whose panel is in the domain map and whose title matches the domain; copy the title verbatim into `snippet`.

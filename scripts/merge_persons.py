@@ -4,7 +4,8 @@
   merge_persons.py signals.jsonl > persons.jsonl
 
 Strong keys: ids.orcid, ids.openalex, ids.dblp, ids.openreview, ids.github.
-Weak key: normalised name + normalised affiliation (same institution).
+Weak key: normalised name + a shared institution token (a word longer than 4 chars common to both
+affiliation strings, e.g. "Hugging Face, Paris" and "Hugging Face / Sorbonne" share "hugging").
 Name-only matches are NEVER merged; they stay separate with merge_confidence=ambiguous.
 Standard library only; no mutation of input records.
 """
@@ -16,16 +17,20 @@ STRONG = ("orcid", "openalex", "dblp", "openreview", "github")
 
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", s or "")
-    return "".join(ch for ch in s if not unicodedata.combining(ch)).lower().strip()
+    s = "".join(ch for ch in s if not unicodedata.combining(ch)).lower()
+    return s.replace("-", " ").replace(".", "").strip()
+
+def inst_tokens(s: str) -> set[str]:
+    return {w for w in norm(s).replace(",", " ").replace("/", " ").split() if len(w) > 4}
 
 def strong_keys(sig: dict) -> list[str]:
     ids = sig.get("ids") or {}
     return [f"{k}:{ids[k]}" for k in STRONG if ids.get(k)]
 
-def weak_key(sig: dict) -> str | None:
-    if not sig.get("name_raw") or not sig.get("affiliation_raw"):
-        return None
-    return f"weak:{norm(sig['name_raw'])}@{norm(sig['affiliation_raw'])}"
+def weak_match(a: dict, b: dict) -> bool:
+    if norm(a.get("name_raw", "")) != norm(b.get("name_raw", "")):
+        return False
+    return bool(inst_tokens(a.get("affiliation_raw", "")) & inst_tokens(b.get("affiliation_raw", "")))
 
 def cluster(signals: list[dict]) -> list[list[dict]]:
     parent: dict[int, int] = {}
@@ -37,11 +42,19 @@ def cluster(signals: list[dict]) -> list[list[dict]]:
         parent[find(i)] = find(j)
     by_key: dict[str, int] = {}
     for i, s in enumerate(signals):
-        for k in strong_keys(s) + ([weak_key(s)] if weak_key(s) else []):
+        for k in strong_keys(s):
             if k in by_key:
                 union(i, by_key[k])
             else:
                 by_key[k] = i
+    by_name: dict[str, list[int]] = defaultdict(list)
+    for i, s in enumerate(signals):
+        by_name[norm(s.get("name_raw", ""))].append(i)
+    for idxs in by_name.values():
+        for a in idxs:
+            for b in idxs:
+                if a < b and weak_match(signals[a], signals[b]):
+                    union(a, b)
     groups: dict[int, list[dict]] = defaultdict(list)
     for i, s in enumerate(signals):
         groups[find(i)].append(s)

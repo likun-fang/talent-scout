@@ -23,3 +23,12 @@
 - {name: "ACM Fellows / Distinguished Members / Doctoral Dissertation Award", country: any, discipline: computing, url: "https://awards.acm.org/"}
 - {name: "ERCIM Cor Baayen Young Researcher Award", country: any, discipline: computing, url: "https://www.ercim.eu/human-capital/cor-baayen-award"}
 - {name: "Eurographics / EuroSys / ECCV / ICRA / RAS early-career awards", country: any, discipline: by-venue, url: "see domain map venues"}
+# Early-career and field awards that produced most hits in the 2026-10 embodied-AI run:
+- {name: "IEEE RAS Early Academic Career Award / Early Government-Industry Career Award", country: any, discipline: robotics, url: "https://www.ieee-ras.org/awards-recognition/society-awards"}
+- {name: "euRobotics Georges Giralt PhD Award", country: any, discipline: robotics, url: "https://eu-robotics.net/georges-giralt-phd-award/"}
+- {name: "ELLIS Fellows / Scholars / programme rosters", country: any, discipline: ai, url: "https://ellis.eu/research/programs"}
+- {name: "UK-RAS Network awards (early career, rising star)", country: GB, discipline: robotics, url: "https://www.ukras.org.uk/"}
+- {name: "RAEng Research Fellowships", country: GB, discipline: engineering, url: "https://raeng.org.uk/research-fellowships"}
+- {name: "NWO Veni / Vidi / Vici (per-university news lists)", country: NL, discipline: all, url: "https://www.nwo.nl/en/talent-programme"}
+- {name: "Branco Weiss Fellowship", country: CH, discipline: all, url: "https://brancoweissfellowship.org/"}
+- {name: "IEEE Fellows via RAS Fellow listing PDF (covers several classes)", country: any, discipline: robotics, url: "https://www.ieee-ras.org/membership/fellows"}

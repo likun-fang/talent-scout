@@ -20,10 +20,13 @@ Two files with identical content: `roster.csv` and `roster.md`. Columns are fixe
 | last_verified | run date |
 | notes | free text: ambiguity, missing roster, time-of-award affiliation |
 
-Sort by number of distinct channels hit, then by strongest signal. No composite score.
+Sort by number of distinct channels hit, then strongest signal, then recency. Keep only rows whose country is in
+the region; write the others to `roster.out-of-region.json` and count them. Cut the table to `target_rows` after
+sorting and report the cut in Coverage. There is no composite score; the cut is a budget, not a judgement.
 
 Below the table, add a short **Coverage** block: channels run, pages read per channel, what was
 skipped at budget, competitions whose rosters were not public. Then an optional per-person
 evidence appendix (one bullet per signal with URL) for the top rows.
 
-Script: `scripts/table_export.py persons.jsonl` writes both files.
+Script: `scripts/table_export.py persons.jsonl --region EU27+UK+CH --max-rows 50 --coverage-dir signals/` writes
+both files, the out-of-region list and the Coverage block (it appends every `signals/*.coverage.md`).

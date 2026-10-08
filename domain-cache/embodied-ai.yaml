@@ -1,27 +1,61 @@
-# CACHE, not source of truth. Derived partly by hand on 2026-10-08 while designing the skill;
-# a real run must refresh via references/10-domain-discovery.md and overwrite this file.
 domain: "embodied AI / robot learning"
 slug: embodied-ai
 derived_on: "2026-10-08"
-sources_used: [manual-seed]
+sources_used: [openalex-topics, openalex-group-by, erc-panels, euroscivoc, domain-cache-2026-10-08, web-search]
 region: "EU27+UK+CH"
+openalex_topics:
+  - {id: T10462, name: Reinforcement Learning in Robotics}
+  - {id: T10653, name: Robot Manipulation and Learning}
+  - {id: T10879, name: Robotic Locomotion and Control}
 venues:
   conferences:
-    - {name: CoRL, award_page_pattern: "corl<year> best paper"}
-    - {name: RSS, award_page_pattern: "roboticsconference.org awards <year>"}
-    - {name: ICRA, award_page_pattern: "<year>.ieee-icra.org awards"}
-    - {name: IROS, award_page_pattern: "iros<year> awards"}
-    - {name: NeurIPS / ICLR / ICML (robotics tracks), award_page_pattern: "see FeijiangHan list"}
-erc_panels: [PE6, PE7]
-euroscivoc_paths:
-  - "/engineering and technology/electrical engineering, electronic engineering, information engineering"
-  - "/natural sciences/computer and information sciences"
+    - {name: CoRL, openalex_source_id: null, award_page_pattern: "corl.org / robot-learning.org awards <year>", note: "not in OpenAlex top-30 (PMLR)"}
+    - {name: RSS, openalex_source_id: null, award_page_pattern: "roboticsconference.org awards <year>"}
+    - {name: ICRA, openalex_source_id: S4210217939, award_page_pattern: "<year>.ieee-icra.org awards"}
+    - {name: IROS, openalex_source_id: S4363608614, award_page_pattern: "iros<year> awards"}
+    - {name: Humanoids, openalex_source_id: S4363608580, award_page_pattern: "humanoids<year> best paper"}
+    - {name: NeurIPS, openalex_source_id: S4363606243, award_page_pattern: "robotics-related outstanding papers only"}
+  journals:
+    - {name: IEEE RA-L, openalex_source_id: S4210169774}
+    - {name: IEEE T-RO, openalex_source_id: S144620930, note: "King-Sun Fu best paper award"}
+erc_panels: [PE6 (computer science/AI), PE7 (systems & robotics)]
+euroscivoc_paths: ["/engineering and technology/electrical engineering, electronic engineering, information engineering/electronic engineering/robotics", "/natural sciences/computer and information sciences/artificial intelligence"]
 competitions:
-  - {name: "RoboCup Humanoid Soccer League", results_url_pattern: "https://hsl.robocup.org/results-<year>", roster_source: tdp,
-     note: "2026 results list team + university + country; podiums mostly CN universities; European podium teams: Hamburg Bit-Bots, B-Human, HTWK Robots, Rhoban"}
-  - {name: "RoboCup @Home / Rescue / Industrial", results_url_pattern: "league sites", roster_source: tdp}
-  - {name: "ICRA competitions (9 in 2026: RGMC, WBCD, RoboRacer, LeHome, REAL-I, surgery, BARN, AgiBot World, Legged)", results_url_pattern: "https://<year>.ieee-icra.org/program/competitions", roster_source: team_site}
-  - {name: "ANA Avatar XPRIZE / Cybathlon / European Rover Challenge", results_url_pattern: "event sites", roster_source: team_site}
-companies: []   # fill from EIC Accelerator PDFs (e.g., 2025 round: 61 companies, PDF on eic.ec.europa.eu)
-keywords: [robot learning, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, embodied]
+  - {name: RoboCup major leagues (Humanoid, SPL, @Home, Rescue, Industrial), results_url_pattern: league sites, roster_source: tdp, note: "junior leagues excluded"}
+  - {name: ICRA/IROS competitions (RGMC, legged, manipulation, AgiBot World), results_url_pattern: "<year>.ieee-icra.org/program/competitions", roster_source: team_site}
+  - {name: ANA Avatar XPRIZE / Cybathlon / European Rover Challenge / euRobin challenges, roster_source: team_site}
+labs:
+  - {name: "Centre National de la Recherche Scientifique", openalex_institution_id: I1294671590, works: 1639}
+  - {name: "Technical University of Munich", openalex_institution_id: I62916508, works: 1487}
+  - {name: "ETH Zurich", openalex_institution_id: I35440088, works: 1114}
+  - {name: "Imperial College London", openalex_institution_id: I47508984, works: 997}
+  - {name: "University of Oxford", openalex_institution_id: I40120149, works: 972}
+  - {name: "University College London", openalex_institution_id: I45129253, works: 887}
+  - {name: "Delft University of Technology", openalex_institution_id: I98358874, works: 813}
+  - {name: "Italian Institute of Technology", openalex_institution_id: I30771326, works: 770}
+  - {name: "École Polytechnique Fédérale de Lausanne", openalex_institution_id: I5124864, works: 671}
+  - {name: "KTH Royal Institute of Technology", openalex_institution_id: I86987016, works: 648}
+  - {name: "Politecnico di Milano", openalex_institution_id: I93860229, works: 617}
+  - {name: "Institut national de recherche en sciences et technologies du numérique", openalex_institution_id: I1326498283, works: 588}
+  - {name: "Karlsruhe Institute of Technology", openalex_institution_id: I102335020, works: 535}
+  - {name: "University of Cambridge", openalex_institution_id: I241749, works: 519}
+  - {name: "Google DeepMind (United Kingdom)", openalex_institution_id: I4210090411, works: 492}
+  - {name: "Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR)", openalex_institution_id: I2898391981, works: 470}
+  - {name: "Technische Universität Darmstadt", openalex_institution_id: I31512782, works: 465}
+  - {name: "University of Edinburgh", openalex_institution_id: I98677209, works: 458}
+  - {name: "University of Manchester", openalex_institution_id: I28407311, works: 430}
+  - {name: "King's College London", openalex_institution_id: I183935753, works: 429}
+  - {name: "RWTH Aachen University", openalex_institution_id: I887968799, works: 414}
+  - {name: "University of Bristol", openalex_institution_id: I36234482, works: 405}
+  - {name: "University of Genoa", openalex_institution_id: I83816512, works: 388}
+  - {name: "TU Wien", openalex_institution_id: I145847075, works: 372}
+  - {name: "University of Liverpool", openalex_institution_id: I146655781, works: 363}
+  - {name: "Eindhoven University of Technology", openalex_institution_id: I83019370, works: 357}
+  - {name: "University of Stuttgart", openalex_institution_id: I100066346, works: 355}
+  - {name: "KU Leuven", openalex_institution_id: I99464096, works: 353}
+  - {name: "Sorbonne Université", openalex_institution_id: I39804081, works: 335}
+  - {name: "Max Planck Institute for Intelligent Systems", openalex_institution_id: I4210135521, works: 326}
+companies: []   # filled by startups/industry channel
+open_source_anchors: [huggingface/lerobot, stack-of-tasks/pinocchio, loco-3d/crocoddyl, leggedrobotics/rsl_rl, leggedrobotics/legged_gym, isaac-sim/IsaacLab, google-deepmind/mujoco_playground, leggedrobotics/ocs2]
+keywords: [robot learning, embodied, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, dexterous, imitation learning, reinforcement learning robot]
 prizes_filter: engineering
