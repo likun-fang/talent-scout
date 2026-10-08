@@ -39,3 +39,19 @@ Surveyed 2026-10-08 (web search, keyless). Maintainer notes, not runtime instruc
 3. Say what the index cannot see. Expert Finder's "absence is not evidence" is our Coverage block.
 4. Environment self-check first, then degrade gracefully (osint-skill). Our stage 0.
 5. Nobody covers Europe across funding + competitions + awards + open source in one table. That gap, plus the GDPR-clean "public professional record only" posture, is the reason to build.
+
+## Second, independent survey
+
+`landscape-codex.md` covers 16 more objects (CSRankings, Scholia, OpenAIRE Graph persons API, S2AND, PyAlex,
+GitHub Talent MCP, a CORDIS dbt warehouse, OpenSanctions / Aleph / Diffbot provenance models, five published
+research skills). Its lessons that survive into v1:
+
+- Each hop leaves an artefact (orgs / works / teams list) before people are produced; a team whose roster
+  is not public stays in the output as a team row. (Already in `references/30-hops.md`.)
+- Facts and merged persons are separate layers; a merge must be undoable. v1 keeps every signal inside the
+  person record, so un-merging is deleting the person row and re-running the merge.
+- Coverage counts that mean something: pages requested, pages read, facts kept, persons confirmed, failures.
+  v1 reports pages read per channel and what was skipped; finer counters wait for a real run to show they matter.
+
+Deferred on purpose: statement-level provenance tables (OpenSanctions style), S2AND-grade disambiguation models,
+CSRankings' maintained faculty list (CC BY-NC-ND, not reusable in a distributed skill).

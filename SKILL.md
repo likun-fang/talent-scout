@@ -1,46 +1,55 @@
 ---
 name: talent-scout
-description: Find people in a user-chosen technical domain (default region Europe = EU27 + UK + CH) across many public signal channels (top-venue paper awards, national prizes, EU funding, competitions, startups, industry labs, open source) and output a sourced, table-shaped roster with per-person evidence. Use when asked to "find talent / researchers / engineers / teams in <domain>", build a candidate list, or map who is doing notable work in a field. Works with web search + page reading alone; bundled scripts are optional accelerators.
+description: Find the people behind notable work in a technical domain, defaulting to Europe (EU27 + UK + CH), and deliver a sourced roster table. Use when asked to find talent, researchers, engineers or teams in a field, to list who is doing notable work in a domain, or to build a candidate roster from public signals such as paper awards, prizes, EU funding, competitions, startups and open source.
 ---
 
 # Talent Scout
 
-Produces a **roster table** (CSV + Markdown) of people in a domain, every row backed by URLs.
-It is a finding tool. It does not judge whether anyone would change jobs, and it never writes
-recruiting advice. Career stage / role is recorded as a data field only.
+Deliverable: `roster.csv` + `roster.md`, one row per person, every row carrying at least one evidence URL,
+plus a Coverage block saying what was read and what was skipped. It is a finding tool: it records roles and
+career stage as data and leaves judgements about hiring to the reader.
 
-## Run in five stages (read the linked file when you reach the stage)
+Read `references/60-scope-and-ethics.md` once before stage 0.
 
-| # | Stage | Read | Output |
-|---|-------|------|--------|
-| 0 | Probe environment, fix scope | `references/00-environment.md` | `run.meta.json` |
-| 1 | Derive the domain map (venues, awards, competitions, funding codes, labs, keywords) **from universal sources**, not by hand | `references/10-domain-discovery.md` | `domain-map.yaml` |
-| 2 | Sweep channels → signals | `references/channels/README.md` then one file per channel | `signals.jsonl` |
-| 3 | Hop from orgs / works / teams / companies to **people**; snowball one hop | `references/30-hops.md` | more `signals.jsonl` |
-| 4 | Merge same-person signals, score confidence | `references/40-entity-resolution.md` | `persons.jsonl` |
-| 5 | Emit the roster table + per-person evidence | `references/50-output.md` | `roster.csv`, `roster.md` |
+## Stages
 
-Rules that apply at every stage are in `references/60-scope-and-ethics.md`. Read it once at start.
+Each stage names the file to read when you reach it and the condition that ends it.
 
-## Non-negotiables
+| # | Stage | Read | Done when |
+|---|-------|------|-----------|
+| 0 | Probe environment, fix scope | `references/00-environment.md` | `run.meta.json` written with env, region, window, channels, page budgets |
+| 1 | Derive the domain map from universal sources | `references/10-domain-discovery.md` | `domain-map.yaml` written, cached under `domain-cache/`, and shown to the user in one screen |
+| 2 | Sweep channels into signals | `references/channels/README.md`, then one file per channel in the run | every channel in `run.meta.json` has either reached its page budget or exhausted its sources, and `signals.jsonl` holds every finding with a URL |
+| 3 | Hop from orgs, works, teams and companies to people | `references/30-hops.md` | every non-person signal has produced person signals or a `roster not public` note |
+| 4 | Merge signals into persons | `references/40-entity-resolution.md` | `persons.jsonl` written; each person has a strong key, or a weak key with same institution, or is marked `ambiguous` |
+| 5 | Emit the roster | `references/50-output.md` | `roster.csv` and `roster.md` written with the fixed columns, sorted, with the Coverage block |
 
-- A row with no evidence URL does not enter the table.
-- Unresolved same-name cases stay as separate rows marked `ambiguous`; never merge on name alone.
-- Each channel has a page budget (set in `run.meta.json`); stop at budget, record what was skipped.
-- Prefer structured sources that need no paid access (OpenAlex with a free key, ORCID, DBLP, OpenReview,
-  CORDIS CSV, ERC PDFs, GitHub anonymous API, EIC PDFs) over search-engine reading. Fall back to search only where no
-  structured source exists (award pages, competition results, lab team pages).
-- Two human checkpoints: after stage 1 (show the domain map, 1-minute review) and after stage 2
-  (show the raw candidate count before spending budget on hops and enrichment).
+Two moments to pause for the user: after stage 1 (the domain map, one-screen review) and after stage 2
+(the raw candidate count, before budget goes into hops and enrichment).
 
-## Reuse across domains
+## Working rules
 
-The procedure is domain-agnostic. A domain map is **derived** at stage 1 and cached under
-`domain-cache/<slug>.yaml`; a cached map is a starting point to refresh, never a requirement.
-Country lists, ERC panel codes, EuroSciVoc paths and national prize registries are universal
-and live in `assets/`.
+- Take structured sources first: OpenAlex (free key), ORCID, DBLP, OpenReview, CORDIS CSV, ERC results PDFs,
+  the GitHub anonymous API, EIC selected-company PDFs. Reach for web search where no structured source exists:
+  award pages, competition results, lab team pages.
+- Carry the evidence URL and a verbatim snippet with every signal from the moment you find it.
+- Keep two people with the same name as two rows marked `ambiguous` until a strong key or a shared institution joins them.
+- Stop a channel at its page budget and write the skipped items into the Coverage block.
 
-## Optional scripts (`scripts/`, Python 3 standard library only)
+## Resuming a run
 
-Use when an interpreter is available; every script has a manual equivalent described in the
-stage file. See `scripts/README.md`.
+The run directory is the handoff. A new session continues from the last stage whose output file exists:
+`run.meta.json` → `domain-map.yaml` → `signals.jsonl` → `persons.jsonl` → `roster.csv`. Re-read that file,
+re-read the matching stage reference, continue.
+
+## Domain reuse
+
+The procedure is domain-agnostic; the domain map is derived at stage 1 and cached under
+`domain-cache/<slug>.yaml`. A cached map is a starting point to refresh, with its `derived_on` date as the
+signal for which fields to re-check. Region codes, ERC panels, EuroSciVoc paths and the national prize
+registry are universal and live in `assets/`.
+
+## Scripts
+
+`scripts/` holds optional Python 3 standard-library helpers for OpenAlex lookups, merging and table export,
+each with a manual equivalent in its stage file. See `scripts/README.md`.

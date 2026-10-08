@@ -3,7 +3,10 @@
 ## ERC (highest yield per page)
 - Results PDFs per call: `https://erc.europa.eu/system/files/<year-month>/erc-<year>-<stg|cog|adg|syg>-results-all-domains.pdf`, plus per-domain variants (`-pe.pdf`). Columns: last name, first name, host institution, host institution local name, host country, acronym, title, panel.
 - Filter rows by the panel codes in the domain map, then by title keywords. Emit `person` signals with `role: pi`, `signal_type: erc_<stg|cog|adg|syg>`, strength high.
-- Script: `scripts/erc_pdf_rows.py` parses the PDF *text* (extract text with whatever the platform offers) into rows.
+- Read the PDF directly (or its extracted text). Cells wrap over several lines, so read record by record: a record is
+  the line carrying `<last name> … <country code> <acronym> … <panel>` plus the title lines around it. Keep the rows
+  whose panel is in the domain map and whose title matches the domain; copy the title verbatim into `snippet`.
+  A tried column-splitting script recovered 38 of ~478 rows on the 2025 StG PDF, so reading beats parsing here.
 - ERC project pages (`erc.europa.eu/projects-statistics`) and CORDIS give the project abstract when title keywords are ambiguous.
 
 ## CORDIS (Horizon Europe + H2020)

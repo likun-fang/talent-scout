@@ -11,13 +11,13 @@
 - For remaining signals, attempt the weak key only when the institution matches or the two
   affiliations are linked by a known move (e.g., the ORCID employment history shows both).
 - Confidence: `high` (strong key), `medium` (weak key + same domain + plausible timeline),
-  `low` (name match only; keep as **separate rows** marked `ambiguous`, do not merge).
+  `low` (name match only: two rows, each marked `ambiguous`, joined later only by a strong key or a shared institution).
 - Current affiliation: prefer ORCID employment with no end date, then the most recent OpenAlex
   `last_known_institutions`, then the newest evidence page. Record which source won and its date.
 
 ## Script
-`scripts/merge_persons.py signals.jsonl > persons.jsonl` implements the key ladder; it never merges
-on name alone. Manual path: build the table in the conversation, one row per strong key.
+`scripts/merge_persons.py signals.jsonl > persons.jsonl` implements the key ladder and leaves name-only
+matches as separate rows. Manual path: build the table in the conversation, one row per strong key.
 
 ## Known failure modes
 - Common names (Chinese, Spanish, German) → always demand a strong key or shared institution.
