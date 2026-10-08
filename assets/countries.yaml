@@ -1,0 +1,5 @@
+# Region definitions (ISO 3166-1 alpha-2). Default region = eu27 + uk_ch.
+eu27: [AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE]
+uk_ch: [GB, CH]
+eea_extra: [IS, LI, NO]
+default: eu27 + uk_ch

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "talent-scout signal",
+  "type": "object",
+  "required": ["kind", "name_raw", "channel", "signal_type", "evidence_url", "hop_depth"],
+  "properties": {
+    "kind": {"enum": ["person", "org", "work", "team", "company"]},
+    "name_raw": {"type": "string"},
+    "affiliation_raw": {"type": "string"},
+    "country": {"type": "string", "pattern": "^[A-Z]{2}$"},
+    "role": {"enum": ["first_author", "last_author", "coauthor", "pi", "team_member", "founder", "maintainer", "inventor", "unknown"]},
+    "channel": {"type": "string"},
+    "signal_type": {"type": "string"},
+    "strength": {"enum": ["high", "medium", "low"]},
+    "date": {"type": "string"},
+    "evidence_url": {"type": "string", "format": "uri"},
+    "snippet": {"type": "string"},
+    "ids": {"type": "object", "additionalProperties": {"type": "string"}},
+    "hop_depth": {"type": "integer", "minimum": 0, "maximum": 2},
+    "parent": {"type": "string", "description": "name_raw of the signal this was hopped from"}
+  }
+}

@@ -1,0 +1,17 @@
+domain: ""            # user phrase
+slug: ""              # kebab-case
+derived_on: ""        # YYYY-MM-DD
+sources_used: []      # e.g., [openalex-topics, erc-panels, euroscivoc, web-search]
+region: "EU27+UK+CH"
+openalex_topics: []   # ids + names
+venues:
+  conferences: []     # {name, openalex_source_id, award_page_pattern}
+  journals: []
+erc_panels: []        # e.g., [PE6, PE7] with reason
+euroscivoc_paths: []
+competitions: []      # {name, results_url_pattern, roster_source: tdp|team_site|repo|leaderboard}
+labs: []              # {name, country, openalex_institution_id, people_page}
+companies: []         # {name, country, reason: eic|openalex-company|user}
+open_source_anchors: []  # repo URLs
+keywords: []          # for CORDIS / ERC title filtering
+prizes_filter: ""     # discipline value to select from assets/national-prizes.yaml

@@ -1,0 +1,25 @@
+# Universal registry of national / regional prizes and academies relevant to engineering & computing.
+# discipline: which domains the prize can cover. url: laureate list or search page.
+- {name: "Leibniz Prize (DFG)", country: DE, discipline: all, url: "https://www.dfg.de/en/funded-projects/prizes-and-awards/leibniz-prize"}
+- {name: "Heinz Maier-Leibnitz Prize (DFG, early career)", country: DE, discipline: all, url: "https://www.dfg.de/en/funded-projects/prizes-and-awards/maier-leibnitz-prize"}
+- {name: "Alexander von Humboldt Professorship", country: DE, discipline: all, url: "https://www.humboldt-foundation.de/en/apply/sponsorship-programmes/alexander-von-humboldt-professorship"}
+- {name: "CNRS Gold / Silver / Bronze Medals", country: FR, discipline: all, url: "https://www.cnrs.fr/en/talents"}
+- {name: "Inria – Académie des sciences prizes", country: FR, discipline: computing, url: "https://www.inria.fr/en/inria-academie-des-sciences-awards"}
+- {name: "Royal Society Fellows and medals", country: GB, discipline: all, url: "https://royalsociety.org/medals-and-prizes/"}
+- {name: "Royal Academy of Engineering Fellows / Silver Medal / RAEng Research Fellowships", country: GB, discipline: engineering, url: "https://raeng.org.uk/"}
+- {name: "BCS Lovelace Medal / Roger Needham Award", country: GB, discipline: computing, url: "https://www.bcs.org/"}
+- {name: "Latsis Prize (ETH / EPFL / national)", country: CH, discipline: all, url: "https://www.fondationlatsis.org/"}
+- {name: "Spinoza Prize / Vici-Vidi-Veni (NWO)", country: NL, discipline: all, url: "https://www.nwo.nl/en/spinoza-prize"}
+- {name: "Francqui Prize", country: BE, discipline: all, url: "https://www.francquifoundation.be/"}
+- {name: "Wittgenstein Award / START (FWF)", country: AT, discipline: all, url: "https://www.fwf.ac.at/en/"}
+- {name: "Göran Gustafsson Prize / Wallenberg Academy Fellows", country: SE, discipline: all, url: "https://kaw.wallenberg.org/"}
+- {name: "Villum / Lundbeck / Elite Research Prize", country: DK, discipline: all, url: "https://ufm.dk/en"}
+- {name: "Premio Nacional de Investigación / Jaume I", country: ES, discipline: all, url: "https://www.fprj.es/"}
+- {name: "Premio Feltrinelli / Premio Fermi", country: IT, discipline: all, url: "https://www.lincei.it/"}
+- {name: "Royal Irish Academy Gold Medals", country: IE, discipline: all, url: "https://www.ria.ie/"}
+- {name: "Polish Science Foundation Prize (FNP)", country: PL, discipline: all, url: "https://www.fnp.org.pl/en/"}
+# Society-level, filter by European affiliation:
+- {name: "IEEE Fellows", country: any, discipline: engineering, url: "https://www.ieee.org/membership/fellows/"}
+- {name: "ACM Fellows / Distinguished Members / Doctoral Dissertation Award", country: any, discipline: computing, url: "https://awards.acm.org/"}
+- {name: "ERCIM Cor Baayen Young Researcher Award", country: any, discipline: computing, url: "https://www.ercim.eu/human-capital/cor-baayen-award"}
+- {name: "Eurographics / EuroSys / ECCV / ICRA / RAS early-career awards", country: any, discipline: by-venue, url: "see domain map venues"}

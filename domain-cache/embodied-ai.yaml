@@ -1,0 +1,27 @@
+# CACHE, not source of truth. Derived partly by hand on 2026-10-08 while designing the skill;
+# a real run must refresh via references/10-domain-discovery.md and overwrite this file.
+domain: "embodied AI / robot learning"
+slug: embodied-ai
+derived_on: "2026-10-08"
+sources_used: [manual-seed]
+region: "EU27+UK+CH"
+venues:
+  conferences:
+    - {name: CoRL, award_page_pattern: "corl<year> best paper"}
+    - {name: RSS, award_page_pattern: "roboticsconference.org awards <year>"}
+    - {name: ICRA, award_page_pattern: "<year>.ieee-icra.org awards"}
+    - {name: IROS, award_page_pattern: "iros<year> awards"}
+    - {name: NeurIPS / ICLR / ICML (robotics tracks), award_page_pattern: "see FeijiangHan list"}
+erc_panels: [PE6, PE7]
+euroscivoc_paths:
+  - "/engineering and technology/electrical engineering, electronic engineering, information engineering"
+  - "/natural sciences/computer and information sciences"
+competitions:
+  - {name: "RoboCup Humanoid Soccer League", results_url_pattern: "https://hsl.robocup.org/results-<year>", roster_source: tdp,
+     note: "2026 results list team + university + country; podiums mostly CN universities; European podium teams: Hamburg Bit-Bots, B-Human, HTWK Robots, Rhoban"}
+  - {name: "RoboCup @Home / Rescue / Industrial", results_url_pattern: "league sites", roster_source: tdp}
+  - {name: "ICRA competitions (9 in 2026: RGMC, WBCD, RoboRacer, LeHome, REAL-I, surgery, BARN, AgiBot World, Legged)", results_url_pattern: "https://<year>.ieee-icra.org/program/competitions", roster_source: team_site}
+  - {name: "ANA Avatar XPRIZE / Cybathlon / European Rover Challenge", results_url_pattern: "event sites", roster_source: team_site}
+companies: []   # fill from EIC Accelerator PDFs (e.g., 2025 round: 61 companies, PDF on eic.ec.europa.eu)
+keywords: [robot learning, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, embodied]
+prizes_filter: engineering

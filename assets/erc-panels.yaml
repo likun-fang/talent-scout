@@ -1,0 +1,14 @@
+# ERC evaluation panels (Physical Sciences & Engineering domain). Used to filter ERC results PDFs.
+PE1: Mathematics
+PE2: Fundamental constituents of matter
+PE3: Condensed matter physics
+PE4: Physical and analytical chemical sciences
+PE5: Synthetic chemistry and materials
+PE6: Computer science and informatics            # AI, ML, systems, architecture, HCI, robotics software
+PE7: Systems and communication engineering       # electronics, circuits, control, robotics hardware, signal processing
+PE8: Products and processes engineering          # mechanical, manufacturing, micro/nano systems
+PE9: Universe sciences
+PE10: Earth system science
+PE11: Materials engineering                      # semiconductor materials, devices
+# Life sciences LS1–LS9 and social sciences SH1–SH8 exist; add if the domain needs them.
+# Typical picks: computing → PE6; semiconductors → PE7 + PE11 (+PE5); embodied AI / robotics → PE6 + PE7.
