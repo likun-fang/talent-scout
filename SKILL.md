@@ -27,8 +27,8 @@ Rules that apply at every stage are in `references/60-scope-and-ethics.md`. Read
 - A row with no evidence URL does not enter the table.
 - Unresolved same-name cases stay as separate rows marked `ambiguous`; never merge on name alone.
 - Each channel has a page budget (set in `run.meta.json`); stop at budget, record what was skipped.
-- Prefer keyless structured sources (OpenAlex, ORCID, DBLP, OpenReview, CORDIS CSV, ERC PDFs,
-  GitHub anonymous API, EIC PDFs) over search-engine reading. Fall back to search only where no
+- Prefer structured sources that need no paid access (OpenAlex with a free key, ORCID, DBLP, OpenReview,
+  CORDIS CSV, ERC PDFs, GitHub anonymous API, EIC PDFs) over search-engine reading. Fall back to search only where no
   structured source exists (award pages, competition results, lab team pages).
 - Two human checkpoints: after stage 1 (show the domain map, 1-minute review) and after stage 2
   (show the raw candidate count before spending budget on hops and enrichment).

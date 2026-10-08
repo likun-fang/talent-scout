@@ -13,5 +13,7 @@ Signal types: `best_paper`, `outstanding_paper`, `distinguished_paper`, `best_st
 - Workshop awards and "honorable mention" count as `medium`.
 
 ## Traps
+- OpenAlex often has **empty institutions for arXiv-only versions** of award papers (checked 2025 ICRA best paper: 7 authors, 0 institutions). When that happens, take affiliations from the award page, the PDF header, DBLP, or the author's ORCID record, and say which.
+- OpenAlex `search=` treats `?` and `*` as wildcards; strip them from titles.
 - Award pages often list affiliations at publication time; a person may have moved. Record as `affiliation_raw`; stage 4 fetches current affiliation.
 - Several venues give awards per track; capture the track name in `snippet`.

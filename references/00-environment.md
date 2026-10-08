@@ -4,6 +4,9 @@
 
 1. **Web**: can you fetch an arbitrary URL and read its text? Try `https://api.openalex.org/works?per_page=1`.
    If JSON comes back, structured APIs are reachable. If only a search tool exists, mark `web: search_only`.
+   OpenAlex answers a small number of calls per day without a key (about 100); a free key from
+   openalex.org/settings/api raises this to 100k/day. Ask the user for one if the run will exceed a few dozen calls,
+   and pass it as `api_key=` or the `OPENALEX_API_KEY` environment variable for the scripts.
 2. **Interpreter**: can you run Python 3? If yes, scripts in `scripts/` are usable. Otherwise follow the
    manual path in each stage file.
 3. **Files**: can you write files that persist across turns? If not, keep `signals` in the conversation

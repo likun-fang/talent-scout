@@ -6,9 +6,10 @@ Usage:
   openalex_lookup.py --title "Paper title"
   openalex_lookup.py --author A1234567890
 Prints JSON to stdout. Standard library only.
+Set OPENALEX_API_KEY (free, openalex.org/settings/api) for more than ~100 calls/day.
 """
 from __future__ import annotations
-import argparse, json, sys, urllib.parse, urllib.request
+import argparse, json, os, sys, urllib.parse, urllib.request
 
 API = "https://api.openalex.org"
 REGIONS = {
@@ -23,6 +24,8 @@ def region_codes(spec: str) -> list[str]:
     return codes
 
 def get(path: str, params: dict) -> dict:
+    key = os.environ.get("OPENALEX_API_KEY")
+    params = {**params, "api_key": key} if key else params
     url = f"{API}{path}?{urllib.parse.urlencode(params, safe=':,|>')}"
     req = urllib.request.Request(url, headers={"User-Agent": "talent-scout/0.1 (mailto:unset)"})
     try:
@@ -48,7 +51,8 @@ def topic_venues(phrase: str, region: str, since: int) -> dict:
     }
 
 def title_authors(title: str) -> dict:
-    res = get("/works", {"search": title, "per_page": 1}).get("results", [])
+    clean = title.replace("?", " ").replace("*", " ")  # OpenAlex treats ? and * as wildcards
+    res = get("/works", {"search": clean, "per_page": 1}).get("results", [])
     if not res:
         return {"found": False, "title": title}
     w = res[0]

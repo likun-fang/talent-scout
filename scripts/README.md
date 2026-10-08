@@ -1,4 +1,6 @@
-# Optional scripts (Python 3.9+, standard library only, no network keys)
+# Optional scripts (Python 3.9+, standard library only)
+
+OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows roughly 100 calls/day).
 
 | script | stage | input → output |
 |--------|-------|----------------|
