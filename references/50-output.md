@@ -1,6 +1,7 @@
 # Stage 5 — Output
 
-Two files with identical content: `roster.csv` and `roster.md`. Columns are fixed
+Two files with identical content: `roster.csv` and `roster.md`. Write the CSV as UTF-8 **with BOM** (`utf-8-sig`): Windows Excel
+otherwise guesses a local code page and turns ä, ł, ś into mojibake; Mac readers accept either. Columns are fixed
 (`assets/person-table.columns.md`); do not add or drop columns per run.
 
 | column | content |
