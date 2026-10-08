@@ -28,5 +28,4 @@ references/              stage-by-stage procedures
 assets/                  universal data: country sets, ERC panels, prize registry, schemas, table template
 domain-cache/            derived domain maps (cache, refreshable)
 scripts/                 optional stdlib-only helpers
-eval/                    golden lists for recall checks
 ```
