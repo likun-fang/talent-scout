@@ -7,14 +7,17 @@ awards, national prizes, EU funding, competitions, startups, industry labs and o
 Runs in any skills-aware agent (Claude.ai, Claude Code, ChatGPT, Codex, Cursor, ...) using only
 web search, page reading and keyless public APIs. Bundled Python scripts are optional accelerators.
 
-## 中文说明
+## What it does
 
-- 用途:用户给一个领域(半导体 / 计算 / 具身智能 …),输出带出处的人才名单表格(CSV + Markdown)。
-- 只找人、只给资料,不做可招聘性判断。职业阶段 / 角色只是表里的一列。
-- 领域包不是手填的:第 1 阶段从 OpenAlex、ERC panel、EuroSciVoc 等通用源**推导**出该领域的
-  会议、奖项、赛事、资助代码和实验室清单,结果缓存到 `domain-cache/`,换领域不改管线。
-- 深度在「跳转规则」(`references/30-hops.md`):从机构、论文、队伍、公司跳到人,再从人扩一跳。
-- 跨平台:遵循 Agent Skills 开放标准,不依赖本机 MCP、API key 或特定工具。
+- Input: a domain phrase (semiconductors, computer architecture, embodied AI, ...). Output: a roster table
+  (CSV + Markdown) of people, each row carrying evidence URLs.
+- It finds people and records their public work. Role and career stage are data columns, nothing more.
+- The domain map is derived at run time from universal sources (OpenAlex topics, ERC panels, EuroSciVoc) and
+  cached under `domain-cache/`; switching domains changes no procedure.
+- Depth lives in the hop rules (`references/30-hops.md`): orgs, works, teams and companies are turned into
+  people with recorded provenance, then people expand one hop to co-authors.
+- Portable: follows the Agent Skills open standard and depends on no local MCP server, paid database or
+  vendor-specific tool. OpenAlex needs a free API key beyond about 100 calls a day.
 
 ## Layout
 

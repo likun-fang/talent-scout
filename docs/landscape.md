@@ -40,11 +40,28 @@ Surveyed 2026-10-08 (web search, keyless). Maintainer notes, not runtime instruc
 4. Environment self-check first, then degrade gracefully (osint-skill). Our stage 0.
 5. Nobody covers Europe across funding + competitions + awards + open source in one table. That gap, plus the GDPR-clean "public professional record only" posture, is the reason to build.
 
-## Second, independent survey
+## Second, independent survey (Codex agent, 2026-10-08, condensed)
 
-`landscape-codex.md` covers 16 more objects (CSRankings, Scholia, OpenAIRE Graph persons API, S2AND, PyAlex,
-GitHub Talent MCP, a CORDIS dbt warehouse, OpenSanctions / Aleph / Diffbot provenance models, five published
-research skills). Its lessons that survive into v1:
+| Object | Kind | Worth taking | Why not more |
+|---|---|---|---|
+| CSRankings | domain → venues → faculty | venue sets per area as reviewable config; separate person–institution records | faculty only; data CC BY-NC-ND |
+| Scholia (Wikidata) | scholar/topic profiles via SPARQL | several entry points (topic, award, institution) landing on one entity | only what Wikidata already holds |
+| OpenAIRE Graph | EU-linked works, projects, orgs, persons API | explicit project → works → authors path | persons endpoint still beta |
+| AmazingHiring | commercial tech sourcing | source platform as a visible filter | paid; proxied source links |
+| S2AND (AllenAI) | author disambiguation model + benchmark | separate "found a mention" from "confirmed a person"; evaluate with a held-out set | heavy for v1 |
+| PyAlex | OpenAlex client | thin deterministic client, model handles judgement | we stay stdlib |
+| GitHub Talent MCP | repo → contributors → profiles | enter via a domain's reference repos | needs a running MCP server |
+| Horizon funding dbt warehouse | CORDIS cleaned into tables | keep org × project × role granularity | stops at orgs, no people |
+| OpenSanctions / nomenklatura | entity resolution with statements | facts stored independently of merges, so a wrong merge is undoable | overkill for v1 |
+| OCCRP Aleph | investigative document graph | people and companies as distinct types, field-level source | deployment weight |
+| Diffbot KG | web knowledge graph | model (source URL, crawl time, value) per fact | commercial |
+| Anthropic account-research skill | company research | say which sources were unavailable instead of filling gaps | CRM-centric |
+| Browserbase company-research skill | per-object research files → script-built table | structured per-object file first, deterministic export second | company only |
+| Exa research orchestrator | multi-hop search protocol | each hop yields an explicit intermediate set | dedupe by prose only |
+| Composio lead-research | lead profiles | minimal input convention | no per-fact sources |
+| Firecrawl lead-research | lead research workflow | write rerun inputs into the deliverable | sources listed at the end only |
+
+Lessons that survive into v1:
 
 - Each hop leaves an artefact (orgs / works / teams list) before people are produced; a team whose roster
   is not public stays in the output as a team row. (Already in `references/30-hops.md`.)
