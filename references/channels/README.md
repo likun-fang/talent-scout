@@ -13,8 +13,13 @@ rosters not public, where the method did not fit reality).
  "channel": "awards-papers", "signal_type": "best_paper", "strength": "high|medium|low",
  "date": "2025-06", "evidence_url": "https://...", "snippet": "verbatim text that supports the claim",
  "ids": {"openalex": "A5027377212", "orcid": "0000-...", "github": "login"},
- "hop_depth": 0, "parent": "name_raw of the hopped-from signal", "note": "optional caveat"}
+ "hop_depth": 0, "parent": "name_raw of the hopped-from signal", "note": "optional caveat",
+ "fit": "core|adjacent", "homepage": "https://lab-or-personal-page"}
 ```
+
+Tag every signal with `fit`: `core` when the work is the domain itself, `adjacent` when it is general robotics or a
+neighbouring field (broad RoboCup leagues, exoskeletons, electronics-side ERC panels). The export can then filter on
+it. Add `homepage` when the source page links a lab or personal page.
 
 Fill `ids` whenever a source gives them: they are the merge keys in stage 4. Attach an OpenAlex id only when
 that profile's works match the domain; name search alone returned a chemist for one robotics founder.

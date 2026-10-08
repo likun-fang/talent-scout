@@ -19,8 +19,15 @@ Two files with identical content: `roster.csv` and `roster.md`. Columns are fixe
 | affiliation_source | `orcid 2026-09` etc. |
 | last_verified | run date |
 | notes | free text: ambiguity, missing roster, time-of-award affiliation |
+| fit | core / adjacent / mixed, from the signals' `fit` tags |
+| first_pub_year | year of the person's earliest work in OpenAlex, when an id exists (a career-stage fact, not a judgement) |
+| latest_role | role in the newest signal |
+| homepage | public lab or personal page, when any signal carried one |
+| ranked_channels | channels counted for sorting: those with a hop-0 signal or a high/medium signal |
 
-Sort by number of distinct channels hit, then strongest signal, then recency. Keep only rows whose country is in
+Sort by `ranked_channels`, then strongest signal, then newest signal, then name. Low-strength hop-1 signals (a name
+in an author list) stay as evidence but do not lift a row; otherwise the industry channel's author lists outrank ERC
+grants and prizes. Keep only rows whose country is in
 the region; write the others to `roster.out-of-region.json` and count them. Cut the table to `target_rows` after
 sorting and report the cut in Coverage. There is no composite score; the cut is a budget, not a judgement.
 

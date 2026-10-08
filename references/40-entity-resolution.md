@@ -16,7 +16,9 @@
 - Current affiliation: ORCID employment with no end date, **unless** it started before the newest evidence and names
   another country (people leave old records open; one run would have sent a professor back to a 1996 post). Then
   OpenAlex `last_known_institutions` when in region, then the newest evidence page. Record which source won and its
-  date. `scripts/current_affiliation.py` applies exactly this order.
+  date. When the newest evidence is dated after the OpenAlex record and names another institution, the evidence
+  wins too (an arXiv parsing error filed a whole Hugging Face team under Oxford). `scripts/current_affiliation.py`
+  applies exactly this order and caches lookups under `cache/affiliation/` so reruns do not re-request.
 
 ## Script
 `scripts/merge_persons.py signals.jsonl > persons.jsonl` implements the key ladder and leaves name-only

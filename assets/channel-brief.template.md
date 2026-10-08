@@ -10,6 +10,7 @@ Append one JSON object per line to `signals/<channel>.jsonl` (schema: `assets/si
 - Every signal carries an evidence URL you actually opened or received from search. Prefer year-stamped or archived URLs.
 - Fill `ids.openalex` / `ids.orcid` / `ids.github` whenever a source gives them; attach an OpenAlex id only when
   that profile's works are in the domain.
+- Tag `fit`: `core` or `adjacent`. Add `homepage` when the page links a lab or personal site.
 - People outside the region get no person signal.
 
 ## Access (fill from run.meta.json env)

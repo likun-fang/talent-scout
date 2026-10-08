@@ -84,6 +84,18 @@
     "note": {
       "type": "string",
       "description": "caveat about this signal (affiliation at award time, alumni list, image-only source...)"
+    },
+    "fit": {
+      "enum": [
+        "core",
+        "adjacent"
+      ],
+      "description": "core = the work is the domain itself; adjacent = general robotics / neighbouring field (broad RoboCup leagues, exoskeletons, electronics-side PE7)"
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "public lab or personal page naming the person, when the source gives one"
     }
   }
 }
