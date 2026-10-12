@@ -47,6 +47,15 @@ that profile's works match the domain; name search alone returned a chemist for 
 | Industry labs / competitors | `industry.md` | partial: OpenAlex company affiliations, patents |
 | Open source | `open-source.md` | yes: GitHub anonymous API |
 
+### Optional channels
+
+The eight channels above remain the defaults. Enable an extension only by including its channel id and an explicit
+page budget in the run's `channels` configuration and worker brief. Extending `region_core` does not enable it.
+
+| Channel id | File | Sources |
+|------------|------|---------|
+| `funding-fr-es-nl-be` | [Validated ANR and NWO funding](funding-fr-es-nl-be.md) | ANR detail pages and NWO API; AEI, FWO/FRIS and FNRS are entry-page leads only, extraction disabled |
+
 Stop a channel at its page budget: the budget counts fetch attempts, including failures and replacement sources,
 not readable pages. Write a `skipped` note listing what was not read so the gap is visible.
 
