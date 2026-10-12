@@ -49,8 +49,8 @@ id), `data.label_EN` (seen: "Applicant", "Spokesperson", "Persons responsible fo
 empty; when present it is `ids.orcid`, the merge key), `INS_NAMEENGLISCH`, `ROOT_NAMEENGLISCH`, `ANS_LAND_EN`.
 Take institution and country; leave the street and postcode fields out.
 
-**Evidence URL**: `https://gepris.dfg.de/project/<prj_id>`. Put the person id in `ids.gepris` for traceability (it
-is not a merge key).
+**Evidence URL**: `https://gepris.dfg.de/project/<prj_id>`. Put the person id in `ids.gepris`; it is a strong merge
+key in stage 4, like the SNSF person number in `ids.snsf`.
 
 **Without an interpreter**: web search `site:gepris.dfg.de "<keyword>" "Emmy Noether"`, then read each project
 through `backend/project/get`, which is a plain GET.
@@ -60,7 +60,7 @@ through `backend/project/get`, which is a plain GET.
 | `ENP` Emmy Noether Programme | Emmy Noether Independent Research Groups (`NWG`, `NWGAI`) | `dfg_emmy_noether` | leads an independent junior research group for six years to qualify for a professorship; postdocs and junior professors, normally up to four years after the doctorate |
 | `HEI` Heisenberg Programme | Heisenberg Professorships (`HBP`), Heisenberg Grants (`HEIF`), Heisenberg Fellowships (`SHEI`) | `dfg_heisenberg` | already meets all requirements for a permanent professorship; Heisenberg Professorships hold a professorship at the host university; Grants and Fellowships fund the person's own position; up to five years |
 | `GRK` Research Training Groups | Research Training Groups (`GRK`), International Research Training Groups (`GRKI`) | `dfg_project` for the Spokesperson and the Persons responsible for project; doctoral members via the group's site, below | a structured doctoral programme run by a group of PIs |
-| `WBP` Walter Benjamin-Programme | Position, Fellowship, Return Grant (`STELL`, `STIP`, `RUEW`) | not emitted | personal postdoc funding; a `dfg_*` signal would class the holder as professor, see Traps |
+| `WBP` Walter Benjamin-Programme | Position, Fellowship, Return Grant (`STELL`, `STIP`, `RUEW`) | `dfg_walter_benjamin` | personal postdoc funding: stage 4 classes the holder as researcher, not professor |
 | every other programme (`SBH` Research Grants, `SFB` CRCs, `SPP`, `FOR`, `EXC`, …) | as printed | `dfg_project` | the applicant or spokesperson leads the project or subproject |
 
 Emit one `person` signal per person whose label is Applicant, Spokesperson, Persons responsible for project, or
@@ -97,7 +97,9 @@ are deleted with the run. Evidence URL: `https://data.snf.ch/grants/grant/<Grant
 | Ambizione, Ambizione Energy | `snsf_ambizione` | early-career researchers who conduct, manage and lead an independent project at a Swiss higher education institution; not a professorship |
 | SNSF Professorships, Eccellenza, Eccellenza grant | `snsf_professorship` | assistant professorship funding (SNSF professorships were replaced by Eccellenza Professorial Fellowships in 2018, aimed at a permanent professorship; both discontinued, ongoing grants only) |
 | Project funding, Sinergia, PRIMA, SNSF Consolidator / Advanced Grants and other project instruments | `snsf_project` | the responsible applicant leads the project |
-| Careers → Fellowships (Doc.CH, Doc.Mobility, Postdoc.Mobility, …) | not emitted | personal doctoral or postdoc funding; see Traps |
+| Doc.CH | `snsf_doc_ch` | personal doctoral funding: stage 4 classes the holder as phd_student |
+| Doc.Mobility | `snsf_doc_mobility` | doctoral mobility fellowship: phd_student |
+| Postdoc.Mobility | `snsf_postdoc_mobility` | personal postdoc fellowship: researcher |
 
 Signals: `role: pi`, `channel: funding-de-ch`, strength high for Starting Grant, Ambizione and Professorship, medium
 for `snsf_project`. `date`: `EffectiveGrantStartDate` when it is on or before the run date; otherwise (approved, start
@@ -131,12 +133,13 @@ English title into `snippet`.
 
 ## Traps
 
-- Every `dfg_*` and `snsf_*` PI signal except Ambizione makes the person a professor in stage 4, so personal postdoc
-  or doctoral grants (Walter Benjamin, SNSF fellowships) are not emitted under those types; count them in coverage.
-  DFG Research Grants also fund applicants' own positions ("Eigene Stelle"): when the name field carries no
-  professorial title, say so in `note`.
-- GEPRIS dates are years. `prj_beginn_jahr` of the window's start year reads as 1 January and falls before a window
-  that starts later that year; the project stays as evidence. Note the count in coverage.
+- A `dfg_*` or `snsf_*` PI signal makes the person a professor in stage 4 unless its type is a personal grant
+  (`dfg_walter_benjamin`, `snsf_ambizione`, `snsf_postdoc_mobility` → researcher; `snsf_doc_ch`, `snsf_doc_mobility`
+  → phd_student). DFG Research Grants also fund applicants' own positions ("Eigene Stelle"): when the name field
+  carries no professorial title, put `role_title` as printed and say "Eigene Stelle" in `note`, so an explicit title
+  (rule 1) can override the funding rule.
+- GEPRIS dates are years. A year-only `date` qualifies when that year overlaps the window, so a project begun in the
+  window's start year counts; record the start year as printed and do not invent a month.
 - `beteiligungen_en` is the institution on the project record; the person record may name another. When they differ,
   keep both in `note` and let stage 4 choose the current one.
 - Graduate school and group pages list alumni next to current members; keep alumni out of member signals.

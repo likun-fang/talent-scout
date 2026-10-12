@@ -3,7 +3,7 @@
 
   merge_persons.py signals.jsonl > persons.jsonl
 
-Strong keys: ids.orcid, ids.openalex, ids.dblp, ids.openreview, ids.github.
+Strong keys: ids.orcid, ids.openalex, ids.dblp, ids.openreview, ids.github, ids.gepris, ids.snsf.
 Weak key: normalised name + a shared institution token (a word longer than 4 chars common to both
 affiliation strings, e.g. "Hugging Face, Paris" and "Hugging Face / Sorbonne" share "hugging").
 Name-only matches are NEVER merged; they stay separate with merge_confidence=ambiguous.
@@ -15,7 +15,7 @@ from current_affiliation import classify_role, region_codes
 from person_fields import assign_groups, topics_for
 from collections import defaultdict
 
-STRONG = ("orcid", "openalex", "dblp", "openreview", "github")
+STRONG = ("orcid", "openalex", "dblp", "openreview", "github", "gepris", "snsf")
 
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", s or "")

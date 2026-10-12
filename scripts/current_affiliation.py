@@ -140,13 +140,18 @@ def inst_tokens(value: str) -> set[str]:
 
 # Most specific first: a lab line such as "Postdoctoral researcher in the group of Prof. Meyer" names the
 # person's own role before the supervisor's. Bare "chair" is a board or session title, not a professorship.
+# Patterns accept plural and German feminine forms, because section headings ("Doctoral students",
+# "Wissenschaftliche Mitarbeiterinnen") are a main source of role_title.
 TITLE_RULES = (
-    ('phd_student', r'\b(?:ph\.?d\.? student|doctoral (?:student|researcher|candidate)|doktorand\w*|dissertation|ph\.?d\.? candidate)\b'),
-    ('researcher', r'\b(?:postdoc\w*|senior scientist|research scientist|wissenschaftlicher mitarbeiter\w*|research associate|staff scientist|oberassistent)\b'),
-    ('professor', r'\b(?:professor|prof\.|chair of|chair holder|chaired|professor and chair|lehrstuhl\w*|group leader|head of (?:the )?(?:lab\w*|group|chair)|juniorprofessor|faculty member|principal investigator)\b|\bprof\.|^\s*faculty\s*$'),
+    ('phd_student', r'\b(?:ph\.?d\.? (?:students?|candidates?|researchers?)|doctoral (?:students?|researchers?|candidates?)|doktorand\w*|dissertation|promovierende\w*)\b'),
+    ('researcher', r'\b(?:postdoc\w*|senior scientists?|research scientists?|wissenschaftliche\w* mitarbeiter\w*|research associates?|staff scientists?|oberassistent\w*|research fellows?)\b'),
+    ('professor', r'\b(?:professors?|professorin\w*|prof\.|chair of|chair holders?|chaired|professor and chair|lehrstuhl\w*|group leaders?|heads? of (?:the )?(?:lab\w*|group|chair)|juniorprofessor\w*|faculty members?|principal investigators?)\b|\bprof\.|^\s*faculty\s*$'),
 )
 COMPANY = r'\b(?:gmbh|ag|ltd|inc|sa)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_')
+# Personal grants name the holder's own career stage; every other funding PI leads a project.
+FUNDING_ROLE = {'snsf_ambizione': 'researcher', 'dfg_walter_benjamin': 'researcher', 'snsf_postdoc_mobility': 'researcher',
+                'snsf_doc_ch': 'phd_student', 'snsf_doc_mobility': 'phd_student'}
 
 
 def title_class(title: str, institution_type: str = '', affiliation: str = '') -> str:
@@ -214,7 +219,7 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
     for signal in signals:
         kind = signal.get('signal_type', '')
         if kind.startswith(FUNDING_PREFIXES) and signal.get('role') == 'pi':
-            role_class = 'researcher' if kind == 'snsf_ambizione' else 'professor'
+            role_class = FUNDING_ROLE.get(kind, 'professor')
             return role_result(role_class, 'high', 2, 'funding PI', signal.get('snippet') or kind, signal.get('evidence_url', ''))
     if institution and len(institution) > 3 and institution[3] == 'company':
         return role_result('industry', 'medium', 3, 'OpenAlex institution.type', 'company', institution[4])

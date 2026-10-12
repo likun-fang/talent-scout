@@ -43,6 +43,15 @@ def window_start(end: datetime.date, months: int) -> datetime.date:
     last = (datetime.date(year + month // 12, month % 12 + 1, 1) - datetime.timedelta(days=1)).day
     return datetime.date(year, month, min(end.day, last))
 
+def in_window(signal: dict, start: datetime.date, end: datetime.date) -> bool:
+    """A year-only date (GEPRIS start years) qualifies when that year overlaps the window at all."""
+    date = signal_date(signal)
+    if date == datetime.date.min:
+        return False
+    if len((signal.get("date") or "").strip()) == 4:
+        return start.year <= date.year <= end.year
+    return start <= date <= end
+
 def filter_window(persons: list[dict], start: datetime.date, end: datetime.date) -> tuple:
     """Split each person's signals into qualifying (in window) and background. A person without a
     qualifying signal is dropped; the others keep every signal as evidence but rank on qualifying ones."""
@@ -51,7 +60,7 @@ def filter_window(persons: list[dict], start: datetime.date, end: datetime.date)
         qualifying = []
         for signal in person.get("signals", []):
             date = signal_date(signal)
-            if start <= date <= end:
+            if in_window(signal, start, end):
                 qualifying.append(signal)
             else:
                 reason = "missing_or_invalid_date" if date == datetime.date.min else "outside_window"
@@ -172,7 +181,7 @@ def group_row(group: str, persons: list[dict], start: datetime.date, end: dateti
     pi_name, _, institution = group.rpartition(' @ ')
     pi = next((p for p in members if p.get('name') == pi_name), {})
     signals = [s for p in members for s in p.get('signals', [])]
-    recent = sorted((s for s in unique_signals(members) if start <= signal_date(s) <= end),
+    recent = sorted((s for s in unique_signals(members) if in_window(s, start, end)),
                     key=lambda s: (-STRENGTH.get(s.get('strength'), 0), -signal_date(s).toordinal(),
                                    s.get('signal_type', ''), s.get('evidence_url', '')))
     return {
@@ -230,7 +239,7 @@ def select_persons(persons: list[dict], args) -> tuple:
 
 def window_coverage(persons: list[dict], selected: list[dict], start: datetime.date,
                     end: datetime.date, no_qualifying: int) -> str:
-    retained_background = sum(not start <= signal_date(s) <= end for p in selected for s in p.get('signals', []))
+    retained_background = sum(not in_window(s, start, end) for p in selected for s in p.get('signals', []))
     omitted_signals = sum(len(p.get('signals', [])) for p in persons) - sum(len(p.get('signals', [])) for p in selected)
     return (f'- signal window: {start} to {end} (inclusive; year/month-only dates use the first day)\n'
             f'- signals outside the window or undated, retained on table persons as evidence but not ranked: {retained_background}\n'

@@ -56,6 +56,10 @@
         "snsf_starting_grant",
         "snsf_ambizione",
         "snsf_professorship",
+        "dfg_walter_benjamin",
+        "snsf_postdoc_mobility",
+        "snsf_doc_ch",
+        "snsf_doc_mobility",
         "graduiertenkolleg_member",
         "imprs_member"
       ],

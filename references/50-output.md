@@ -37,7 +37,8 @@ A person needs at least one signal inside it; `channels_hit`, `hop_depth`, `rank
 those. Signals outside the window, undated or future-dated stay in the row's `signals` and `evidence_urls` columns
 as evidence and are listed in `roster.excluded-signals.json`. This audit file includes window-excluded
 signals from both retained and omitted people; its length is not the retained-evidence count. `first_pub_year` is a
-lifetime fact, not an activity filter. Year/month-only dates use the first day of that year/month. Pass `--date`
+lifetime fact, not an activity filter. Month-only dates use the first day of the month. A year-only date (GEPRIS gives
+start years) qualifies when that year overlaps the window at all, so a project begun in the window's start year counts. Pass `--date`
 from `run.meta.json` for reproducibility and `--window-months` only when the user asked for another window.
 
 Assign tiers before sorting:

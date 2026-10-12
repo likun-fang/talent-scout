@@ -223,7 +223,9 @@ class PersonFieldsTests(unittest.TestCase):
         self.assertEqual(schema['properties']['role_title']['type'], 'string')
         self.assertEqual(schema['properties']['topics']['maxItems'], 3)
         self.assertEqual(schema['properties']['topics']['minItems'], 1)
-        self.assertEqual(len(schema['properties']['signal_type']['examples']), 9)
+        examples = schema['properties']['signal_type']['examples']
+        for kind in ('dfg_emmy_noether', 'snsf_ambizione', 'snsf_doc_ch', 'dfg_walter_benjamin', 'graduiertenkolleg_member'):
+            self.assertIn(kind, examples)
         self.assertEqual(schema['allOf'][0]['then']['properties']['role']['const'], 'pi')
         import table_export
         columns = (root / 'assets/person-table.columns.md').read_text().strip().split(', ')

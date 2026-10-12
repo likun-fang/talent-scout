@@ -185,3 +185,43 @@ class TitleOrderTests(unittest.TestCase):
         self.assertEqual(title_class('Chair of Robotics and Embedded Systems'), 'professor')
         self.assertEqual(title_class('Faculty'), 'professor')
         self.assertEqual(title_class('Faculty of Engineering'), '')
+
+
+class HeadingAndGrantTests(unittest.TestCase):
+    def test_plural_and_german_headings(self):
+        from current_affiliation import title_class
+        cases = {'Doctoral students': 'phd_student', 'PhD students': 'phd_student', 'Doctoral Researchers': 'phd_student',
+                 'Promovierende': 'phd_student', 'Professors': 'professor', 'Professorinnen und Professoren': 'professor',
+                 'Principal Investigators': 'professor', 'Group leaders': 'professor', 'Postdocs': 'researcher',
+                 'Senior Scientists': 'researcher', 'Wissenschaftliche Mitarbeiterinnen und Mitarbeiter': 'researcher',
+                 'Research Fellows': 'researcher'}
+        for title, expected in cases.items():
+            with self.subTest(title=title):
+                self.assertEqual(title_class(title), expected)
+
+    def test_personal_grants_name_the_holders_stage(self):
+        from current_affiliation import classify_role
+        def person(kind):
+            return {'name': 'X', 'signals': [{'signal_type': kind, 'role': 'pi', 'date': '2025', 'evidence_url': 'https://e/1'}]}
+        self.assertEqual(classify_role(person('snsf_doc_ch'), 2026)['role_class'], 'phd_student')
+        self.assertEqual(classify_role(person('dfg_walter_benjamin'), 2026)['role_class'], 'researcher')
+        self.assertEqual(classify_role(person('snsf_postdoc_mobility'), 2026)['role_class'], 'researcher')
+        self.assertEqual(classify_role(person('dfg_emmy_noether'), 2026)['role_class'], 'professor')
+        self.assertEqual(classify_role(person('dfg_project'), 2026)['role_class'], 'professor')
+
+    def test_register_ids_are_merge_keys(self):
+        from merge_persons import cluster
+        a = {'kind': 'person', 'name_raw': 'Jan Novak', 'affiliation_raw': 'TUM', 'ids': {'gepris': '123'}, 'channel': 'funding-de-ch'}
+        b = {'kind': 'person', 'name_raw': 'J. Novak', 'affiliation_raw': 'Technical University of Munich', 'ids': {'gepris': '123'}, 'channel': 'awards-papers'}
+        c = {'kind': 'person', 'name_raw': 'Jan Novak', 'affiliation_raw': 'ETH', 'ids': {'snsf': '9'}, 'channel': 'funding-de-ch'}
+        self.assertEqual(sorted(len(g) for g in cluster([a, b, c])), [1, 2])
+
+    def test_year_only_date_qualifies_on_year_overlap(self):
+        import datetime
+        from table_export import in_window
+        start, end = datetime.date(2023, 10, 12), datetime.date(2026, 10, 12)
+        self.assertTrue(in_window({'date': '2023'}, start, end))
+        self.assertFalse(in_window({'date': '2022'}, start, end))
+        self.assertFalse(in_window({'date': '2023-09'}, start, end))
+        self.assertTrue(in_window({'date': '2023-10-12'}, start, end))
+        self.assertFalse(in_window({'date': None}, start, end))

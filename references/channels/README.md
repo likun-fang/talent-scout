@@ -63,7 +63,8 @@ For 2026-10-12, the window is 2023-10-12 to 2026-10-12, inclusive.
   a currently accessible maintainer page alone do not demonstrate recent activity. Bound git logs with
   both `--since` and `--until` for the window (include the full end day).
 
-Store `date` as YYYY, YYYY-MM, or YYYY-MM-DD; year/month-only dates are interpreted as their first day.
+Store `date` as YYYY, YYYY-MM, or YYYY-MM-DD. A month-only date is read as its first day; a year-only date qualifies
+when that year overlaps the window at all (the export treats it as "some time that year").
 Never substitute the crawl date for an unknown event date. Old and undated sources can help identify
 people or verify affiliations; emit them, with the true date or none, and the export keeps them as
 evidence without letting them qualify or rank a person. Record unresolved dates in channel coverage. A fresh parent event does not prove that an old team roster
