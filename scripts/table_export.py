@@ -194,7 +194,8 @@ def group_row(group: str, persons: list[dict], start: datetime.date, end: dateti
         'member_count': len(members),
         'recent_outputs': ';'.join(f"{s.get('signal_type')}@{s.get('date') or ''}: {(s.get('snippet') or '')[:80]}" for s in recent[:3]),
         'active_funding': join_unique(f"{s.get('signal_type')}@{s.get('date') or ''}" for s in signals
-                                      if s.get('signal_type', '').startswith(('erc_', 'dfg_', 'snsf_'))),
+                                      if s.get('signal_type', '').startswith(('erc_', 'dfg_', 'snsf_'))
+                                      or s.get('signal_type') in ('national_project', 'national_fellowship')),
         'open_source': join_unique(s.get('evidence_url', '') for s in signals if s.get('channel') == 'open-source'),
         'evidence_urls': join_unique(s.get('evidence_url', '') for s in signals),
     }

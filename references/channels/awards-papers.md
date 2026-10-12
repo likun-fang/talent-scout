@@ -20,6 +20,25 @@ Signal types: `best_paper`, `outstanding_paper`, `distinguished_paper`, `best_st
 - Resolve each title via `https://api.openalex.org/works?search=<title>&per_page=1` (or DBLP) to get the full author list with institutions and countries. Emit a `person` signal per author whose institution is in region, with `role` by author position. Keep non-region authors out of the table but note them in the work signal.
 - Workshop awards and "honorable mention" count as `medium`.
 
+## Optional recent ordinary papers
+
+Only run this extension when `run.meta.json.sourcing_extensions.recent_papers` is explicitly `true`. The existing
+award sweep stays unchanged and uses the same channel budget; do it first and report any ordinary-paper queries
+skipped at the remaining budget. Missing or false means awards only.
+
+- Query recent works using the domain map's selected topics, `region_extended` and both window boundaries; use
+  the selected venues to focus the results, and verify domain keywords against each title/abstract. For an adjacent
+  topic, the topic ID alone never establishes domain fit. Record queries, ordering and result limits in coverage.
+- Resolve each relevant work to its full author list using the same procedure above; check affiliations rather
+  than assuming every coauthor of a European paper is in Europe. Deduplicate versions by DOI or canonical work ID
+  and retain the actual publication date. An arXiv preprint and its conference version are not independent works.
+- Emit `signal_type: paper` under `channel: awards-papers`, for both work and person signals. Use `medium` for a
+  directly evidenced, domain-relevant paper with a resolved author list, or `low` when attribution/fit remains
+  uncertain (explain the uncertainty). Never give an ordinary paper award strength or an award signal type.
+  Keep award evidence separately when the same work really won an award.
+- Preserve `parent`, `hop_depth`, author-position `role`, and verbatim topic phrases under the normal hop rules.
+  Publication authorship does not establish a current job title; do not infer `role_title` from author order.
+
 ## Traps
 - OpenAlex often has **empty institutions for arXiv-only versions** of award papers (checked 2025 ICRA best paper: 7 authors, 0 institutions). When that happens, take affiliations from the award page, the PDF header, DBLP, or the author's ORCID record, and say which.
 - OpenAlex `search=` treats `?` and `*` as wildcards; strip them from titles.

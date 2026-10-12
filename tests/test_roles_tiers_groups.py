@@ -187,6 +187,54 @@ class TitleOrderTests(unittest.TestCase):
         self.assertEqual(title_class('Faculty of Engineering'), '')
 
 
+class LocalTitleTests(unittest.TestCase):
+    def test_explicit_local_titles(self):
+        from current_affiliation import title_class
+        titles = {
+            'phd_student': ['Doctorant', 'Doctorante', 'Doctorants', 'Doctorando', 'Doctoranda',
+                            'Doctorandas', 'Promovendus', 'Promovenda', 'Promovendi'],
+            'researcher': ['Maître de conférences', 'Maîtresse de conférences',
+                           'Chargé de recherche', 'Chargée de recherche', 'Directrice de recherche',
+                           'Investigadora postdoctoral', 'Onderzoeker'],
+            'professor': ['Professeur des universités', 'Profesora titular de universidad',
+                          'Catedrático de universidad', 'Hoogleraar', 'Hoogleraren'],
+            'group_leader': ["Responsable d’équipe", "Chef d'équipe", 'Jefa de grupo', 'Groepsleider'],
+        }
+        for expected, examples in titles.items():
+            for title in examples:
+                with self.subTest(title=title):
+                    self.assertEqual(title_class(title), expected)
+
+    def test_degrees_ambiguous_and_former_titles_do_not_prove_current_stage(self):
+        from current_affiliation import title_class
+        for title in ('Doctorat en informatique', 'Doctorado en informática', 'Docteur', 'Doctor',
+                      'Dr.', 'Professeur', 'Profesor', 'Ancienne doctorante', 'Ex-doctorando',
+                      'Voormalig hoogleraar', 'Former promovendus'):
+            with self.subTest(title=title):
+                self.assertEqual(title_class(title), '')
+
+    def test_supervisors_and_mixed_local_headings(self):
+        from current_affiliation import title_class, classify_role
+        self.assertEqual(title_class('Chargé de recherche sous la direction de Prof. Martin'), 'researcher')
+        self.assertEqual(title_class('Doctoranda supervisada por Professor García'), 'phd_student')
+        self.assertEqual(title_class('Onderzoeker onder begeleiding van Professor Jansen'), 'researcher')
+        for heading in ('Doctorants et postdocs', 'Doctorandos y investigadores postdoctorales',
+                        'Promovendi en onderzoekers'):
+            with self.subTest(heading=heading):
+                self.assertEqual(title_class(heading), 'mixed')
+                result = classify_role({'signals': [signal(role_title=heading)]}, 2026)
+                self.assertEqual((result['role_class'], result['role_confidence']), ('unknown', 'low'))
+
+    def test_local_title_evidence_and_existing_precedence_are_preserved(self):
+        from current_affiliation import classify_role, title_class
+        title = 'Maître de conférences'
+        result = classify_role({'signals': [signal(role_title=title)]}, 2026)
+        self.assertEqual((result['role_class'], result['role_confidence']), ('researcher', 'high'))
+        self.assertIn(title, result['role_evidence'])
+        self.assertIn('https://example.org/paper', result['role_evidence'])
+        self.assertEqual(title_class('Hoogleraar en groepsleider'), 'professor')
+
+
 class HeadingAndGrantTests(unittest.TestCase):
     def test_plural_and_german_headings(self):
         from current_affiliation import title_class
