@@ -1,42 +1,73 @@
 # Stage 0 — Probe environment, fix scope
 
+## Paths
+
+`SKILL_ROOT` is the directory holding `SKILL.md`; every `references/`, `assets/`, `scripts/` and `domain-cache/`
+path in this skill is relative to it. `RUN_DIR` is this run's directory, default `<working directory>/runs/<slug>-<run
+date>/`, never inside `SKILL_ROOT` when the skill is installed by symlink. Every artefact (`run.meta.json`,
+`domain-map.yaml`, `signals/`, `signals.jsonl`, `persons.jsonl`, `roster.*`, `groups.*`, `pages/`, the run's
+`domain-cache/` copy) is written under `RUN_DIR`. `SKILL_ROOT/domain-cache/` is read as a starting point and updated
+only when the maintainer confirms by hand.
+
 ## Probe (do all three, record results)
 
 1. **Web**: can you fetch an arbitrary URL and read its text? Try `https://api.openalex.org/works?per_page=1`.
-   If JSON comes back, structured APIs are reachable. If only a search tool exists, mark `web: search_only`.
-   OpenAlex's keyless quota is shared per outbound IP, so from an agent sandbox it is usually already spent.
-   Ask the user for a free key (openalex.org/settings/api) at stage 0 and export it as `OPENALEX_API_KEY`.
+   Check what came back, not only the status: JSON with a `results` array means OpenAlex is reachable keyless; record
+   `openalex: keyless` and continue. A 200 that carries HTML (a bot check, a "Request Rejected" page) counts as not
+   reachable. Ask the user for a free key (openalex.org/settings/api, exported as `OPENALEX_API_KEY`) only when a
+   call returns 429 or a quota message, at any stage; then record `openalex: keyed`. If only a search tool exists,
+   mark `web: search_only`; if nothing loads, `web: none`.
    Also probe once each and record the result: `https://api.github.com/repos/huggingface/lerobot` (often 403),
    `https://api.openreview.net/notes?limit=1` (often 403), `https://dblp.org/search/publ/api?q=robot&format=json`
    (may turn into a bot-check page mid-run), `git ls-remote https://github.com/huggingface/lerobot` (bare clones
-   usually work when the API does not).
+   usually work when the API does not). The repository names only test connectivity; they are not tied to the domain.
+   For the core-region registers: a POST to the GEPRIS search backend and a `HEAD` on the SNSF grants dataset
+   (exact calls in `channels/funding-de-ch.md`).
 2. **Interpreter**: can you run Python 3? If yes, scripts in `scripts/` are usable. Otherwise follow the
    manual path in each stage file.
-3. **Files**: can you write files that persist across turns? If not, keep `signals` in the conversation
-   and emit the final table in one message.
+3. **Files**: can you write files under `RUN_DIR`? If not, keep `signals` in the conversation and emit the final
+   table in one message.
 
-## Fix scope with the user (defaults in brackets, ask only if unstated)
+## Fix scope
 
-- Domain phrase [required] and 0–5 seed names / labs / venues the user already knows [optional, helps stage 1].
-- Region [Europe = EU27 + UK + CH; codes in `assets/countries.yaml`]. "Based in region" means the
-  person's **current or most recent affiliation** is in region, regardless of nationality.
+Every item below except the domain phrase has a default. Apply the defaults the user did not override without asking;
+ask only for the domain phrase when the request does not name one. List the values you used in one line when you show
+the stage-1 summary, so the user can change them there.
+
+- Domain phrase [required, no default] and 0–5 seed names / labs / venues the user already knows [none].
+- Region, two layers (codes in `assets/countries.yaml`):
+  - `region_core` [DE+CH]: professors and research groups here come first in the table;
+  - `region_extended` [EU27+UK+CH]: everyone with a qualifying signal here gets a row; doctoral students in the
+    extended region rank right after the core-region rows. The tiers are in `references/50-output.md`.
+  "Based in region" means the person's **current or most recent affiliation** is in the region, regardless of
+  nationality. People outside `region_extended` get no person signal.
 - Time window [the 36 months ending on the run date, for all channels including funding]. For a run on 2026-10-12
   this is 2023-10-12 through 2026-10-12, inclusive. Record the exact bounds. Use the event or work date, never the
   date a page was fetched; see `channels/README.md`.
 - Final-pass budget [LinkedIn profile reads: 60 for a 50-row table, serial, 5 s apart; see `45-web-verification.md`].
 - Channels to run [all]. Page budget per channel [40 fetched pages; API calls and git clones are not pages]. Target
   roster size [50 rows]; the table is cut to this after sorting, and the Coverage block reports how many rows were cut.
+- `RUN_DIR` [see Paths].
 
 ## Write `run.meta.json`
 
+Write it to `RUN_DIR/run.meta.json`:
+
 ```json
-{"domain": "...", "purpose": "discovery of people through their public professional record; roles recorded as data",
- "seeds": [], "region": "EU27+UK+CH", "window_months": 36,
- "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 60,
- "channels": ["awards-papers","funding-eu","national-prizes","competitions","startups","industry","open-source"],
+{"domain": "...", "purpose": "discovery of technology and research groups through their public professional record; roles recorded as data",
+ "seeds": [], "region_core": "DE+CH", "region_extended": "EU27+UK+CH", "region": "EU27+UK+CH",
+ "window_months": 36, "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 60,
+ "channels": ["awards-papers","funding-eu","funding-de-ch","national-prizes","competitions","startups","industry","open-source"],
  "page_budget_per_channel": 40, "target_rows": 50,
- "env": {"web": "fetch|search_only", "interpreter": true, "files": true, "openalex": "keyed|keyless", "github_api": false, "openreview_api": false, "dblp": true},
+ "run_dir": "/absolute/path/to/runs/<slug>-YYYY-MM-DD",
+ "stage_status": {"0": "done", "1": "", "2": "", "3": "", "4": "", "5": "", "final_pass": ""},
+ "env": {"web": "fetch|search_only|none", "interpreter": true, "files": true, "openalex": "keyed|keyless", "github_api": false,
+         "openreview_api": false, "dblp": true, "git_clone": true, "gepris_api": true, "snsf_datasets": true},
  "started": "YYYY-MM-DD"}
 ```
+
+`region` is kept equal to `region_extended` for older readers. `stage_status` holds `""` (not started), `"running"`
+or `"done"` per stage; set a stage to `"running"` when you start it and to `"done"` when its "Done when" condition in
+`SKILL.md` holds. Stages 1 and 2 end with a stop for the user, so they stay `"running"` until the user has replied.
 
 Everything downstream cites this file so a reader can tell how the table was produced.

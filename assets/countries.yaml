@@ -1,5 +1,10 @@
-# Region definitions (ISO 3166-1 alpha-2). Default region = eu27 + uk_ch.
+# Region definitions (ISO 3166-1 alpha-2), two layers recorded in run.meta.json:
+#   region_core     = core      (default DE+CH): professors and groups here come first
+#   region_extended = extended  (default EU27+UK+CH): every row must be in here; doctoral students here rank next
+# Tiers built from the two layers: references/50-output.md. The old single `region` field equals region_extended.
 eu27: [AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE]
 uk_ch: [GB, CH]
 eea_extra: [IS, LI, NO]
-default: eu27 + uk_ch
+core: [DE, CH]
+extended: eu27 + uk_ch
+default: extended   # where a single region is asked for (the old `region` field)
