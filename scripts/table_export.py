@@ -9,22 +9,18 @@ after sorting and the Coverage block says how many rows were cut. --coverage-dir
 A person qualifies through at least one signal dated inside the window (default: the 36 months ending on
 --date). Ranking, channels_hit and hop_depth use qualifying signals only; older or undated signals stay in the
 row as evidence (signals and evidence_urls columns) and are listed in <out>.excluded-signals.json.
-Ranking uses eligible channel count, strongest signal, newest signal date, then name.
+Ranking uses tier, eligible channel count, strongest signal, newest signal date, then name.
 """
 from __future__ import annotations
 import argparse, csv, datetime, glob, json, os, sys
-
-REGIONS = {
-    "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
-    "UK": ["GB"], "CH": ["CH"], "EEA": ["IS","LI","NO"],
-}
-
-def region_codes(spec: str) -> set[str]:
-    return {c for part in spec.split("+") for c in REGIONS.get(part.strip().upper(), [])}
+from pathlib import Path
+from current_affiliation import region_codes
+from person_fields import topics_for
 
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
            "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes",
-           "fit", "first_pub_year", "latest_role", "homepage", "ranked_channels"]
+           "fit", "first_pub_year", "latest_role", "homepage", "ranked_channels",
+           "role_class", "role_confidence", "tier", "topics", "group"]
 
 STRENGTH = {"high": 3, "medium": 2, "low": 1}
 
@@ -86,70 +82,202 @@ def row_for(p: dict, domain: str, date: str) -> dict:
         "hop_depth": p.get("hop_depth", 0),
         "merge_confidence": p.get("merge_confidence", "low"),
         "affiliation_source": p.get("affiliation_source") or f"evidence {newest.get('date','')}",
-        "last_verified": date,
+        "last_verified": p.get("last_verified") or "",
         "notes": p.get("notes", ""),
         "fit": fit,
         "first_pub_year": p.get("first_pub_year", ""),
         "latest_role": newest.get("role") or "unknown",
-        "homepage": next((s["homepage"] for s in sigs if s.get("homepage")), ""),
+        "homepage": p.get("homepage") or next((s["homepage"] for s in sigs if s.get("homepage")), ""),
         "ranked_channels": ranked_channels(p),
+        "role_class": p.get("role_class", "unknown"),
+        "role_confidence": p.get("role_confidence", "low"),
+        "tier": p.get("tier", 4),
+        "topics": ";".join(topics_for(sigs)),
+        "group": p.get("group", ""),
     }
 
 def sort_key(p: dict) -> tuple:
     sigs = p.get("qualifying", p.get("signals", []))
     strongest = max((STRENGTH.get(s.get("strength"), 0) for s in sigs), default=0)
     newest = max((signal_date(s) for s in sigs), default=datetime.date.min)
-    return (-ranked_channels(p), -strongest, -newest.toordinal(), p.get("name", ""))
+    return (p.get("tier", 4), -ranked_channels(p), -strongest, -newest.toordinal(), p.get("name", ""))
 
-def write_md(rows: list[dict], path: str, coverage: str) -> None:
+def write_md(rows: list[dict], path: str, coverage: str, columns: list[str] = COLUMNS, appendix: str = "") -> None:
     with open(path, "w", encoding="utf-8") as f:
-        f.write("| " + " | ".join(COLUMNS) + " |\n|" + "---|" * len(COLUMNS) + "\n")
+        f.write("| " + " | ".join(columns) + " |\n|" + "---|" * len(columns) + "\n")
         for r in rows:
-            f.write("| " + " | ".join(str(r[c]).replace("|", "/") for c in COLUMNS) + " |\n")
-        f.write("\n## Coverage\n\n" + coverage)
+            f.write("| " + " | ".join(str(r[c]).replace("|", "/").replace("\n", " ").replace("\r", " ") for c in columns) + " |\n")
+        f.write("\n## Coverage\n\n" + coverage + appendix)
 
 def coverage_text(kept: int, cut: int, out_of_region: int, cov_dir: str | None) -> str:
     lines = [f"- rows in table: {kept}", f"- rows cut at --max-rows: {cut}", f"- persons outside region (see .out-of-region.json): {out_of_region}", ""]
     for path in sorted(glob.glob(os.path.join(cov_dir, "*.coverage.md"))) if cov_dir else []:
         lines.append(f"### {os.path.basename(path)}\n")
-        lines.append(open(path, encoding="utf-8").read().strip() + "\n")
+        with open(path, encoding="utf-8") as source:
+            lines.append(source.read().strip() + "\n")
     return "\n".join(lines)
 
-def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("persons"); p.add_argument("--domain", default=""); p.add_argument("--out", default="roster")
-    p.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today())
-    p.add_argument("--window-months", type=int, default=36, help="Months before --date that qualify a signal (default: 36)")
-    p.add_argument("--region", default="EU27+UK+CH"); p.add_argument("--max-rows", type=int, default=0)
-    p.add_argument("--coverage-dir", default=None)
-    a = p.parse_args()
-    if not 1 <= a.window_months <= a.date.year * 12:
-        p.error("--window-months must be positive and not reach before year 1")
-    try:
-        persons = [json.loads(l) for l in open(a.persons, encoding="utf-8") if l.strip()]
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"bad input: {exc}")
-    start = window_start(a.date, a.window_months)
-    original_count = len(persons)
-    persons, rejected = filter_window(persons, start, a.date)
-    codes = region_codes(a.region)
-    all_rows = [row_for(x, a.domain, a.date.isoformat()) for x in sorted(persons, key=sort_key)]
-    all_rows = [r for r in all_rows if r["evidence_urls"]]  # a row carries evidence or it is not a row
-    in_region = [r for r in all_rows if r["country"] in codes]
-    outside = [r for r in all_rows if r["country"] not in codes]
-    rows = in_region[: a.max_rows] if a.max_rows else in_region
-    cut = len(in_region) - len(rows)
-    with open(f"{a.out}.csv", "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=COLUMNS); w.writeheader(); w.writerows(rows)
-    with open(f"{a.out}.out-of-region.json", "w", encoding="utf-8") as f:
-        json.dump([{k: r[k] for k in ("name", "current_affiliation", "country", "affiliation_source")} for r in outside], f, ensure_ascii=False, indent=1)
-    with open(f"{a.out}.excluded-signals.json", "w", encoding="utf-8") as f:
-        json.dump(rejected, f, ensure_ascii=False, indent=2)
-    window_coverage = (f"- signal window: {start} to {a.date} (inclusive; year/month-only dates use the first day)\n"
-                       f"- signals outside the window or undated, kept as evidence but not ranked: {len(rejected)} (see .excluded-signals.json)\n"
-                       f"- persons without a qualifying signal, not in table: {original_count - len(persons)}\n")
-    write_md(rows, f"{a.out}.md", window_coverage + coverage_text(len(rows), cut, len(outside), a.coverage_dir))
-    print(f"wrote {len(rows)} rows ({cut} cut, {len(outside)} outside region) → {a.out}.csv, {a.out}.md", file=sys.stderr)
 
-if __name__ == "__main__":
+def country_for(person: dict) -> str:
+    newest = max(person.get('signals', []), key=signal_date, default={})
+    return person.get('country') or newest.get('country', '')
+
+
+def tier_for(person: dict, core: set[str], extended: set[str] | None = None) -> int:
+    country = country_for(person)
+    if country not in (extended if extended is not None else region_codes('EU27+UK+CH')):
+        return 4  # Export removes these records before ranking.
+    role = person.get('role_class', 'unknown')
+    if country in core and role == 'professor':
+        return 1
+    if country in core and role in {'researcher', 'phd_student'}:
+        return 2
+    if country not in core and role == 'phd_student':
+        return 3
+    return 4
+
+
+def evidence_appendix(persons: list[dict]) -> str:
+    lines = ['\n## Evidence\n']
+    for person in persons:
+        lines.append(f"\n### {person['name']}\n")
+        lines.append(person.get('role_evidence', 'Role evidence unavailable') + '\n')
+        lines.extend(f"- {s.get('signal_type', '')}@{s.get('date') or ''}: {s.get('snippet', '')} | {s.get('evidence_url', '')}"
+                     for s in person.get('signals', []))
+    return '\n'.join(lines) + '\n'
+
+
+GROUP_COLUMNS = ['group', 'pi_name', 'institution', 'country', 'tier', 'homepage', 'topics', 'members',
+                 'member_count', 'recent_outputs', 'active_funding', 'open_source', 'evidence_urls']
+
+
+def unique_signals(persons: list[dict]) -> list[dict]:
+    signals = [s for p in persons for s in p.get('signals', [])]
+    # The same paper or grant may occur on several members' records.
+    keyed = {}
+    for signal in signals:
+        key = (signal.get('signal_type'), signal.get('date'), signal.get('evidence_url'))
+        previous = keyed.get(key)
+        if previous is None or STRENGTH.get(signal.get('strength'), 0) > STRENGTH.get(previous.get('strength'), 0):
+            keyed[key] = signal
+    return list(keyed.values())
+
+
+def join_unique(values) -> str:
+    return ';'.join(dict.fromkeys(value for value in values if value))
+
+
+def group_row(group: str, persons: list[dict], start: datetime.date, end: datetime.date) -> dict:
+    members = sorted(persons, key=lambda p: (p['tier'], p.get('name', '')))
+    pi_name, _, institution = group.rpartition(' @ ')
+    pi = next((p for p in members if p.get('name') == pi_name), {})
+    signals = [s for p in members for s in p.get('signals', [])]
+    recent = sorted((s for s in unique_signals(members) if start <= signal_date(s) <= end),
+                    key=lambda s: (-STRENGTH.get(s.get('strength'), 0), -signal_date(s).toordinal(),
+                                   s.get('signal_type', ''), s.get('evidence_url', '')))
+    return {
+        'group': group or '(ungrouped)', 'pi_name': pi_name, 'institution': institution,
+        'country': join_unique(country_for(p) for p in members), 'tier': min(p['tier'] for p in members),
+        'homepage': pi.get('homepage') or next((s['homepage'] for s in pi.get('signals', []) if s.get('homepage')), ''),
+        'topics': ';'.join(topics_for(signals)),
+        'members': ';'.join(f"{p['name']}({p.get('role_class', 'unknown')})" for p in members),
+        'member_count': len(members),
+        'recent_outputs': ';'.join(f"{s.get('signal_type')}@{s.get('date') or ''}: {(s.get('snippet') or '')[:80]}" for s in recent[:3]),
+        'active_funding': join_unique(f"{s.get('signal_type')}@{s.get('date') or ''}" for s in signals
+                                      if s.get('signal_type', '').startswith(('erc_', 'dfg_', 'snsf_'))),
+        'open_source': join_unique(s.get('evidence_url', '') for s in signals if s.get('channel') == 'open-source'),
+        'evidence_urls': join_unique(s.get('evidence_url', '') for s in signals),
+    }
+
+
+def group_rows(persons: list[dict], start: datetime.date, end: datetime.date) -> list[dict]:
+    groups = {}
+    for person in persons:
+        groups.setdefault(person.get('group') or '', []).append(person)
+    rows = [group_row(group, members, start, end) for group, members in groups.items()]
+    return sorted(rows, key=lambda row: (row['group'] == '(ungrouped)', row['tier'], -row['member_count'], row['pi_name']))
+
+
+def write_csv(rows: list[dict], path: str, columns: list[str]) -> None:
+    with open(path, 'w', encoding='utf-8-sig', newline='') as target:
+        writer = csv.DictWriter(target, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_groups(persons: list[dict], out: str, start: datetime.date, end: datetime.date) -> None:
+    rows = group_rows(persons, start, end)
+    path = Path(out).parent / 'groups'
+    count = sum(bool(p.get('group')) for p in persons)
+    coverage = (f"- groups: {sum(row['group'] != '(ungrouped)' for row in rows)}\n"
+                f"- ungrouped persons: {len(persons) - count}\n"
+                '- scope: people retained in the cut roster\n')
+    write_csv(rows, str(path) + '.csv', GROUP_COLUMNS)
+    write_md(rows, str(path) + '.md', coverage, GROUP_COLUMNS)
+
+
+def select_persons(persons: list[dict], args) -> tuple:
+    start = window_start(args.date, args.window_months)
+    qualified, rejected = filter_window(persons, start, args.date)
+    codes, core = region_codes(args.region), region_codes(args.region_core)
+    eligible = [{**p, 'tier': tier_for(p, core, codes)} for p in qualified
+                if any(s.get('evidence_url') for s in p.get('signals', []))]
+    in_region = sorted((p for p in eligible if country_for(p) in codes), key=sort_key)
+    outside = [row_for(p, args.domain, args.date.isoformat()) for p in eligible if country_for(p) not in codes]
+    selected = in_region[:args.max_rows] if args.max_rows else in_region
+    return selected, outside, rejected, len(in_region) - len(selected), len(persons) - len(qualified)
+
+
+def window_coverage(persons: list[dict], selected: list[dict], start: datetime.date,
+                    end: datetime.date, no_qualifying: int) -> str:
+    retained_background = sum(not start <= signal_date(s) <= end for p in selected for s in p.get('signals', []))
+    omitted_signals = sum(len(p.get('signals', [])) for p in persons) - sum(len(p.get('signals', [])) for p in selected)
+    return (f'- signal window: {start} to {end} (inclusive; year/month-only dates use the first day)\n'
+            f'- signals outside the window or undated, retained on table persons as evidence but not ranked: {retained_background}\n'
+            f'- signals belonging to omitted persons (window, region, missing evidence or row cut): {omitted_signals}\n'
+            '- window-excluded signals from both retained and omitted persons: see .excluded-signals.json\n'
+            f'- persons without a qualifying signal, not in table: {no_qualifying}\n')
+
+
+def export(persons: list[dict], args) -> None:
+    selected, outside, rejected, cut, no_qualifying = select_persons(persons, args)
+    rows = [row_for(p, args.domain, args.date.isoformat()) for p in selected]
+    start = window_start(args.date, args.window_months)
+    write_csv(rows, f'{args.out}.csv', COLUMNS)
+    with open(f'{args.out}.out-of-region.json', 'w', encoding='utf-8') as target:
+        json.dump([{k: r[k] for k in ('name', 'current_affiliation', 'country', 'affiliation_source')} for r in outside], target, ensure_ascii=False, indent=1)
+    with open(f'{args.out}.excluded-signals.json', 'w', encoding='utf-8') as target:
+        json.dump(rejected, target, ensure_ascii=False, indent=2)
+    coverage = window_coverage(persons, selected, start, args.date, no_qualifying)
+    coverage += coverage_text(len(rows), cut, len(outside), args.coverage_dir)
+    write_md(rows, f'{args.out}.md', coverage, appendix=evidence_appendix(selected))
+    write_groups(selected, args.out, start, args.date)
+    print(f'wrote {len(rows)} rows ({cut} cut, {len(outside)} outside region) → {args.out}.csv, {args.out}.md, groups.csv, groups.md', file=sys.stderr)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('persons')
+    parser.add_argument('--domain', default='')
+    parser.add_argument('--out', default='roster')
+    parser.add_argument('--date', type=datetime.date.fromisoformat, default=datetime.date.today())
+    parser.add_argument('--window-months', type=int, default=36)
+    parser.add_argument('--region', '--region-extended', dest='region', default='EU27+UK+CH')
+    parser.add_argument('--region-core', default='DE+CH')
+    parser.add_argument('--max-rows', type=int, default=0)
+    parser.add_argument('--coverage-dir', default=None)
+    args = parser.parse_args()
+    if not 1 <= args.window_months <= (args.date.year - 1) * 12 + args.date.month - 1:
+        parser.error('--window-months must be positive and not reach before year 1')
+    if args.max_rows < 0:
+        parser.error('--max-rows must be non-negative')
+    try:
+        with open(args.persons, encoding='utf-8') as source:
+            persons = [json.loads(line) for line in source if line.strip()]
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f'bad input: {exc}')
+    export(persons, args)
+
+
+if __name__ == '__main__':
     main()
