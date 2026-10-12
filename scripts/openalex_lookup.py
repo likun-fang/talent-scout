@@ -13,6 +13,8 @@ Set OPENALEX_API_KEY (free, openalex.org/settings/api) for more than ~100 calls/
 from __future__ import annotations
 import argparse, datetime, json, os, sys, urllib.parse, urllib.request
 
+from openalex_auth import auth_headers
+
 API = "https://api.openalex.org"
 REGIONS = {
     "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
@@ -26,15 +28,17 @@ def region_codes(spec: str) -> list[str]:
     return codes
 
 def get(path: str, params: dict) -> dict:
-    key = os.environ.get("OPENALEX_API_KEY")
-    params = {**params, "api_key": key} if key else params
     url = f"{API}{path}?{urllib.parse.urlencode(params, safe=':,|>')}"
-    req = urllib.request.Request(url, headers={"User-Agent": "talent-scout/0.1 (mailto:unset)"})
     try:
+        headers = auth_headers()
+    except RuntimeError as exc:
+        raise SystemExit(f"openalex configuration error: {exc}") from None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "talent-scout/0.1 (mailto:unset)", **headers})
         with urllib.request.urlopen(req, timeout=60) as resp:
             return json.load(resp)
     except Exception as exc:  # network / HTTP / JSON
-        raise SystemExit(f"openalex request failed: {url}\n{exc}")
+        raise SystemExit(f"openalex request failed: {path} ({type(exc).__name__})")
 
 REPOSITORY_WORDS = ("arxiv", "zenodo", "ssrn", "hal ", "research square", "biorxiv", "openreview", "techrxiv")
 

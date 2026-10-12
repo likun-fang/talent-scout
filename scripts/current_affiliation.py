@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
 from person_fields import assign_groups, topics_for
+from openalex_auth import auth_headers
 
 REGIONS = {
     "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
@@ -102,9 +103,11 @@ def orcid_current(orcid: str, cache: ResponseCache | None = None) -> tuple | Non
     return best
 
 def openalex_get(path: str, cache_key: str, cache: ResponseCache | None) -> dict | None:
-    key = os.environ.get("OPENALEX_API_KEY", "")
-    suffix = ("&" if "?" in path else "?") + urllib.parse.urlencode({"api_key": key}) if key else ""
-    return cached_get(cache_key, f"https://api.openalex.org/{path}{suffix}", cache)
+    try:
+        headers = auth_headers()
+    except RuntimeError as exc:
+        raise SystemExit(f"openalex configuration error: {exc}") from None
+    return cached_get(cache_key, f"https://api.openalex.org/{path}", cache, headers)
 
 def openalex_current(author_id: str, cache: ResponseCache | None = None) -> tuple | None:
     author_id = author_id.rstrip("/").rsplit("/", 1)[-1]
@@ -148,10 +151,22 @@ TITLE_RULES = (
     ('professor', r'\b(?:professors?|professorin\w*|prof\.|chair of|chair holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|faculty members?)\b|\bprof\.|^\s*faculty\s*$'),
     ('group_leader', r'\b(?:group leaders?|heads? of (?:the )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department)|principal investigators?|nachwuchsgruppenleiter\w*|team leaders?|lab directors?)\b|^\s*pi\s*$'),
 )
+# Add country-specific titles without widening the existing English/German rules.
+# These are appointments/stages, not degree names (doctorat/doctorado/Dr.). French
+# maître de conférences and directeur de recherche do not prove a full professorship
+# or leadership of a particular group; preserve the original title in the evidence.
+LOCAL_TITLE_RULES = (
+    ('phd_student', r'\b(?:doctorant(?:e)?s?|doctorand[oa]s?|promovend(?:us|a|i|ae))\b'),
+    ('researcher', r'\b(?:ma[iî]tre(?:sse)?s? de conf[eé]rences|charg[eé](?:e)?s? de recherche|direct(?:eur|rice)s? de recherche|investigador(?:a)?(?:es|as)? postdoctoral(?:es)?|onderzoekers?)\b'),
+    ('professor', r'\b(?:professeur(?:e)?s? des universit[eé]s|catedr[aá]tic[oa]s? de universidad|profesor(?:a)?(?:es|as)? titular(?:es)? de universidad|hoogleraren|hoogleraar)\b'),
+    ('group_leader', r"\b(?:responsables? d['’][eé]quipe|chef(?:fe)?s? d['’][eé]quipe|jef[ea]s? de grupo|groepsleiders?)\b"),
+)
+LOCAL_PAST_TITLE = r'\b(?:former|previous|ancien(?:ne)?s?|ex|voormalig(?:e)?|antigu[oa]s?)\b'
+LOCAL_MIXED = r'\s(?:et|y|en)\s'
 MIXED = r'\s(?:and|und|&|/|or|oder)\s|,\s|/'
 # Words that make a joined heading a membership list rather than one person's stage.
 OTHER_MEMBERS = r'\b(?:staff|scientific (?:assistants?|staff|employees?)|technical|administrative|alumni|members?|guests?|visitors?|students?)\b'
-SUPERVISOR = r'\b(?:in the group of|in the lab of|supervised by|advised by|with prof|advisor|betreut von)\b.*$'
+SUPERVISOR = r'\b(?:in the group of|in the lab of|supervised by|advised by|with prof|advisor|betreut von|sous la direction de|supervisad[oa] por|onder begeleiding van)\b.*$'
 PRECEDENCE = ('phd_student', 'professor', 'group_leader', 'researcher')
 COMPANY = r'\b(?:gmbh|ag|ltd|inc|sa)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_')
@@ -167,7 +182,12 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '') -
     One person's joined titles ("Professor and Head of Lab") keep the highest-precedence class."""
     own = re.sub(SUPERVISOR, '', title, flags=re.I)
     matches = [role_class for role_class, pattern in TITLE_RULES if re.search(pattern, own, re.I)]
+    local_matches = [] if re.search(LOCAL_PAST_TITLE, own, re.I) else [
+        role_class for role_class, pattern in LOCAL_TITLE_RULES if re.search(pattern, own, re.I)]
+    matches = list(dict.fromkeys(matches + local_matches))
     joined = re.search(MIXED, own, re.I)
+    if local_matches:
+        joined = joined or re.search(LOCAL_MIXED, own, re.I)
     stage_words = re.sub(r'ph\.?d\.? students?|doctoral students?', '', own, flags=re.I)
     if joined and matches and (('phd_student' in matches and len(matches) > 1) or re.search(OTHER_MEMBERS, stage_words, re.I)):
         return 'mixed'
