@@ -4,7 +4,8 @@ Every channel emits **signals** in one schema (`assets/signal.schema.json`). A s
 something that is hopped to people (org, work, team, company). Each channel does its own hops (rules in
 `../30-hops.md`): emit the non-person signal, then one person signal per person in `region_extended` with
 `hop_depth: 1` and `parent` set. Write `signals/<channel>.jsonl` and `signals/<channel>.coverage.md` (pages read, skipped at budget,
-rosters not public, where the method did not fit reality).
+rosters not public, where the method did not fit reality). Wherever a channel file says "in region", read
+`region_extended`; `region_core` decides the tier later, not who gets a signal.
 
 ```json
 {"kind": "person|org|work|team|company",

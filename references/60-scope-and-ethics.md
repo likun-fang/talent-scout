@@ -1,8 +1,9 @@
 # Scope and conduct (read once per run)
 
-- Purpose is discovery of people through their **public professional record**. Output lists
-  people and their work; it does not assess willingness to move, salary, seniority fit, or
+- Purpose is discovery of technology and research groups through people's **public professional record**. Output
+  lists people and their work; it does not assess willingness to move, salary, seniority fit, or
   anything about private life.
+- Role class, tier and group are data and a sort order taken from public pages; they are not an assessment of anyone.
 - Sources are the public professional record: institutional web pages, papers, grant registers, competition
   results, public code, company team pages. Public LinkedIn profiles are read only in the final pass, only for the
   rows in the cut table, only to confirm a current role, and only the headline, experience and education
