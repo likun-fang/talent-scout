@@ -111,3 +111,15 @@ Tests use synthetic fixtures, standard-library `unittest` and mocked lookups; th
 ```sh
 python3 -m unittest discover -s tests
 ```
+
+## Local OpenAlex setup
+
+Run `python3 scripts/setup_openalex.py` in an interactive terminal, or double-click
+`scripts/setup-openalex.command` on macOS. Copy a key from https://openalex.org/settings/api
+and paste it at the hidden prompt. The script checks the rate-limit endpoint before saving the key
+to `.secrets/openalex.key` with mode 0600; `.secrets/` is ignored by Git.
+
+Both OpenAlex helpers load credentials in this order: `OPENALEX_API_KEY`, the file named by
+`OPENALEX_API_KEY_FILE`, then `.secrets/openalex.key`. Requests use a Bearer header, not a URL query key.
+Use `python3 scripts/setup_openalex.py --check` to check connectivity without printing the key.
+No key means anonymous requests; the setup script does not enable billing or change account settings.

@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
 from person_fields import assign_groups, topics_for
+from openalex_auth import auth_headers
 
 REGIONS = {
     "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
@@ -102,9 +103,7 @@ def orcid_current(orcid: str, cache: ResponseCache | None = None) -> tuple | Non
     return best
 
 def openalex_get(path: str, cache_key: str, cache: ResponseCache | None) -> dict | None:
-    key = os.environ.get("OPENALEX_API_KEY", "")
-    suffix = ("&" if "?" in path else "?") + urllib.parse.urlencode({"api_key": key}) if key else ""
-    return cached_get(cache_key, f"https://api.openalex.org/{path}{suffix}", cache)
+    return cached_get(cache_key, f"https://api.openalex.org/{path}", cache, auth_headers())
 
 def openalex_current(author_id: str, cache: ResponseCache | None = None) -> tuple | None:
     author_id = author_id.rstrip("/").rsplit("/", 1)[-1]
