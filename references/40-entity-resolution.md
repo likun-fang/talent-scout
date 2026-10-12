@@ -34,3 +34,71 @@ matches as separate rows. Manual path: build the table in the conversation, one 
 - arXiv papers can carry one wrong affiliation for every author (LeRobot → Oxford). Prefer the project page or GitHub.
 - Industry people rarely have ORCID; GitHub + company page is the pair to look for.
 - Name order and diacritics: normalise (NFKD, strip marks, lowercase) before any comparison.
+
+## Role and person fields
+
+Keep `role` on each signal as the participation role (for example `pi` or `first_author`).
+`role_class` describes the person. `current_affiliation.py` applies the following rules in order;
+stop at the first match. It uses only the standard library.
+
+| priority | evidence | role_class | role_confidence |
+|----------|----------|------------|-----------------|
+| 1 | Verbatim title: professor, prof., chair, lehrstuhl, group leader, head of lab/group/chair, juniorprofessor, assistant professor, associate professor, faculty, principal investigator; direktor/director with research-institute context | professor | high |
+| 1 | Verbatim title: phd student, doctoral student/researcher/candidate, doktorand, dissertation, ph.d. candidate | phd_student | high |
+| 1 | Verbatim title: postdoc, postdoctoral, senior scientist, research scientist, wissenschaftlicher mitarbeiter, research associate, staff scientist, oberassistent | researcher | high |
+| 1 | engineer, software, research engineer with institution type company; or a title containing GmbH/AG/Ltd/Inc | industry | high |
+| 2 | `erc_*`, `dfg_*`, `snsf_*` signal with `role: pi`; `snsf_ambizione` is the exception | professor; Ambizione → researcher | high |
+| 3 | OpenAlex `institution.type == company`, or `affiliation_raw` contains GmbH/AG/Ltd/Inc/SA as a word | industry | medium |
+| 4 | Run year minus `first_pub_year` is 0–5 and strictly more than half of all signals have `role: first_author` | phd_student | low |
+| 4 | Run year minus `first_pub_year` is at least 10 and strictly more than half of all signals have `role: last_author` or `pi` | professor | low |
+| 4 | All other cases, including a missing/invalid publication year or no majority | unknown | low |
+
+Rule 1 sources are signal `role_title`, current ORCID employment `role-title`, and a final-pass
+LinkedIn headline. Within this rule, use the dated final-pass headline first, then current ORCID,
+then signal titles from newest to oldest. Stale ORCID employment rejected during affiliation resolution
+also cannot supply a title. OpenAlex type applies only when its institution is the selected current
+institution. A generic director title without institute context does not imply professor.
+
+Every classification writes `role_evidence` as `<source> | <verbatim excerpt> | <URL>`; the source
+includes `rule 1`, `rule 2`, `rule 3` or `rule 4`. Inference records the publication year, run year and
+participation roles instead of inventing a quoted title. For `Wissenschaftlicher Mitarbeiter`, the source
+also includes `DE: may be PhD student`. Rule 4 without any source URL keeps that component empty.
+
+Signal `topics` contains 1–3 phrases copied verbatim from a paper title, project name or repository name;
+`role_title` is also verbatim. The schema retains an open signal-type vocabulary, including
+`dfg_project`, `dfg_emmy_noether`, `dfg_heisenberg`, `snsf_project`, `snsf_starting_grant`,
+`snsf_ambizione`, `snsf_professorship`, `graduiertenkolleg_member` and `imprs_member`.
+Funding signals prefixed `erc_`, `dfg_` or `snsf_` carry `role: pi`. Membership signals alone do not establish
+a doctoral role. Person `topics` is the union of signal topics in input order, deduplicated exactly and
+limited to five; do not paraphrase or case-fold the phrases.
+
+`group` is `<PI name> @ <institution>`. A person with a PI signal anchors their own group.
+For other people, infer a group only from the same institution and shared nonempty `parent`, or a
+shared paper `evidence_url` where the leader is `last_author` and the member is `first_author`/`coauthor`.
+A linked last author also receives that group's name. Institution names must match after whitespace/case
+normalization, both on the linking signals and on the persons' current affiliations. Missing institutions,
+multiple possible leaders and unmatched people leave `group` empty; titles alone do not establish group
+membership. This intentionally leaves institution aliases and uncertain co-supervision for review.
+
+Stage 4 emits `role_class`, `role_evidence`, `role_confidence`, `topics`, `group`, `tier` and `last_verified`.
+The tier helper lives in `table_export.py` (see `50-output.md`) and is reused by both stage-4 CLIs.
+Export recomputes tiers using the requested regions. Out-of-region persons carry a placeholder tier 4
+in stage 4 and are excluded from the roster.
+
+`last_verified` starts as `""`. Only the final pass that actually reads a person's page may fill it with
+the read date; lookups, merging and table export do not verify a person or manufacture a date.
+Enrichment and export preserve an explicitly supplied verification date. For a reviewed final-pass
+LinkedIn headline, supply `linkedin_headline` and `linkedin_url` on the person together with that date;
+a headline without `last_verified` is ignored. These are optional input adapters, not new output columns.
+Do not mark a refused page as verified. `visit_page.py` retains `role_verified: false` until a human/agent
+reviews what was read.
+
+Pass the same run date to stage 4 and export, for example:
+
+```sh
+python3 "$SKILL_ROOT/scripts/merge_persons.py" "$RUN_DIR/signals.jsonl" --date 2026-10-12 > "$RUN_DIR/persons.jsonl"
+python3 "$SKILL_ROOT/scripts/current_affiliation.py" "$RUN_DIR/persons.jsonl" --date 2026-10-12 --region-core DE+CH --region EU27+UK+CH --cache-dir "$RUN_DIR/cache/affiliation" > "$RUN_DIR/persons.enriched.jsonl"
+```
+
+The first command is offline. The optional enrichment command uses provider lookups and caches responses;
+it preserves input order even with multiple workers. Run artifacts and caches belong under `RUN_DIR`.
