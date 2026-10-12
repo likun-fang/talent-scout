@@ -3,7 +3,8 @@ slug: embodied-ai
 derived_on: "2026-10-08"
 window: {from: "2021-01-01", to: "2026-10-08"}   # counts below use this window; recompute for a 36-month run
 sources_used: [openalex-topics, openalex-group-by, erc-panels, euroscivoc, domain-cache-2026-10-08, web-search]
-region: "EU27+UK+CH"
+region_core: "DE+CH"          # field layout updated 2026-10-12; values below unchanged from 2026-10-08
+region_extended: "EU27+UK+CH"
 openalex_topics:
   - {id: T10462, name: Reinforcement Learning in Robotics}
   - {id: T10653, name: Robot Manipulation and Learning}
@@ -19,11 +20,12 @@ venues:
   journals:
     - {name: IEEE RA-L, openalex_source_id: S4210169774}
     - {name: IEEE T-RO, openalex_source_id: S144620930, note: "King-Sun Fu best paper award"}
-erc_panels: [PE6 (computer science/AI), PE7 (systems & robotics)]
+panels_to_sweep: [PE6 (computer science/AI), PE7 (systems & robotics)]
 euroscivoc_paths: ["/engineering and technology/electrical engineering, electronic engineering, information engineering/electronic engineering/robotics", "/natural sciences/computer and information sciences/artificial intelligence"]
+register_subject_filters: {dfg_review_boards: [], snsf_main_disciplines: []}   # not derived yet
 competitions:
-  - {name: RoboCup major leagues (Humanoid, SPL, @Home, Rescue, Industrial), results_url_pattern: league sites, roster_source: tdp, note: "junior leagues excluded"}
-  - {name: ICRA/IROS competitions (RGMC, legged, manipulation, AgiBot World), results_url_pattern: "<year>.ieee-icra.org/program/competitions", roster_source: team_site}
+  - {name: "RoboCup major leagues (Humanoid, SPL, @Home, Rescue, Industrial)", results_url_pattern: league sites, roster_source: tdp, note: "junior leagues excluded"}
+  - {name: "ICRA/IROS competitions (RGMC, legged, manipulation, AgiBot World)", results_url_pattern: "<year>.ieee-icra.org/program/competitions", roster_source: team_site}
   - {name: ANA Avatar XPRIZE / Cybathlon / European Rover Challenge / euRobin challenges, roster_source: team_site}
 labs:
   - {name: "Centre National de la Recherche Scientifique", openalex_institution_id: I1294671590, works: 1639}

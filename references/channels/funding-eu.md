@@ -10,10 +10,15 @@ only on reserve lists.
 
 ## ERC (highest yield per page)
 - Results PDFs per call: `https://erc.europa.eu/system/files/<year-month>/erc-<year>-<stg|cog|adg|syg>-results-all-domains.pdf`, plus per-domain variants (`-pe.pdf`). Columns: last name, first name, host institution, host institution local name, host country, acronym, title, panel.
-- Sweep every PE row by title keywords (panels are only a weak proxy, see stage 1), then read the matching rows. Emit `person` signals with `role: pi`, `signal_type: erc_<stg|cog|adg|syg>`, strength high.
+- Stage 1 hands over `panels_to_sweep` and `keywords` from the domain map; the sweep is done here. Panels are only a
+  weak proxy (PE7 is mostly electronics and communications, soft robotics sits in PE8, learning in PE6), so match
+  titles against the keywords across **every PE row** of each results PDF in the window, reading `panels_to_sweep`
+  first, plus any LS or SH panel the map lists. Write `panels_swept` and the keyword list into the coverage note.
+- Emit `person` signals with `role: pi`, `signal_type: erc_<stg|cog|adg|syg>`, strength high, for hosts in
+  `region_extended`; DE and CH hosts are the core region.
 - Read the PDF directly (or its extracted text). Cells wrap over several lines, so read record by record: a record is
   the line carrying `<last name> … <country code> <acronym> … <panel>` plus the title lines around it. Keep the rows
-  whose panel is in the domain map and whose title matches the domain; copy the title verbatim into `snippet`.
+  whose title matches the keywords, whatever their panel; copy the title verbatim into `snippet`.
   A tried column-splitting script recovered 38 of ~478 rows on the 2025 StG PDF, so reading beats parsing here.
 - ERC project pages (`erc.europa.eu/projects-statistics`) and CORDIS give the project abstract when title keywords are ambiguous.
 
