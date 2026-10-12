@@ -12,6 +12,11 @@ page that named the person.
 | `company` | "About / team" page for founders and technical leads; OpenAlex works with the company as institution; company GitHub org; patents with company as applicant. | the specific page |
 | `person` (snowball, one hop only, optional) | Co-authors in the domain with region affiliation in the window, via OpenAlex `works?filter=authorships.author.id:<A>,topics.id:<T>`. Mark `hop_depth: 2`, strength low. | the shared work |
 
+Person signals retain the date of the underlying work, award, competition, or contribution;
+opening a team page today does not make an old achievement recent. For snowball queries,
+add `from_publication_date:<window_start>,to_publication_date:<window_end>`.
+Old or undated pages may resolve identities and affiliations but cannot supply qualifying activity.
+
 ## Budget
 Hops are where pages disappear. Order: works first (cheapest, highest precision), then teams,
 companies, orgs. Snowball only if the roster is below target after merging.

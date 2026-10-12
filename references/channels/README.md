@@ -38,3 +38,23 @@ that profile's works match the domain; name search alone returned a chemist for 
 | Open source | `open-source.md` | yes: GitHub anonymous API |
 
 Stop a channel at its page budget. Write a `skipped` note listing what was not read so the gap is visible.
+
+## Date rules (all channels)
+
+Use `window_start` and `window_end` from `run.meta.json`, defaulting to January 1 of the run year
+minus two through the run date. For 2026-10-12, the window is 2024-01-01 to 2026-10-12.
+
+- Awards and prizes: award date/year; competitions: the relevant result date/year.
+- Funding: award/selection date, or project start date if award date is unavailable (say which in `note`).
+  An older grant still running today is background, unless there is a separately evidenced recent output.
+- Industry: publication, patent publication, talk, or engineering post date.
+- Startups: dated funding, product, or technical milestone; an undated founder biography is background.
+- Open source: dated contributions/releases in the window, attributable to the person. Lifetime stars or
+  a currently accessible maintainer page alone do not demonstrate recent activity. Bound git logs with
+  both `--since` and `--until` for the window (include the full end day).
+
+Store `date` as YYYY, YYYY-MM, or YYYY-MM-DD; year/month-only dates are interpreted as their first day.
+Never substitute the crawl date for an unknown event date. Old and undated sources can help identify
+people or verify affiliations, but do not emit them as qualifying activity. Record exclusions and
+unresolved dates in channel coverage. A fresh parent event does not prove that an old team roster
+participated: confirm membership for that event before inheriting its date in a person signal.

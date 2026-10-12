@@ -20,14 +20,17 @@
 - Domain phrase [required] and 0–5 seed names / labs / venues the user already knows [optional, helps stage 1].
 - Region [Europe = EU27 + UK + CH; codes in `assets/countries.yaml`]. "Based in region" means the
   person's **current or most recent affiliation** is in region, regardless of nationality.
-- Time window [last 5 years for awards / competitions; last 7 years for funding].
+- Time window [current calendar year and previous two years, through the run date, for all channels including funding].
+  For a run on 2026-10-12 this is 2024-01-01 through 2026-10-12, inclusive. Record exact bounds.
+  Use the event/work date, not the date a page was fetched; see `channels/README.md`.
 - Channels to run [all]. Page budget per channel [40 fetched pages; API calls and git clones are not pages]. Target
   roster size [50 rows]; the table is cut to this after sorting, and the Coverage block reports how many rows were cut.
 
 ## Write `run.meta.json`
 
 ```json
-{"domain": "...", "seeds": [], "region": "EU27+UK+CH", "window_years": 5, "funding_window_years": 7,
+{"domain": "...", "seeds": [], "region": "EU27+UK+CH", "window_years": 3, "funding_window_years": 3,
+ "window_start": "YYYY-01-01", "window_end": "YYYY-MM-DD",
  "channels": ["awards-papers","funding-eu","national-prizes","competitions","startups","industry","open-source"],
  "page_budget_per_channel": 40, "target_rows": 50,
  "env": {"web": "fetch|search_only", "interpreter": true, "files": true, "openalex": "keyed|keyless", "github_api": false, "openreview_api": false, "dblp": true},

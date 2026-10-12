@@ -2,7 +2,7 @@
 """Keyless OpenAlex helpers for talent-scout.
 
 Usage:
-  openalex_lookup.py --topic "embodied AI" [--region EU27+UK+CH] [--since 2021]   # lists the top 10 topics
+  openalex_lookup.py --topic "embodied AI" [--region EU27+UK+CH]   # lists the top 10 topics
   openalex_lookup.py --topics T10462,T10653 [--region ...] [--since ...]          # venues/institutions/authors for chosen topics
   openalex_lookup.py --title "Paper title"
   openalex_lookup.py --author A1234567890
@@ -10,7 +10,7 @@ Prints JSON to stdout. Standard library only.
 Set OPENALEX_API_KEY (free, openalex.org/settings/api) for more than ~100 calls/day.
 """
 from __future__ import annotations
-import argparse, json, os, sys, urllib.parse, urllib.request
+import argparse, datetime, json, os, sys, urllib.parse, urllib.request
 
 API = "https://api.openalex.org"
 REGIONS = {
@@ -43,9 +43,10 @@ def list_topics(phrase: str) -> dict:
                         "subfield": (t.get("subfield") or {}).get("display_name")} for t in topics],
             "next": "pick the topics that are the domain, then rerun with --topics T1,T2"}
 
-def topic_groups(topic_ids: str, region: str, since: int) -> dict:
+def topic_groups(topic_ids: str, region: str, since: int, until: datetime.date | None = None) -> dict:
     ids = "|".join(t.strip() for t in topic_ids.split(",") if t.strip())
-    base = f"topics.id:{ids},publication_year:>{since - 1},authorships.countries:{'|'.join(region_codes(region))}"
+    until = until or datetime.date.today()
+    base = f"topics.id:{ids},from_publication_date:{since:04d}-01-01,to_publication_date:{until.isoformat()},authorships.countries:{'|'.join(region_codes(region))}"
     def grouped(key: str) -> list[dict]:
         rows = get("/works", {"filter": base, "group_by": key, "per_page": 100}).get("group_by", [])
         return [{"id": r["key"].rsplit("/", 1)[-1], "name": r.get("key_display_name"), "count": r["count"]} for r in rows]
@@ -83,12 +84,17 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--topic"); g.add_argument("--topics"); g.add_argument("--title"); g.add_argument("--author")
-    p.add_argument("--region", default="EU27+UK+CH"); p.add_argument("--since", type=int, default=2021)
+    p.add_argument("--region", default="EU27+UK+CH")
+    p.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today(), help="Run date and publication cutoff")
+    p.add_argument("--since", type=int, help="First publication year; default: run year minus 2")
     a = p.parse_args()
+    since = a.since if a.since is not None else a.date.year - 2
+    if not 1 <= since <= a.date.year:
+        p.error("--since must be between 1 and the run year")
     if a.topic:
         out = list_topics(a.topic)
     elif a.topics:
-        out = topic_groups(a.topics, a.region, a.since)
+        out = topic_groups(a.topics, a.region, since, a.date)
     elif a.title:
         out = title_authors(a.title)
     else:

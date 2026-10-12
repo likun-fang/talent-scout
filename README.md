@@ -5,12 +5,14 @@ roster table of notable people in Europe (EU27 + UK + CH by default), discovered
 awards, national prizes, EU funding, competitions, startups, industry labs and open source.
 
 Runs in any skills-aware agent (Claude.ai, Claude Code, ChatGPT, Codex, Cursor, ...) using only
-web search, page reading and keyless public APIs. Bundled Python scripts are optional accelerators.
+web search, page reading and keyless public APIs. Bundled Python scripts are optional accelerators. A webpage evidence reader also supports public LinkedIn
+profiles, with optional Playwright browser rendering for dynamic pages.
 
 ## What it does
 
 - Input: a domain phrase (semiconductors, computer architecture, embodied AI, ...). Output: a roster table
   (CSV + Markdown) of people, each row carrying evidence URLs.
+- All channels focus on the current calendar year and the previous two years, through the run date.
 - It finds people and records their public work. Role and career stage are data columns, nothing more.
 - The domain map is derived at run time from universal sources (OpenAlex topics, ERC panels, EuroSciVoc) and
   cached under `domain-cache/`; switching domains changes no procedure.

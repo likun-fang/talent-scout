@@ -26,6 +26,14 @@ otherwise guesses a local code page and turns ä, ł, ś into mojibake; Mac read
 | homepage | public lab or personal page, when any signal carried one |
 | ranked_channels | channels counted for sorting: those with a hop-0 signal or a high/medium signal |
 
+Before sorting, retain only signals inside the run window (default: current calendar year and previous two,
+through the run date). Exclude missing/invalid dates and future signals; a person needs at least one qualifying
+signal. Recompute channels and hop depth from the retained signals. Historical identity and affiliation facts
+may remain as background, and `first_pub_year` is still a lifetime fact, not an activity filter.
+The script writes rejected signals to `roster.excluded-signals.json` and reports counts in Coverage.
+Year/month-only dates use the first day of that year/month. Pass `--date` from `run.meta.json` for reproducibility
+and `--window-years` if an explicitly requested window differs from three years.
+
 Sort by `ranked_channels`, then strongest signal, then newest signal, then name. Low-strength hop-1 signals (a name
 in an author list) stay as evidence but do not lift a row; otherwise the industry channel's author lists outrank ERC
 grants and prizes. Keep only rows whose country is in

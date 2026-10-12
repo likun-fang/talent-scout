@@ -2,7 +2,8 @@
 
 Goal: turn a domain phrase into `domain-map.yaml` **without hand-curation**. Use the sources below
 in order; each one is domain-agnostic. If `domain-cache/<slug>.yaml` exists, load it and refresh
-only the dated fields (awards, competitions) instead of starting over.
+the dated fields and recompute publication-based counts for the run window instead of starting over.
+Cached counts from a wider window must not be reused as recent activity.
 
 ## 1. Venues and labs — OpenAlex (keyless JSON)
 
@@ -10,7 +11,7 @@ only the dated fields (awards, competitions) instead of starting over.
   domain (`scripts/openalex_lookup.py --topic` lists them). The third hit for "robot learning" was "Smart Agriculture
   and AI"; a topic such as "Reinforcement Learning in Robotics" also carries game theory and LLM fine-tuning, so plan a
   title keyword filter when you use it downstream.
-- Venues: `https://api.openalex.org/works?filter=topics.id:<id>,publication_year:>YYYY,authorships.countries:<region codes joined by |>&group_by=primary_location.source.id`
+- Venues: `https://api.openalex.org/works?filter=topics.id:<id>,from_publication_date:<window_start>,to_publication_date:<window_end>,authorships.countries:<region codes joined by |>&group_by=primary_location.source.id`
   → the domain's venues as seen from Europe (`--topics T1,T2` in the script). Drop repositories (arXiv, Zenodo, HAL)
   from the list. PMLR proceedings such as CoRL rarely surface here: add the field's known conferences by hand and
   say so in `sources_used`.

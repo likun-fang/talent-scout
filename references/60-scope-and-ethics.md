@@ -4,8 +4,9 @@
   people and their work; it does not assess willingness to move, salary, seniority fit, or
   anything about private life.
 - Sources are the public professional record: institutional web pages, papers, grant registers, competition
-  results, public code, company team pages. Pages behind a login, social-network profiles, people-search
-  aggregators and private contact details stay outside the run.
+  results, public code, company team pages, and publicly accessible LinkedIn professional profiles for
+  identity/current-role verification (see `45-web-verification.md`). Login-gated content, other social-network
+  profiles, people-search aggregators and private contact details stay outside the run.
 - Record no sensitive categories (health, politics, religion, ethnicity, nationality beyond what
   an affiliation country implies).
 - Every stored fact carries its public URL so the subject's own public record can be re-checked.

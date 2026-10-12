@@ -37,6 +37,7 @@ with six agents and produced 845 signals, 521 in-region people; its lessons are 
   bare git clones of anchor repos, EIC selected-company PDFs. Expect OpenReview, the GitHub REST API and DBLP to be
   blocked or rate-limited from agent sandboxes; each channel file names the fallback. Reach for web search where
   no structured source exists: award pages, competition results, lab team pages.
+- Use the last three calendar years (current year and previous two), through the run date, across all channels including funding. Follow the date rules in `references/channels/README.md`; old or undated signals cannot qualify a person or affect ranking.
 - Carry the evidence URL and a verbatim snippet with every signal from the moment you find it.
 - Keep two people with the same name as two rows marked `ambiguous` until a strong key or a shared institution joins them.
 - Stop a channel at its page budget and write the skipped items into the channel's coverage note.
@@ -56,7 +57,14 @@ The procedure is domain-agnostic; the domain map is derived at stage 1 and cache
 signal for which fields to re-check. Region codes, ERC panels, EuroSciVoc paths and the national prize
 registry are universal and live in `assets/`.
 
+## Web evidence for current roles
+
+For reading personal, institutional or public LinkedIn profiles during stage 4, use
+`references/45-web-verification.md`. The optional `scripts/visit_page.py` saves evidence and access status;
+reading a page does not itself verify a role.
+
 ## Scripts
 
 `scripts/` holds optional Python 3 standard-library helpers for OpenAlex lookups, merging and table export,
-each with a manual equivalent in its stage file. See `scripts/README.md`.
+each with a manual equivalent in its stage file. The webpage reader uses the standard library by default;
+its optional browser mode requires Playwright. See `scripts/README.md`.

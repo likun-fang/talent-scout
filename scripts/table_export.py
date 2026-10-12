@@ -6,6 +6,7 @@
 Rows whose country is outside the region go to <out>.out-of-region.json. With --max-rows the table is cut
 after sorting and the Coverage block says how many rows were cut. --coverage-dir appends every
 *.coverage.md it finds to roster.md. Standard library only.
+Only signals from the current calendar year and previous two years, through --date, qualify by default.
 Ranking uses eligible channel count, strongest signal, newest signal date, then name.
 """
 from __future__ import annotations
@@ -36,6 +37,23 @@ def signal_date(signal: dict) -> datetime.date:
 def ranked_channels(p: dict) -> int:
     return len({s["channel"] for s in p.get("signals", []) if s.get("channel") and
                 (s.get("hop_depth", 0) == 0 or s.get("strength") in {"high", "medium"})})
+
+def filter_window(persons: list[dict], start: datetime.date, end: datetime.date) -> tuple:
+    kept, rejected = [], []
+    for person in persons:
+        signals = []
+        for signal in person.get("signals", []):
+            date = signal_date(signal)
+            if start <= date <= end:
+                signals.append(signal)
+            else:
+                reason = "missing_or_invalid_date" if date == datetime.date.min else "outside_window"
+                rejected.append({"name": person.get("name", ""), "reason": reason, "signal": signal})
+        if signals:
+            kept.append({**person, "signals": signals,
+                         "channels_hit": sorted({s["channel"] for s in signals if s.get("channel")}),
+                         "hop_depth": min(s.get("hop_depth", 0) for s in signals)})
+    return kept, rejected
 
 def row_for(p: dict, domain: str, date: str) -> dict:
     sigs = p.get("signals", [])
@@ -89,16 +107,22 @@ def coverage_text(kept: int, cut: int, out_of_region: int, cov_dir: str | None) 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("persons"); p.add_argument("--domain", default=""); p.add_argument("--out", default="roster")
-    p.add_argument("--date", default=datetime.date.today().isoformat())
+    p.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today())
+    p.add_argument("--window-years", type=int, default=3, help="Calendar years including the run year (default: 3)")
     p.add_argument("--region", default="EU27+UK+CH"); p.add_argument("--max-rows", type=int, default=0)
     p.add_argument("--coverage-dir", default=None)
     a = p.parse_args()
+    if not 1 <= a.window_years <= a.date.year:
+        p.error("--window-years must be positive and not exceed the run year")
     try:
         persons = [json.loads(l) for l in open(a.persons, encoding="utf-8") if l.strip()]
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"bad input: {exc}")
+    start = datetime.date(a.date.year - a.window_years + 1, 1, 1)
+    original_count = len(persons)
+    persons, rejected = filter_window(persons, start, a.date)
     codes = region_codes(a.region)
-    all_rows = [row_for(x, a.domain, a.date) for x in sorted(persons, key=sort_key)]
+    all_rows = [row_for(x, a.domain, a.date.isoformat()) for x in sorted(persons, key=sort_key)]
     all_rows = [r for r in all_rows if r["evidence_urls"]]  # a row carries evidence or it is not a row
     in_region = [r for r in all_rows if r["country"] in codes]
     outside = [r for r in all_rows if r["country"] not in codes]
@@ -108,7 +132,12 @@ def main() -> None:
         w = csv.DictWriter(f, fieldnames=COLUMNS); w.writeheader(); w.writerows(rows)
     with open(f"{a.out}.out-of-region.json", "w", encoding="utf-8") as f:
         json.dump([{k: r[k] for k in ("name", "current_affiliation", "country", "affiliation_source")} for r in outside], f, ensure_ascii=False, indent=1)
-    write_md(rows, f"{a.out}.md", coverage_text(len(rows), cut, len(outside), a.coverage_dir))
+    with open(f"{a.out}.excluded-signals.json", "w", encoding="utf-8") as f:
+        json.dump(rejected, f, ensure_ascii=False, indent=2)
+    window_coverage = (f"- signal window: {start} to {a.date} (inclusive; year/month-only dates use the first day)\n"
+                       f"- signals excluded by date: {len(rejected)} (see .excluded-signals.json)\n"
+                       f"- persons without a qualifying signal: {original_count - len(persons)}\n")
+    write_md(rows, f"{a.out}.md", window_coverage + coverage_text(len(rows), cut, len(outside), a.coverage_dir))
     print(f"wrote {len(rows)} rows ({cut} cut, {len(outside)} outside region) → {a.out}.csv, {a.out}.md", file=sys.stderr)
 
 if __name__ == "__main__":
