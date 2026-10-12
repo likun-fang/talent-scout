@@ -40,13 +40,21 @@ python3 "$SKILL_ROOT/scripts/visit_page.py" --batch "$RUN_DIR/linkedin-urls.txt"
   per outbound address, then redirects to its authwall or answers HTTP 999. The batch stops at the first such
   refusal and lists the remaining URLs in `summary.json`; do not retry them, do not switch addresses, do not
   use cookies, proxies or hidden endpoints. Report the count read and refused in Coverage.
-- Budget: `final_pass_linkedin_budget` in `run.meta.json`, default 60 reads for a 50-row table.
+- Budget: `final_pass_linkedin_budget` in `run.meta.json`, default 20. LinkedIn is optional: the pass is complete
+  without it. When the first request is refused, the address's anonymous quota is spent (earlier reads from the same
+  machine count); record "quota spent" in Coverage and do not retry later in the run.
 - Data kept: headline, Experience, Education, Publications and Projects excerpts, URL and `retrieved_at`.
   The page text and link list are dropped unless `--full-text` is passed, and there is no reason to pass it.
 - A public profile is often partial: absence of an entry does not prove absence of a role. An explicit
   present-tense entry ("2023 - Present") is stronger than the headline alone.
 
 ## Recording the result
+
+When a read page prints the person's own title, write it onto the person record as `final_pass_title` (verbatim) and
+`final_pass_url`, with `last_verified` = the read date. Re-running `current_affiliation.py` (or the export, which
+re-classifies) takes that as rule 0, so `role_class`, `role_confidence` and `role_evidence` then rest on a page you
+read rather than on a grant. A joined heading ("Staff / PhD Students") is not a title: leave `final_pass_title` empty
+and say so in `notes`.
 
 Put into the person's `notes` in `persons.jsonl`: the role, organisation, dates as written, the source URL and the
 retrieval date. Set `last_verified` there to the retrieval date for the people whose page you actually read, leave it

@@ -26,9 +26,10 @@ class RoleTests(unittest.TestCase):
 
     def test_explicit_title_mapping(self):
         titles = {
-            'professor': ['Professor', 'Prof.', 'Chair of Robotics', 'Lehrstuhl', 'Group Leader', 'Head of Lab',
-                          'Head of Group', 'Head of Chair', 'Juniorprofessor', 'Assistant Professor',
-                          'Associate Professor', 'Faculty', 'Principal Investigator', 'Direktor', 'Director'],
+            'professor': ['Professor', 'Prof.', 'Chair of Robotics', 'Lehrstuhl', 'Juniorprofessor', 'Assistant Professor',
+                          'Associate Professor', 'Faculty', 'Direktor', 'Director'],
+            'group_leader': ['Group Leader', 'Head of Lab', 'Head of Group', 'Head of Chair', 'Principal Investigator',
+                             'Head of Autonomous Intelligent Systems Group', 'Junior Group Leader (Oberassistent)'],
             'phd_student': ['PhD student', 'Doctoral student', 'Doctoral researcher', 'Doctoral candidate',
                             'Doktorand', 'Dissertation', 'Ph.D. candidate'],
             'researcher': ['Postdoc', 'Postdoctoral researcher', 'Senior Scientist', 'Research Scientist',
@@ -65,7 +66,7 @@ class RoleTests(unittest.TestCase):
         result = self.classify(role_title='Doctoral student', signal_type='erc_starting', role='pi', affiliation_raw='Example GmbH')
         self.assertEqual(result['role_class'], 'phd_student')
         result = self.classify(signal_type='dfg_project', role='pi', affiliation_raw='Example GmbH')
-        self.assertEqual(result['role_class'], 'professor')
+        self.assertEqual(result['role_class'], 'group_leader')
         person = {'first_pub_year': 2023, 'signals': [signal(role='first_author', affiliation_raw='Example GmbH')]}
         self.assertEqual(ca.classify_role(person, 2026)['role_class'], 'industry')
 
@@ -75,8 +76,8 @@ class RoleTests(unittest.TestCase):
         for kind in kinds:
             with self.subTest(kind=kind):
                 result = self.classify(signal_type=kind, role='pi')
-                expected = 'researcher' if kind == 'snsf_ambizione' else 'professor'
-                self.assertEqual((result['role_class'], result['role_confidence']), (expected, 'high'))
+                expected = 'researcher' if kind == 'snsf_ambizione' else 'group_leader'
+                self.assertEqual((result['role_class'], result['role_confidence']), (expected, 'medium'))
                 self.assertIn('rule 2', result['role_evidence'])
                 self.assertEqual(self.classify(signal_type=kind, role='team_member')['role_class'], 'unknown')
         for kind in ['graduiertenkolleg_member', 'imprs_member']:
@@ -92,7 +93,7 @@ class RoleTests(unittest.TestCase):
 
     def test_inference_boundaries_strict_majority_and_invalid_years(self):
         cases = [(2021, ['first_author'], 'phd_student'), (2020, ['first_author'], 'unknown'),
-                 (2016, ['last_author', 'pi', 'coauthor'], 'professor'), (2017, ['pi'], 'unknown'),
+                 (2016, ['last_author', 'pi', 'coauthor'], 'group_leader'), (2017, ['pi'], 'unknown'),
                  (2021, ['first_author', 'coauthor'], 'unknown'), (2016, ['pi', 'unknown'], 'unknown'),
                  (2027, ['first_author'], 'unknown'), ('bad', ['first_author'], 'unknown'),
                  ('', ['pi'], 'unknown'), (-1, ['pi'], 'unknown'), ('0', ['pi'], 'unknown'), (2023, [], 'unknown')]
@@ -108,7 +109,7 @@ class RoleTests(unittest.TestCase):
         original = copy.deepcopy(person)
         employment = (2025, 'Example Institute', 'DE', 'Postdoc', 'https://orcid.org/example')
         result = ca.classify_role(person, 2026, employment)
-        self.assertIn('final-pass LinkedIn', result['role_evidence'])
+        self.assertIn('rule 0: final pass 2026-10-12', result['role_evidence'])
         self.assertEqual(result['role_class'], 'researcher')
         self.assertEqual(person, original)
         result = ca.classify_role({**person, 'last_verified': ''}, 2026, employment)
@@ -230,8 +231,8 @@ class PersonFieldsTests(unittest.TestCase):
         import table_export
         columns = (root / 'assets/person-table.columns.md').read_text().strip().split(', ')
         self.assertEqual(columns, table_export.COLUMNS)
-        self.assertEqual(len(columns), 24)
-        self.assertEqual(columns[-5:], ['role_class', 'role_confidence', 'tier', 'topics', 'group'])
+        self.assertEqual(len(columns), 25)
+        self.assertEqual(columns[-6:], ['role_class', 'role_confidence', 'tier', 'topics', 'group', 'role_evidence'])
 
 
 if __name__ == '__main__':

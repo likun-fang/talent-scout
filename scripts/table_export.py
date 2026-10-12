@@ -20,7 +20,7 @@ from person_fields import topics_for
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
            "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes",
            "fit", "first_pub_year", "latest_role", "homepage", "ranked_channels",
-           "role_class", "role_confidence", "tier", "topics", "group"]
+           "role_class", "role_confidence", "tier", "topics", "group", "role_evidence"]
 
 STRENGTH = {"high": 3, "medium": 2, "low": 1}
 
@@ -103,6 +103,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
         "tier": p.get("tier", 4),
         "topics": ";".join(topics_for(sigs)),
         "group": p.get("group", ""),
+        "role_evidence": p.get("role_evidence", ""),
     }
 
 def sort_key(p: dict) -> tuple:
@@ -137,7 +138,7 @@ def tier_for(person: dict, core: set[str], extended: set[str] | None = None) -> 
     if country not in (extended if extended is not None else region_codes('EU27+UK+CH')):
         return 4  # Export removes these records before ranking.
     role = person.get('role_class', 'unknown')
-    if country in core and role == 'professor':
+    if country in core and role in {'professor', 'group_leader'}:
         return 1
     if country in core and role in {'researcher', 'phd_student'}:
         return 2

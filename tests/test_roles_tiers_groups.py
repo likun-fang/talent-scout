@@ -64,7 +64,7 @@ class TierTests(unittest.TestCase):
         self.assertEqual(set(row), set(te.COLUMNS))
         self.assertEqual(row['topics'], 'Exact phrase;Second;Third')
         self.assertEqual(row['group'], 'PI @ Lab')
-        self.assertNotIn('role_evidence', row)
+        self.assertEqual(row['role_evidence'], p['role_evidence'])
         self.assertIn(p['role_evidence'], te.evidence_appendix([p]))
 
     def test_cli_cut_after_tiers_outside_region_and_coverage_disjoint(self):
@@ -192,7 +192,7 @@ class HeadingAndGrantTests(unittest.TestCase):
         from current_affiliation import title_class
         cases = {'Doctoral students': 'phd_student', 'PhD students': 'phd_student', 'Doctoral Researchers': 'phd_student',
                  'Promovierende': 'phd_student', 'Professors': 'professor', 'Professorinnen und Professoren': 'professor',
-                 'Principal Investigators': 'professor', 'Group leaders': 'professor', 'Postdocs': 'researcher',
+                 'Principal Investigators': 'group_leader', 'Group leaders': 'group_leader', 'Postdocs': 'researcher',
                  'Senior Scientists': 'researcher', 'Wissenschaftliche Mitarbeiterinnen und Mitarbeiter': 'researcher',
                  'Research Fellows': 'researcher'}
         for title, expected in cases.items():
@@ -206,8 +206,9 @@ class HeadingAndGrantTests(unittest.TestCase):
         self.assertEqual(classify_role(person('snsf_doc_ch'), 2026)['role_class'], 'phd_student')
         self.assertEqual(classify_role(person('dfg_walter_benjamin'), 2026)['role_class'], 'researcher')
         self.assertEqual(classify_role(person('snsf_postdoc_mobility'), 2026)['role_class'], 'researcher')
-        self.assertEqual(classify_role(person('dfg_emmy_noether'), 2026)['role_class'], 'professor')
-        self.assertEqual(classify_role(person('dfg_project'), 2026)['role_class'], 'professor')
+        self.assertEqual(classify_role(person('dfg_emmy_noether'), 2026)['role_class'], 'group_leader')
+        self.assertEqual(classify_role(person('dfg_project'), 2026)['role_class'], 'group_leader')
+        self.assertEqual(classify_role(person('dfg_project'), 2026)['role_confidence'], 'medium')
 
     def test_register_ids_are_merge_keys(self):
         from merge_persons import cluster
@@ -225,3 +226,39 @@ class HeadingAndGrantTests(unittest.TestCase):
         self.assertFalse(in_window({'date': '2023-09'}, start, end))
         self.assertTrue(in_window({'date': '2023-10-12'}, start, end))
         self.assertFalse(in_window({'date': None}, start, end))
+
+
+class PrecisionTests(unittest.TestCase):
+    def test_mixed_heading_proves_membership_only(self):
+        from current_affiliation import classify_role, title_class
+        for heading in ('PhD Students and Scientific Assistants', 'Staff / PhD Students', 'PhD Students and Postdocs'):
+            self.assertEqual(title_class(heading), 'mixed', heading)
+        person = {'name': 'X', 'signals': [{'role_title': 'PhD Students and Scientific Assistants', 'date': '2025',
+                                            'evidence_url': 'https://lab.example/people'}]}
+        result = classify_role(person, 2026)
+        self.assertEqual((result['role_class'], result['role_confidence']), ('unknown', 'low'))
+        self.assertIn('mixed heading', result['role_evidence'])
+
+    def test_one_persons_joined_titles_keep_the_highest_class(self):
+        from current_affiliation import title_class
+        self.assertEqual(title_class('Professor and Head of Lab'), 'professor')
+        self.assertEqual(title_class('Senior Scientist and Group Leader'), 'group_leader')
+        self.assertEqual(title_class('Prof. Dr.; Head of Autonomous Intelligent Systems Group'), 'professor')
+        self.assertEqual(title_class('Professorinnen und Professoren'), 'professor')
+
+    def test_final_pass_title_is_rule_zero(self):
+        from current_affiliation import classify_role
+        person = {'name': 'X', 'last_verified': '2026-10-12', 'final_pass_title': 'Assistant Professor at the Department of Materials',
+                  'final_pass_url': 'https://ethz.example/person',
+                  'signals': [{'signal_type': 'erc_stg', 'role': 'pi', 'date': '2025', 'evidence_url': 'https://erc.example'}]}
+        result = classify_role(person, 2026)
+        self.assertEqual((result['role_class'], result['role_confidence']), ('professor', 'high'))
+        self.assertIn('rule 0: final pass 2026-10-12', result['role_evidence'])
+        self.assertIn('https://ethz.example/person', result['role_evidence'])
+        unverified = classify_role({**person, 'last_verified': ''}, 2026)
+        self.assertEqual((unverified['role_class'], unverified['role_confidence']), ('group_leader', 'medium'))
+
+    def test_group_leader_is_tier_one_in_core(self):
+        from table_export import tier_for
+        self.assertEqual(tier_for({'country': 'DE', 'role_class': 'group_leader'}, {'DE', 'CH'}), 1)
+        self.assertEqual(tier_for({'country': 'FR', 'role_class': 'group_leader'}, {'DE', 'CH'}), 4)

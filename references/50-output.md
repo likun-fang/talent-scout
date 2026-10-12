@@ -26,11 +26,12 @@ otherwise guesses a local code page and turns ä, ł, ś into mojibake; Mac read
 | latest_role | role in the newest signal |
 | homepage | public lab or personal page, when any signal carried one |
 | ranked_channels | channels counted for sorting: those with a hop-0 signal or a high/medium signal |
-| role_class | professor / researcher / phd_student / industry / unknown, from stage 4 |
+| role_class | professor / group_leader / researcher / phd_student / industry / unknown, from stage 4. `professor` is a literal professorial title seen on a page or register; `group_leader` leads a group or project without such a title seen (Emmy Noether, ERC PI, head of lab) |
 | role_confidence | high / medium / low |
 | tier | 1 / 2 / 3 / 4, recomputed from role and current country |
 | topics | at most five deduplicated verbatim signal topics, joined with `;` |
 | group | `<PI name> @ <institution>`, or empty if inference was inconclusive |
+| role_evidence | `rule N: <source> | <verbatim excerpt> | <URL>`, the line that lets a reader check the role column |
 
 Before sorting, split each person's signals by the run window (default: the 36 months ending on the run date).
 A person needs at least one signal inside it; `channels_hit`, `hop_depth`, `ranked_channels` and the sort use only
@@ -45,7 +46,7 @@ Assign tiers before sorting:
 
 | tier | current country and role_class |
 |------|--------------------------------|
-| 1 | in core (default DE+CH), professor |
+| 1 | in core (default DE+CH), professor or group_leader |
 | 2 | in core, researcher or phd_student |
 | 3 | in extended minus core (default EU27+UK+CH minus DE+CH), phd_student |
 | 4 | all other people in extended, including industry and unknown roles |

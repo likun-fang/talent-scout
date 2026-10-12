@@ -44,8 +44,10 @@ the stage-1 summary, so the user can change them there.
 - Time window [the 36 months ending on the run date, for all channels including funding]. For a run on 2026-10-12
   this is 2023-10-12 through 2026-10-12, inclusive. Record the exact bounds. Use the event or work date, never the
   date a page was fetched; see `channels/README.md`.
-- Final-pass budget [LinkedIn profile reads: 60 for a 50-row table, serial, 5 s apart; see `45-web-verification.md`].
-- Channels to run [all]. Page budget per channel [40 fetched pages; API calls and git clones are not pages]. Target
+- Final-pass budget [LinkedIn profile reads: 20, serial, 5 s apart, optional; see `45-web-verification.md`. The anonymous
+  quota is per outbound address and is often already spent, so the pass must not depend on it].
+- Channels to run [all]. Page budget per channel [40 fetch attempts, counting failures and replacements; API calls,
+  dataset downloads and git clones are not pages]. Target
   roster size [50 rows]; the table is cut to this after sorting, and the Coverage block reports how many rows were cut.
 - `RUN_DIR` [see Paths].
 
@@ -56,7 +58,7 @@ Write it to `RUN_DIR/run.meta.json`:
 ```json
 {"domain": "...", "purpose": "discovery of technology and research groups through their public professional record; roles recorded as data",
  "seeds": [], "region_core": "DE+CH", "region_extended": "EU27+UK+CH", "region": "EU27+UK+CH",
- "window_months": 36, "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 60,
+ "window_months": 36, "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 20,
  "channels": ["awards-papers","funding-eu","funding-de-ch","national-prizes","competitions","startups","industry","open-source"],
  "page_budget_per_channel": 40, "target_rows": 50,
  "run_dir": "/absolute/path/to/runs/<slug>-YYYY-MM-DD",

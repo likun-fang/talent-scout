@@ -37,7 +37,8 @@ Append one JSON object per line to `RUN_DIR/signals/<channel>.jsonl` (schema: `S
   public code. No LinkedIn or other social profiles in this channel (the final pass handles current roles).
   Login-gated content, people-search sites and private contact details stay out.
   No sensitive categories. Junior / school competitions and minors stay out.
-- Page budget: <N> fetched pages for this channel; API calls and git clones are not pages. Stop at budget.
+- Page budget: <N> fetch attempts for this channel, counting failed and replacement fetches; API calls, dataset
+  downloads and git clones are not pages. Stop at the Nth attempt, not the Nth readable page.
 - Finish with `RUN_DIR/signals/<channel>.coverage.md`: pages read, skipped at budget, rosters not public, and every
   place the channel file did not fit reality (blocked sites, rate limits, missing data).
 - Final reply: signals by kind, distinct people in <region_core> and in <region_extended>, problems list.

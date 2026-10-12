@@ -145,8 +145,14 @@ def inst_tokens(value: str) -> set[str]:
 TITLE_RULES = (
     ('phd_student', r'\b(?:ph\.?d\.? (?:students?|candidates?|researchers?)|doctoral (?:students?|researchers?|candidates?)|doktorand\w*|dissertation|promovierende\w*)\b'),
     ('researcher', r'\b(?:postdoc\w*|senior scientists?|research scientists?|wissenschaftliche\w* mitarbeiter\w*|research associates?|staff scientists?|oberassistent\w*|research fellows?)\b'),
-    ('professor', r'\b(?:professors?|professorin\w*|prof\.|chair of|chair holders?|chaired|professor and chair|lehrstuhl\w*|group leaders?|heads? of (?:the )?(?:lab\w*|group|chair)|juniorprofessor\w*|faculty members?|principal investigators?)\b|\bprof\.|^\s*faculty\s*$'),
+    ('professor', r'\b(?:professors?|professorin\w*|prof\.|chair of|chair holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|faculty members?)\b|\bprof\.|^\s*faculty\s*$'),
+    ('group_leader', r'\b(?:group leaders?|heads? of (?:the )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department)|principal investigators?|nachwuchsgruppenleiter\w*|team leaders?|lab directors?)\b|^\s*pi\s*$'),
 )
+MIXED = r'\s(?:and|und|&|/|or|oder)\s|,\s|/'
+# Words that make a joined heading a membership list rather than one person's stage.
+OTHER_MEMBERS = r'\b(?:staff|scientific (?:assistants?|staff|employees?)|technical|administrative|alumni|members?|guests?|visitors?|students?)\b'
+SUPERVISOR = r'\b(?:in the group of|in the lab of|supervised by|advised by|with prof|advisor|betreut von)\b.*$'
+PRECEDENCE = ('phd_student', 'professor', 'group_leader', 'researcher')
 COMPANY = r'\b(?:gmbh|ag|ltd|inc|sa)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_')
 # Personal grants name the holder's own career stage; every other funding PI leads a project.
@@ -155,8 +161,18 @@ FUNDING_ROLE = {'snsf_ambizione': 'researcher', 'dfg_walter_benjamin': 'research
 
 
 def title_class(title: str, institution_type: str = '', affiliation: str = '') -> str:
-    for role_class, pattern in TITLE_RULES:
-        if re.search(pattern, title, re.I):
+    """Class named by a verbatim title. The person's own role is read before a supervisor mention.
+    A heading that joins a doctoral stage with another stage or with staff words ("PhD Students and
+    Scientific Assistants", "Staff / PhD Students") returns 'mixed': it proves membership, not the stage.
+    One person's joined titles ("Professor and Head of Lab") keep the highest-precedence class."""
+    own = re.sub(SUPERVISOR, '', title, flags=re.I)
+    matches = [role_class for role_class, pattern in TITLE_RULES if re.search(pattern, own, re.I)]
+    joined = re.search(MIXED, own, re.I)
+    stage_words = re.sub(r'ph\.?d\.? students?|doctoral students?', '', own, flags=re.I)
+    if joined and matches and (('phd_student' in matches and len(matches) > 1) or re.search(OTHER_MEMBERS, stage_words, re.I)):
+        return 'mixed'
+    for role_class in PRECEDENCE:
+        if role_class in matches:
             return role_class
     if re.search(r'\b(?:direktor|director)\b', title, re.I) and (
             institution_type == 'research' or re.search(r'\b(?:institute|institut|research institute)\b', title + ' ' + affiliation, re.I)):
@@ -174,13 +190,10 @@ def role_result(role_class: str, confidence: str, rule: int, source: str, excerp
 
 
 def title_evidence(person: dict, employment: tuple | None, institution: tuple | None) -> list[tuple]:
-    """Within rule 1: dated final-pass headline, current ORCID, then newest signal titles."""
+    """Within rule 1: current ORCID, then newest signal titles. (The final pass is rule 0.)"""
     entries = []
     inst_type = institution[3] if institution and len(institution) > 3 else person.get('institution_type', '')
     affiliation = person.get('current_affiliation', '')
-    if person.get('last_verified') and person.get('linkedin_headline'):
-        entries.append(('final-pass LinkedIn headline', person['linkedin_headline'],
-                        person.get('linkedin_url', ''), inst_type, affiliation))
     if employment and len(employment) > 3 and employment[3]:
         entries.append(('ORCID employment role-title', employment[3], employment[4], inst_type, employment[1]))
     for signal in sorted(person.get('signals', []), key=lambda s: date_value(s.get('date')), reverse=True):
@@ -202,25 +215,47 @@ def inferred_role(person: dict, run_year: int) -> dict:
     if first_year and 0 <= years <= 5 and sum(s.get('role') == 'first_author' for s in signals) > len(signals) / 2:
         role_class = 'phd_student'
     elif first_year and years >= 10 and sum(s.get('role') in {'last_author', 'pi'} for s in signals) > len(signals) / 2:
-        role_class = 'professor'
+        role_class = 'group_leader'
     excerpt = f'first_pub_year={first_year or "unknown"}; run_year={run_year}; roles=' + ','.join(s.get('role') or 'unknown' for s in signals)
     return role_result(role_class, 'low', 4, 'publication/role inference', excerpt,
                        next((s['evidence_url'] for s in signals if s.get('evidence_url')), ''))
 
 
+def final_pass_title(person: dict) -> tuple | None:
+    """Rule 0: a title read from the person's own or institutional page in the final pass, with its URL
+    and the read date. `linkedin_headline` / `linkedin_url` are accepted as the same adapter."""
+    title = person.get('final_pass_title') or person.get('linkedin_headline')
+    url = person.get('final_pass_url') or person.get('linkedin_url', '')
+    if person.get('last_verified') and title:
+        return (title, url)
+    return None
+
+
 def classify_role(person: dict, run_year: int, employment: tuple | None = None,
                   institution: tuple | None = None) -> dict:
     """First matching rule wins. Classification is pure and never dates a verification."""
+    verified = final_pass_title(person)
+    if verified:
+        role_class = title_class(verified[0], person.get('institution_type', ''), person.get('current_affiliation', ''))
+        if role_class and role_class != 'mixed':
+            return role_result(role_class, 'high', 0, f"final pass {person.get('last_verified')}", verified[0], verified[1])
+    mixed = None
     for source, title, url, inst_type, affiliation in title_evidence(person, employment, institution):
         role_class = title_class(title, inst_type, affiliation)
+        if role_class == 'mixed':
+            mixed = mixed or (source, title, url)
+            continue
         if role_class:
             return role_result(role_class, 'high', 1, source, title, url)
     signals = sorted(person.get('signals', []), key=lambda s: date_value(s.get('date')), reverse=True)
     for signal in signals:
         kind = signal.get('signal_type', '')
         if kind.startswith(FUNDING_PREFIXES) and signal.get('role') == 'pi':
-            role_class = FUNDING_ROLE.get(kind, 'professor')
-            return role_result(role_class, 'high', 2, 'funding PI', signal.get('snippet') or kind, signal.get('evidence_url', ''))
+            # A grant proves the person leads a project, not a professorial appointment: medium until a title confirms.
+            role_class = FUNDING_ROLE.get(kind, 'group_leader')
+            return role_result(role_class, 'medium', 2, 'funding PI (no title seen)', signal.get('snippet') or kind, signal.get('evidence_url', ''))
+    if mixed:
+        return role_result('unknown', 'low', 1, f'{mixed[0]}: mixed heading proves membership only', mixed[1], mixed[2])
     if institution and len(institution) > 3 and institution[3] == 'company':
         return role_result('industry', 'medium', 3, 'OpenAlex institution.type', 'company', institution[4])
     if person.get('institution_type') == 'company':

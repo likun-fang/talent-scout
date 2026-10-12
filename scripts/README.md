@@ -85,7 +85,7 @@ See the exact mapping and the optional `linkedin_headline`/`linkedin_url` final-
 
 The last five roster columns are `role_class, role_confidence, tier, topics, group`. Person topics are
 exactly deduplicated, capped at five, and serialized with `;`. The evidence appendix carries `role_evidence`.
-Core professors are tier 1; core researchers/doctoral students tier 2; doctoral students in extended
+Core professors and group leaders are tier 1; core researchers/doctoral students tier 2; doctoral students in extended
 minus core tier 3; other in-region people tier 4. Sort by tier, eligible channel count, strongest signal,
 newest date, name; apply the row cap afterward. The 36-month window remains unchanged.
 

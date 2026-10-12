@@ -45,16 +45,20 @@ stop at the first match. It uses only the standard library.
 |----------|----------|------------|-----------------|
 | 1 | Verbatim title: phd student, doctoral student/researcher/candidate, doktorand, dissertation, ph.d. candidate | phd_student | high |
 | 1 | Verbatim title: postdoc, postdoctoral, senior scientist, research scientist, wissenschaftlicher mitarbeiter, research associate, staff scientist, oberassistent | researcher | high |
-| 1 | Verbatim title: professor, prof., chair of / chair holder / professor and chair, lehrstuhl, group leader, head of lab/group/chair, juniorprofessor, assistant/associate professor, faculty member or a bare "Faculty" heading, principal investigator; direktor/director with research-institute context. A bare "Chair" (board, session) is not a professorship | professor | high |
+| 0 | `final_pass_title` read from the person's own or institutional page, with `final_pass_url` and `last_verified` | by title, as rule 1 | high |
+| 1 | Verbatim title: professor, prof., chair of / chair holder / professor and chair, lehrstuhl, juniorprofessor, assistant/associate professor, faculty member or a bare "Faculty" heading; direktor/director with research-institute context. A bare "Chair" (board, session) is not a professorship | professor | high |
+| 1 | Verbatim title: group leader, head of (lab, group, team, unit, chair, institute), principal investigator / PI, Nachwuchsgruppenleiter, team leader, lab director | group_leader | high |
+| 1 | A heading that joins a doctoral stage with another stage or with staff words ("PhD Students and Scientific Assistants", "Staff / PhD Students") | unknown, evidence says "mixed heading proves membership only" | low |
 | 1 | engineer, software, research engineer with institution type company; or a title containing GmbH/AG/Ltd/Inc | industry | high |
-| 2 | `erc_*`, `dfg_*`, `snsf_*` signal with `role: pi`. Personal grants name the holder's own stage: `snsf_ambizione`, `dfg_walter_benjamin`, `snsf_postdoc_mobility` → researcher; `snsf_doc_ch`, `snsf_doc_mobility` → phd_student | professor, or the personal-grant stage | high |
+| 2 | `erc_*`, `dfg_*`, `snsf_*` signal with `role: pi` and no title seen. A grant proves the person leads a project, not an appointment. Personal grants name the holder's own stage: `snsf_ambizione`, `dfg_walter_benjamin`, `snsf_postdoc_mobility` → researcher; `snsf_doc_ch`, `snsf_doc_mobility` → phd_student | group_leader, or the personal-grant stage | medium |
 | 3 | OpenAlex `institution.type == company`, or `affiliation_raw` contains GmbH/AG/Ltd/Inc/SA as a word | industry | medium |
 | 4 | Run year minus `first_pub_year` is 0–5 and strictly more than half of all signals have `role: first_author` | phd_student | low |
-| 4 | Run year minus `first_pub_year` is at least 10 and strictly more than half of all signals have `role: last_author` or `pi` | professor | low |
+| 4 | Run year minus `first_pub_year` is at least 10 and strictly more than half of all signals have `role: last_author` or `pi` | group_leader | low |
 | 4 | All other cases, including a missing/invalid publication year or no majority | unknown | low |
 
-Within rule 1 the student and researcher patterns are tested before the professor pattern, so a lab line
-such as "Postdoctoral researcher in the group of Prof. Meyer" classifies the person, not the supervisor.
+Within rule 1 a supervisor mention ("… in the group of Prof. Meyer", "supervised by …") is cut off before matching,
+so the person's own title decides. One person's joined titles ("Professor and Head of Lab", "Senior Scientist and
+Group Leader") keep the highest class in the order phd_student, professor, group_leader, researcher.
 The patterns accept plural and German feminine forms ("Doctoral students", "Professors", "Wissenschaftliche
 Mitarbeiterinnen"), because a section heading is the usual `role_title` on people pages.
 Rule 1 sources are signal `role_title`, current ORCID employment `role-title`, and a final-pass

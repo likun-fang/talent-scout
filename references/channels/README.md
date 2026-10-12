@@ -47,7 +47,19 @@ that profile's works match the domain; name search alone returned a chemist for 
 | Industry labs / competitors | `industry.md` | partial: OpenAlex company affiliations, patents |
 | Open source | `open-source.md` | yes: GitHub anonymous API |
 
-Stop a channel at its page budget. Write a `skipped` note listing what was not read so the gap is visible.
+Stop a channel at its page budget: the budget counts fetch attempts, including failures and replacement sources,
+not readable pages. Write a `skipped` note listing what was not read so the gap is visible.
+
+## Member pages of funded groups (all channels that reach a lab)
+
+When a hop lands on a group's people page (a PI's lab, a Research Training Group, an IMPRS, a company team), emit one
+`person` signal per listed current member with `signal_type: lab_member`, `role: team_member`, `hop_depth: 1`,
+`parent` = the group, `evidence_url` = the people page, and `role_title` = the **section heading the name sits under**,
+verbatim ("Doctoral students", "Postdocs", "PhD Students and Scientific Assistants"), never the page title. Leave
+`date` empty unless the page prints a cohort or start year: a membership page proves identity, institution and
+heading, not recent output; the person qualifies through a dated work found by the same hop. Alumni, bachelor and
+master students, technical and administrative staff get no person signal. A heading that joins two stages ("Staff /
+PhD Students") is copied as is; stage 4 treats it as membership only and the final pass settles the stage.
 
 ## Date rules (all channels)
 

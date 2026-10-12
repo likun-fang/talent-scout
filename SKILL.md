@@ -49,7 +49,8 @@ with six agents and produced 845 signals, 521 in-region people; its lessons are 
 - Carry the evidence URL, a verbatim snippet, the verbatim `role_title` and the `topics` with every signal from the
   moment you find it.
 - Keep two people with the same name as two rows marked `ambiguous` until a strong key or a shared institution joins them.
-- Stop a channel at its page budget and write the skipped items into the channel's coverage note.
+- Stop a channel at its page budget (40 fetch attempts, failures included) and write the skipped items into the
+  channel's coverage note.
 - Record evidence URLs that will still resolve next year: year-stamped pages (`/2024/program/awards/`), PDFs,
   or a web.archive.org capture when the live page is the only source.
 
