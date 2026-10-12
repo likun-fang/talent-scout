@@ -49,6 +49,9 @@
     "signal_type": {
       "type": "string",
       "examples": [
+        "national_project",
+        "national_fellowship",
+        "resource_allocation",
         "dfg_project",
         "dfg_emmy_noether",
         "dfg_heisenberg",
@@ -63,7 +66,7 @@
         "graduiertenkolleg_member",
         "imprs_member"
       ],
-      "description": "Open vocabulary; funding PI signals use erc_, dfg_ or snsf_ prefixes and role pi. Membership signals use graduiertenkolleg_member or imprs_member."
+      "description": "Open vocabulary; existing erc_, dfg_ and snsf_ funding signals require role pi. Optional national_project/national_fellowship signals require evidence for role pi and do not trigger funding-role inference. resource_allocation records compute/in-kind support and is excluded from research-grant aggregation and funding-role inference. Membership signals use graduiertenkolleg_member or imprs_member."
     },
     "strength": {
       "enum": [

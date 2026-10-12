@@ -56,6 +56,14 @@ python3 "$SKILL_ROOT/scripts/visit_page.py" --batch "$RUN_DIR/linkedin-urls.txt"
 
 ## Recording the result
 
+Select the person's current position line or current appointment section before copying a title. Do not pass
+the whole page to the title classifier: it can contain former appointments, degrees and supervisors' titles.
+For example, a current `Professeure des Universités` followed by `Postes précédents` / `Maîtresse de Conférences`
+supports the current professorship only. Record section context in notes; a fetch timestamp does not make an old
+appointment current. If current status cannot be separated, leave the verified title unset and mark `needs review`.
+When language versions use different labels, preserve both excerpts and flag a classification discrepancy rather
+than selecting whichever translation produces a higher tier. Register membership flags are not role verification.
+
 When a read page prints the person's own title, write it onto the person record as `final_pass_title` (verbatim) and
 `final_pass_url`, with `last_verified` = the read date. Re-running `current_affiliation.py` (or the export, which
 re-classifies) takes that as rule 0, so `role_class`, `role_confidence` and `role_evidence` then rest on a page you
