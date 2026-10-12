@@ -14,8 +14,12 @@ only when the maintainer confirms by hand.
 1. **Web**: can you fetch an arbitrary URL and read its text? Try `https://api.openalex.org/works?per_page=1`.
    Check what came back, not only the status: JSON with a `results` array means OpenAlex is reachable keyless; record
    `openalex: keyless` and continue. A 200 that carries HTML (a bot check, a "Request Rejected" page) counts as not
-   reachable. Ask the user for a free key (openalex.org/settings/api, exported as `OPENALEX_API_KEY`) only when a
-   call returns 429 or a quota message, at any stage; then record `openalex: keyed`. If only a search tool exists,
+   reachable. Then ask the user once, at stage 0, for a free key (openalex.org/settings/api, exported as
+   `OPENALEX_API_KEY`): stages 1 and 2 run keyless, but stage 4 makes two to three calls per person (ORCID title,
+   institution, first publication year) and a 500-person run is far beyond the keyless quota. Without a key, stage 4
+   runs without those lookups and most people without a printed title stay `unknown`; say so in Coverage. Record
+   `openalex: keyed|keyless`. A key given as a file path is read with `OPENALEX_API_KEY=$(cat <path>)` before each
+   script call; never copy the key into any run file. If only a search tool exists,
    mark `web: search_only`; if nothing loads, `web: none`.
    Also probe once each and record the result: `https://api.github.com/repos/huggingface/lerobot` (often 403),
    `https://api.openreview.net/notes?limit=1` (often 403), `https://dblp.org/search/publ/api?q=robot&format=json`

@@ -18,11 +18,11 @@ Each stage names the file to read when you reach it and the condition that ends 
 
 | # | Stage | Read | Done when |
 |---|-------|------|-----------|
-| 0 | Probe environment, fix scope | `references/00-environment.md` | `run.meta.json` written with env (OpenAlex keyless or keyed, as probed), `region_core` + `region_extended`, window, channels, page budgets, `run_dir`, `stage_status` |
+| 0 | Probe environment, fix scope, ask once for the OpenAlex key | `references/00-environment.md` | `run.meta.json` written with env (OpenAlex keyed, or keyless with the user's answer recorded), `region_core` + `region_extended`, window, channels, page budgets, `run_dir`, `stage_status` |
 | 1 | Derive the domain map from universal sources | `references/10-domain-discovery.md` | `domain-map.yaml` written with its run copy under `domain-cache/`, shown to the user in one screen, and the user has replied |
 | 2 | Sweep channels into signals, hopping to people inside each channel | `references/channels/README.md`, then one file per channel in the run; hop rules in `references/30-hops.md` | every channel in `run.meta.json` has either reached its page budget or exhausted its sources; `signals/<channel>.jsonl` and `signals/<channel>.coverage.md` exist for each |
 | 3 | Close the hop gaps | `references/30-hops.md` | every non-person signal across channels has produced person signals or a `roster not public` note; `signals.jsonl` is the concatenation |
-| 4 | Merge signals into persons | `references/40-entity-resolution.md` | `persons.jsonl` written; each person has a strong key, or a weak key with same institution, or is marked `ambiguous`; each carries `role_class`, `role_evidence`, `role_confidence`, `tier`, `topics`, `group` |
+| 4 | Merge signals into persons, then enrich | `references/40-entity-resolution.md` | `persons.jsonl` written by `merge_persons.py` **and passed through `current_affiliation.py`** (ORCID title and employment, OpenAlex institution and first publication year); each person has a strong key, or a weak key with same institution, or is marked `ambiguous`; each carries `role_class`, `role_evidence`, `role_confidence`, `tier`, `topics`, `group` |
 | 5 | Emit the roster and the group view | `references/50-output.md` | `roster.csv`, `roster.md`, `groups.csv` and `groups.md` written with the fixed columns, sorted by tier, cut to `target_rows`, with the Coverage block |
 
 Two moments to stop for the user: after stage 1 (the domain map and the chosen OpenAlex topics, one screen) and after
