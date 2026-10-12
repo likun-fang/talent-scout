@@ -21,9 +21,9 @@ def verify(key):
         if not isinstance(data, dict) or data.get('error'):
             raise ValueError('Unexpected response')
     except urllib.error.HTTPError as exc:
-        raise RuntimeError(f'OpenAlex 返回 HTTP {exc.code}；请检查 Key 或稍后重试。') from None
+        raise RuntimeError(f'OpenAlex returned HTTP {exc.code}; check your key or try again later.') from None
     except Exception as exc:
-        raise RuntimeError(f'无法验证 OpenAlex 连接（{type(exc).__name__}），未保存新 Key。') from None
+        raise RuntimeError(f'Could not verify the OpenAlex connection ({type(exc).__name__}); no new key was saved.') from None
 
 
 def save_key(key, path):
@@ -50,31 +50,31 @@ def main():
         if args.check:
             key = api_key()
             if not key:
-                print('尚未配置 OpenAlex Key。')
+                print('No OpenAlex key is configured.')
                 return 1
             verify(key)
-            print('OpenAlex Key 连接验证通过（密钥未显示）。')
+            print('OpenAlex connection verified (key not displayed).')
             return 0
         if not sys.stdin.isatty():
-            raise RuntimeError('请在本机交互式终端运行，避免将 Key 写入命令行。')
-        print('先打开 https://openalex.org/settings/api 登录并复制 API Key。')
-        print('粘贴后按回车；输入不会显示。直接回车可取消。')
+            raise RuntimeError('Run this script in a local interactive terminal to keep your key out of command-line arguments.')
+        print('Open https://openalex.org/settings/api, sign in, and copy your API key.')
+        print('Paste your key and press Enter; input is hidden. Press Enter without a key to cancel.')
         key = getpass.getpass('OpenAlex API Key: ').strip()
         if not key:
-            print('已取消，未修改配置。')
+            print('Cancelled; configuration unchanged.')
             return 1
         verify(key)
         save_key(key, DEFAULT_KEY_FILE)
-        print('验证成功，Key 已保存至项目 .secrets/openalex.key（仅当前用户可读写，Git 已忽略）。')
-        print('后续脚本会自动读取，无需重复输入。')
+        print('Verified. Key saved to .secrets/openalex.key (owner read/write only; ignored by Git).')
+        print('Scripts will read this key automatically; you do not need to enter it again.')
         if os.environ.get('OPENALEX_API_KEY') or os.environ.get('OPENALEX_API_KEY_FILE'):
-            print('注意：已有 OPENALEX_API_KEY / OPENALEX_API_KEY_FILE 环境变量优先于此本地配置。')
+            print('Note: existing OPENALEX_API_KEY / OPENALEX_API_KEY_FILE environment variables take precedence over this local configuration.')
         return 0
     except (RuntimeError, OSError) as exc:
-        print(str(exc) if isinstance(exc, RuntimeError) else '本地配置文件写入失败。', file=sys.stderr)
+        print(str(exc) if isinstance(exc, RuntimeError) else 'Could not write the local configuration file.', file=sys.stderr)
         return 1
     except (KeyboardInterrupt, EOFError):
-        print('\n已取消。', file=sys.stderr)
+        print('\nCancelled.', file=sys.stderr)
         return 1
 
 
