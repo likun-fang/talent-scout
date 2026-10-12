@@ -103,7 +103,11 @@ def orcid_current(orcid: str, cache: ResponseCache | None = None) -> tuple | Non
     return best
 
 def openalex_get(path: str, cache_key: str, cache: ResponseCache | None) -> dict | None:
-    return cached_get(cache_key, f"https://api.openalex.org/{path}", cache, auth_headers())
+    try:
+        headers = auth_headers()
+    except RuntimeError as exc:
+        raise SystemExit(f"openalex configuration error: {exc}") from None
+    return cached_get(cache_key, f"https://api.openalex.org/{path}", cache, headers)
 
 def openalex_current(author_id: str, cache: ResponseCache | None = None) -> tuple | None:
     author_id = author_id.rstrip("/").rsplit("/", 1)[-1]

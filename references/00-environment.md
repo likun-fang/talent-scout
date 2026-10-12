@@ -50,7 +50,7 @@ the stage-1 summary, so the user can change them there.
   date a page was fetched; see `channels/README.md`.
 - Final-pass budget [LinkedIn profile reads: 20, serial, 5 s apart, optional; see `45-web-verification.md`. The anonymous
   quota is per outbound address and is often already spent, so the pass must not depend on it].
-- Channels to run [the eight default channels listed below; optional channels require explicit selection]. Page budget per channel [40 fetch attempts, counting failures and replacements; API calls,
+- Channels to run [all]. Page budget per channel [40 fetch attempts, counting failures and replacements; API calls,
   dataset downloads and git clones are not pages]. Target
   roster size [50 rows]; the table is cut to this after sorting, and the Coverage block reports how many rows were cut.
 - `RUN_DIR` [see Paths].
@@ -77,9 +77,3 @@ or `"done"` per stage; set a stage to `"running"` when you start it and to `"don
 `SKILL.md` holds. Stages 1 and 2 end with a stop for the user, so they stay `"running"` until the user has replied.
 
 Everything downstream cites this file so a reader can tell how the table was produced.
-
-Optional extensions are agent instructions, not new script flags. When requested, record
-`sourcing_extensions` (`recent_papers` and `model_cards`, booleans; absent means false), and
-`parallel_sourcing` as described in `20-parallel-sourcing.md`. For multimodal requests, read
-`domain-profiles/multimodal.md` when selecting these options. Keep existing defaults for other runs.
-The user can override core countries without changing `assets/countries.yaml` or global defaults.

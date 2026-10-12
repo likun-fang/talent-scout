@@ -7,11 +7,6 @@ exists, load it, refresh the dated fields and recompute publication-based counts
 starting over. The cache records the `window` its counts were computed over; counts from another window are not
 recent activity. This stage maps where to look; it reads no grant lists or rosters (that is stage 2).
 
-Optional run profiles can refine these steps without changing the default workflow. For multimodal sourcing in
-DE/CH/FR/ES/NL/BE, see [`domain-profiles/multimodal.md`](domain-profiles/multimodal.md). Extensions run only when
-their boolean in `run.meta.json.sourcing_extensions` is explicitly `true`; missing or false means the original
-procedure. Copy the selected settings into the run's domain map for traceability; `run.meta.json` is authoritative.
-
 ## 1. Venues and labs — OpenAlex (keyless JSON)
 
 - Topics: `https://api.openalex.org/topics?search=<phrase>` → read the top 10 (or all, when fewer come back) and
@@ -71,10 +66,6 @@ Add user-named competitors if given.
 
 Search GitHub topics matching the phrase; take repos with the most stars whose owner org or
 top contributors are in region. Record repo URLs; people come later via hops.
-
-With explicit `sourcing_extensions.model_cards: true`, also discover relevant public Hugging Face model/dataset
-cards and their linked code repositories or technical reports. Record their URLs in the same
-`open_source_anchors` list with provenance in `sources_used`; resolve people in the open-source channel, not here.
 
 ## Emit and stop
 

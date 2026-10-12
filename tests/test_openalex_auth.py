@@ -10,10 +10,25 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import openalex_auth as auth
 import openalex_lookup as lookup
+import current_affiliation as affiliation
 from setup_openalex import save_key
 
 
 class AuthTests(unittest.TestCase):
+    def test_affiliation_worker_missing_key_file_has_one_line_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / 'persons.jsonl'
+            source.write_text(json.dumps({'name': 'Fixture', 'ids': {'openalex': 'A123'}, 'signals': []}) + '\n')
+            env = {**os.environ, 'OPENALEX_API_KEY': '', 'OPENALEX_API_KEY_FILE': str(root / 'missing')}
+            result = subprocess.run([sys.executable, str(Path(affiliation.__file__)), str(source),
+                                     '--workers', '2', '--cache-dir', str(root / 'cache')],
+                                    env=env, capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, '')
+        self.assertEqual(result.stderr.strip(),
+                         'openalex configuration error: OPENALEX_API_KEY_FILE does not exist')
+
     def test_default_key_is_in_user_config(self):
         self.assertEqual(auth.DEFAULT_KEY_FILE, Path.home() / '.config' / 'talent-scout' / 'openalex.key')
 

@@ -10,11 +10,9 @@ Follow the date rules in `references/channels/README.md`; emit older or undated 
 ## Paths
 - Skill files are relative to `SKILL_ROOT` = <skill_root> (the directory holding `SKILL.md`).
 - Write everything under `RUN_DIR` = <run_dir>; never write into `SKILL_ROOT`.
-- `OUTPUT_DIR` = <output_dir>, normally `RUN_DIR/signals`; in domain-parallel mode it is
-  `RUN_DIR/workers/<worker-id>/signals`. Write only this assignment's artifacts; the coordinator owns shared files.
 
 ## Output
-Append one JSON object per line to `OUTPUT_DIR/<channel>.jsonl` (schema: `SKILL_ROOT/assets/signal.schema.json`).
+Append one JSON object per line to `RUN_DIR/signals/<channel>.jsonl` (schema: `SKILL_ROOT/assets/signal.schema.json`).
 - Emit the non-person signal (work / team / company / org) AND hop to people yourself: one person signal per
   person in <region_extended>, `hop_depth: 1`, `parent` set, `evidence_url` = the page that names the person.
 - Every signal carries an evidence URL you actually opened or received from search. Prefer year-stamped or archived URLs.
@@ -41,6 +39,6 @@ Append one JSON object per line to `OUTPUT_DIR/<channel>.jsonl` (schema: `SKILL_
   No sensitive categories. Junior / school competitions and minors stay out.
 - Page budget: <N> fetch attempts for this channel, counting failed and replacement fetches; API calls, dataset
   downloads and git clones are not pages. Stop at the Nth attempt, not the Nth readable page.
-- Finish with `OUTPUT_DIR/<channel>.coverage.md`: pages read, skipped at budget, rosters not public, and every
+- Finish with `RUN_DIR/signals/<channel>.coverage.md`: pages read, skipped at budget, rosters not public, and every
   place the channel file did not fit reality (blocked sites, rate limits, missing data).
 - Final reply: signals by kind, distinct people in <region_core> and in <region_extended>, problems list.

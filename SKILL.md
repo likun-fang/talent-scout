@@ -33,10 +33,6 @@ Channels are independent: run them as parallel subagents sharing one brief (`ass
 each doing its own hops and writing its own coverage note. A first real run (embodied AI, 2026-10-08) did this
 with six agents and produced 845 signals, 521 in-region people; its lessons are in `docs/runs/`.
 
-When the user requests parallelism by domain, use domain/subdomain workers instead of channel workers;
-countries remain shared filters. Read `references/20-parallel-sourcing.md` before dispatch. This optional mode
-feeds the same per-channel artifacts into stages 3–5 and preserves both user checkpoints.
-
 ## Working rules
 
 - Paths: skill files (`references/`, `assets/`, `scripts/`, `domain-cache/`) are relative to `SKILL_ROOT`, the
