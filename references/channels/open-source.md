@@ -15,3 +15,8 @@ When the REST API is reachable (60 requests/hour, no key):
 Emit `person` signals with `role: maintainer` (owner / top 3 contributors) or `coauthor` (others),
 strength low unless the repo is the domain's reference implementation. Hugging Face model / dataset
 authors and foundation project rosters (e.g., ROS, LLVM, RISC-V tooling) follow the same pattern.
+
+## role_title and topics
+- `role_title`: the heading the name sits under in `CONTRIBUTORS.md`, `MAINTAINERS` or the README ("Maintainers",
+  "Core developers"); `CITATION.cff` and commit logs carry none.
+- `topics`: the repository name, plus a phrase from the title of the paper the repository cites, if any.

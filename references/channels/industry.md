@@ -15,3 +15,8 @@ Only public professional artefacts:
 No social-network scraping, no login-gated pages; current roles are checked once on the cut table
 (`../45-web-verification.md`). If the user names competitors, add them to the
 domain map `companies:` list with the reason.
+
+## role_title and topics
+- `role_title`: the title part of a byline or speaker line as printed ("Research Scientist"), the company team page's
+  title, or the patent's heading for the person ("Inventor").
+- `topics`: from the paper, patent or talk title.

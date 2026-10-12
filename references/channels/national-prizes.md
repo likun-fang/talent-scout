@@ -21,3 +21,9 @@ PDFs. Senior national prizes (Leibniz, Maier-Leibnitz, Latsis) had no in-domain 
 full list once, record "none in domain", move on. ELLIS expert lists beyond page 1 are JS-rendered and unreadable.
 
 Traps: laureate pages list affiliation at award time; some prizes name a team, which is a `team` signal for the hop.
+
+## role_title and topics
+- `role_title`: the position line printed with the laureate ("Junior Professor", "Research Group Leader"); without
+  one, the prefix as printed ("Prof. Dr.").
+- `topics`: from the title of the awarded work or project named on the page; leave empty when the page names only
+  a field.

@@ -120,9 +120,10 @@ English title into `snippet`.
 
 ## role_title and topics
 
-- `role_title`: GEPRIS — the role label (`label_EN`: "Applicant", "Spokesperson", "Persons responsible for project");
-  put the academic title from the name field ("Professor Dr.", "Dr.-Ing.") in `snippet`, not in `name_raw`. SNSF —
-  the heading the grant page prints over the name ("Applicants"; "Employees" for employees). Research Training Group
+- `role_title`: GEPRIS — the title printed in the name field (`bt_partner_name_komplett`: "Professor Dr.",
+  "Dr.-Ing."), else the role label (`label_EN`: "Applicant", "Spokesperson", "Persons responsible for project"); keep
+  the title out of `name_raw` and the role label in `snippet`. SNSF — the heading the grant page prints over the name
+  ("Applicants"; "Employees" for employees). Research Training Group
   and IMPRS pages — the section heading the name sits under, verbatim ("Doctoral Researchers", "Principal
   Investigators", "Associated Members").
 - `topics`: 1–3 phrases cut verbatim from `prj_titel_en` / `TitleEnglish`; SNSF `Keywords` entries may be copied as

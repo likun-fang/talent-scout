@@ -36,3 +36,8 @@ only on reserve lists.
 ## Traps
 - ERC host country is at application time.
 - CORDIS CSV column names change between releases; read the header, do not hard-code positions.
+
+## role_title and topics
+- `role_title`: ERC PDFs print no titles, so leave it empty; the grant itself is the role evidence in stage 4.
+  CORDIS project websites: the title or section heading printed next to the name on the team page.
+- `topics`: from the ERC or CORDIS project title; the acronym alone is not a topic.

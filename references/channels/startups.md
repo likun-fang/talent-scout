@@ -12,3 +12,7 @@ companies whose European HQ is not stated.
 Emit `company` signals with country and the evidence URL. Founders and technical leads are resolved
 in stage 3 from the company's own team page, its publications, and its GitHub organisation.
 Do not use paid databases unless the user supplies access.
+
+## role_title and topics
+- `role_title`: as printed on the company team page or in the press release ("Co-founder & CTO", "Head of Research").
+- `topics`: from the product or repository name, or a paper title; not from marketing copy.
