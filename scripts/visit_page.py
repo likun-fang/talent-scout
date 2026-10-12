@@ -201,19 +201,31 @@ def classify(result: dict) -> str:
     return 'readable'
 
 
-def linkedin_sections(text: str, lines_per_section: int = 14) -> dict:
-    """Keep only the professional excerpts: headline plus the first lines of each named section."""
+def section_excerpts(text: str, lines_per_section: int = 14, page_truncated: bool = False) -> dict:
+    """A flag per excerpt distinguishes a line/page cap from a natural section boundary."""
     lines = text.splitlines()
-    sections: dict[str, list[str]] = {}
+    result = {}
     for i, line in enumerate(lines):
-        if line.strip() in LINKEDIN_SECTIONS:
-            block = []
-            for candidate in lines[i + 1:i + 1 + lines_per_section * 2]:
-                if candidate.strip() in LINKEDIN_SECTIONS or candidate.startswith('View ') or len(block) >= lines_per_section:
-                    break
-                block.append(candidate)
-            sections[line.strip().lower().replace(' & ', '_')] = block
-    return sections
+        if line.strip() not in LINKEDIN_SECTIONS:
+            continue
+        block = []
+        truncated = page_truncated
+        for candidate in lines[i + 1:]:
+            if candidate.strip() in LINKEDIN_SECTIONS or candidate.startswith('View '):
+                truncated = False
+                break
+            if len(block) >= lines_per_section:
+                truncated = True
+                break
+            block.append(candidate)
+        key = line.strip().lower().replace(' & ', '_')
+        result[key] = {'lines': block, 'section_truncated': truncated}
+    return result
+
+
+def linkedin_sections(text: str, lines_per_section: int = 14) -> dict:
+    """Compatibility view: section names mapped to excerpt lines."""
+    return {key: value['lines'] for key, value in section_excerpts(text, lines_per_section).items()}
 
 
 def visit(url: str, browser: bool = False, timeout: float = 30, channel: str | None = None,
@@ -239,7 +251,9 @@ def visit(url: str, browser: bool = False, timeout: float = 30, channel: str | N
     result['text'] = result['text'][:max_chars]
     if result['source_type'] == 'linkedin':
         result['headline'] = result['title'].rsplit('|', 1)[0].strip()
-        result['sections'] = linkedin_sections(result['text'])
+        excerpts = section_excerpts(result['text'], page_truncated=result['truncated'])
+        result['sections'] = {key: value['lines'] for key, value in excerpts.items()}
+        result['section_truncated'] = {key: value['section_truncated'] for key, value in excerpts.items()}
         result['content_scope'] = 'public_page_may_be_partial'
         if not full_text:
             result['text'] = ''
@@ -305,7 +319,8 @@ def main():
                    wait_ms=args.wait_ms, max_chars=args.max_chars, full_text=args.full_text)
     if args.batch:
         try:
-            urls = [l.strip() for l in open(args.batch, encoding='utf-8') if l.strip() and not l.startswith('#')]
+            with open(args.batch, encoding='utf-8') as source:
+                urls = [l.strip() for l in source if l.strip() and not l.startswith('#')]
         except OSError as exc:
             parser.error(f'cannot read --batch file: {exc}')
         if args.browser and any(is_linkedin(u) for u in urls):
