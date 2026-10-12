@@ -22,7 +22,7 @@ REGIONS = {
 def region_codes(spec: str) -> list[str]:
     codes: list[str] = []
     for part in spec.split("+"):
-        codes = codes + REGIONS.get(part.strip().upper(), [])
+        codes = codes + REGIONS.get(part.strip().upper(), [part.strip().upper()] if len(part.strip()) == 2 else [])
     return codes
 
 def get(path: str, params: dict) -> dict:
@@ -37,6 +37,17 @@ def get(path: str, params: dict) -> dict:
         raise SystemExit(f"openalex request failed: {url}\n{exc}")
 
 REPOSITORY_WORDS = ("arxiv", "zenodo", "ssrn", "hal ", "research square", "biorxiv", "openreview", "techrxiv")
+
+
+def non_repository_sources(venues: list[dict]) -> list[dict]:
+    types = {}
+    ids = list(dict.fromkeys(v['id'] for v in venues if v.get('id') and v['id'] != 'unknown'))
+    for offset in range(0, len(ids), 50):
+        sources = get('/sources', {'filter': 'ids.openalex:' + '|'.join(ids[offset:offset + 50]),
+                                   'per_page': 50, 'select': 'id,type'}).get('results', [])
+        types.update({s['id'].rsplit('/', 1)[-1]: s.get('type') for s in sources})
+    return [v for v in venues if types.get(v['id']) != 'repository'
+            and not any(word in (v.get('name') or '').lower() for word in REPOSITORY_WORDS)]
 
 def list_topics(phrase: str) -> dict:
     topics = get("/topics", {"search": phrase, "per_page": 10}).get("results", [])
@@ -56,7 +67,7 @@ def topic_groups(topic_ids: str, region: str, start: datetime.date, until: datet
     def grouped(key: str) -> list[dict]:
         rows = get("/works", {"filter": base, "group_by": key, "per_page": 100}).get("group_by", [])
         return [{"id": r["key"].rsplit("/", 1)[-1], "name": r.get("key_display_name"), "count": r["count"]} for r in rows]
-    venues = [v for v in grouped("primary_location.source.id") if not any(w in (v["name"] or "").lower() for w in REPOSITORY_WORDS)]
+    venues = non_repository_sources(grouped("primary_location.source.id"))
     return {
         "note": "counts are works with at least one author in region; institutions and authors are leads, not rows. "
                 "PMLR-hosted venues (CoRL) rarely appear here: add known venues by hand.",
@@ -77,14 +88,14 @@ def title_authors(title: str) -> dict:
         "name": a["author"].get("display_name"),
         "openalex": a["author"].get("id"),
         "orcid": a["author"].get("orcid"),
-        "institutions": [{"name": i.get("display_name"), "country": i.get("country_code")} for i in a.get("institutions", [])],
+        "institutions": [{"name": i.get("display_name"), "country": i.get("country_code"), "type": i.get("type")} for i in a.get("institutions", [])],
     } for a in w.get("authorships", [])]
     return {"found": True, "title": w.get("title"), "year": w.get("publication_year"), "doi": w.get("doi"), "url": w.get("id"), "authors": authors}
 
 def author_record(author_id: str) -> dict:
     a = get(f"/authors/{author_id}", {})
     return {"name": a.get("display_name"), "orcid": a.get("orcid"), "openalex": a.get("id"),
-            "last_known_institutions": [{"name": i.get("display_name"), "country": i.get("country_code")} for i in a.get("last_known_institutions", [])],
+            "last_known_institutions": [{"name": i.get("display_name"), "country": i.get("country_code"), "type": i.get("type")} for i in a.get("last_known_institutions", [])],
             "works_count": a.get("works_count"), "updated": a.get("updated_date")}
 
 def main() -> None:

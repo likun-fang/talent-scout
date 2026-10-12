@@ -47,7 +47,19 @@
       "type": "string"
     },
     "signal_type": {
-      "type": "string"
+      "type": "string",
+      "examples": [
+        "dfg_project",
+        "dfg_emmy_noether",
+        "dfg_heisenberg",
+        "snsf_project",
+        "snsf_starting_grant",
+        "snsf_ambizione",
+        "snsf_professorship",
+        "graduiertenkolleg_member",
+        "imprs_member"
+      ],
+      "description": "Open vocabulary; funding PI signals use erc_, dfg_ or snsf_ prefixes and role pi. Membership signals use graduiertenkolleg_member or imprs_member."
     },
     "strength": {
       "enum": [
@@ -96,6 +108,43 @@
       "type": "string",
       "format": "uri",
       "description": "public lab or personal page naming the person, when the source gives one"
+    },
+    "role_title": {
+      "type": "string",
+      "description": "Verbatim title or section heading associated with this name on the source page."
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "1–3 phrases copied verbatim from a paper title, project name or repository name."
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "signal_type": {
+            "pattern": "^(erc_|dfg_|snsf_)"
+          }
+        },
+        "required": [
+          "signal_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "role": {
+            "const": "pi"
+          }
+        },
+        "required": [
+          "role"
+        ]
+      }
+    }
+  ]
 }

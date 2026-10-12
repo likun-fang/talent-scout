@@ -10,7 +10,9 @@ Name-only matches are NEVER merged; they stay separate with merge_confidence=amb
 Standard library only; no mutation of input records.
 """
 from __future__ import annotations
-import json, sys, unicodedata
+import argparse, datetime, json, sys, unicodedata
+from current_affiliation import classify_role, region_codes
+from person_fields import assign_groups, topics_for
 from collections import defaultdict
 
 STRONG = ("orcid", "openalex", "dblp", "openreview", "github")
@@ -67,7 +69,7 @@ def confidence(group: list[dict]) -> str:
         return "medium"
     return "low"
 
-def to_person(group: list[dict], ambiguous_names: set[str]) -> dict:
+def to_person(group: list[dict], ambiguous_names: set[str], run_year: int | None = None) -> dict:
     name = max((s["name_raw"] for s in group), key=len)
     ids: dict[str, str] = {}
     for s in group:
@@ -75,16 +77,21 @@ def to_person(group: list[dict], ambiguous_names: set[str]) -> dict:
     conf = confidence(group)
     if conf == "low" and norm(name) in ambiguous_names:
         conf = "ambiguous"
-    return {"name": name, "signals": group, "ids": ids,
+    person = {"name": name, "signals": group, "ids": ids,
             "channels_hit": sorted({s["channel"] for s in group}),
             "hop_depth": min(s.get("hop_depth", 0) for s in group),
-            "merge_confidence": conf}
+            "merge_confidence": conf, "topics": topics_for(group), "group": "", "last_verified": ""}
+    return {**person, **classify_role(person, run_year or datetime.date.today().year)}
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        raise SystemExit(__doc__)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('signals')
+    parser.add_argument('--date', type=datetime.date.fromisoformat, default=datetime.date.today())
+    parser.add_argument('--region-core', default='DE+CH')
+    args = parser.parse_args()
     try:
-        signals = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8") if l.strip()]
+        with open(args.signals, encoding="utf-8") as source:
+            signals = [json.loads(l) for l in source if l.strip()]
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"bad input: {exc}")
     persons_sigs = [s for s in signals if s.get("kind") == "person"]
@@ -93,8 +100,10 @@ def main() -> None:
     for g in groups:
         name_counts[norm(max((s["name_raw"] for s in g), key=len))] += 1
     ambiguous = {n for n, c in name_counts.items() if c > 1}
-    for g in groups:
-        print(json.dumps(to_person(g, ambiguous), ensure_ascii=False))
+    from table_export import tier_for
+    persons = assign_groups([to_person(g, ambiguous, args.date.year) for g in groups])
+    for person in persons:
+        print(json.dumps({**person, 'tier': tier_for(person, region_codes(args.region_core))}, ensure_ascii=False))
     print(f"{len(persons_sigs)} person signals → {len(groups)} persons ({len(ambiguous)} ambiguous names)", file=sys.stderr)
 
 if __name__ == "__main__":
