@@ -20,17 +20,19 @@
 - Domain phrase [required] and 0–5 seed names / labs / venues the user already knows [optional, helps stage 1].
 - Region [Europe = EU27 + UK + CH; codes in `assets/countries.yaml`]. "Based in region" means the
   person's **current or most recent affiliation** is in region, regardless of nationality.
-- Time window [current calendar year and previous two years, through the run date, for all channels including funding].
-  For a run on 2026-10-12 this is 2024-01-01 through 2026-10-12, inclusive. Record exact bounds.
-  Use the event/work date, not the date a page was fetched; see `channels/README.md`.
+- Time window [the 36 months ending on the run date, for all channels including funding]. For a run on 2026-10-12
+  this is 2023-10-12 through 2026-10-12, inclusive. Record the exact bounds. Use the event or work date, never the
+  date a page was fetched; see `channels/README.md`.
+- Final-pass budget [LinkedIn profile reads: 60 for a 50-row table, serial, 5 s apart; see `45-web-verification.md`].
 - Channels to run [all]. Page budget per channel [40 fetched pages; API calls and git clones are not pages]. Target
   roster size [50 rows]; the table is cut to this after sorting, and the Coverage block reports how many rows were cut.
 
 ## Write `run.meta.json`
 
 ```json
-{"domain": "...", "seeds": [], "region": "EU27+UK+CH", "window_years": 3, "funding_window_years": 3,
- "window_start": "YYYY-01-01", "window_end": "YYYY-MM-DD",
+{"domain": "...", "purpose": "discovery of people through their public professional record; roles recorded as data",
+ "seeds": [], "region": "EU27+UK+CH", "window_months": 36,
+ "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 60,
  "channels": ["awards-papers","funding-eu","national-prizes","competitions","startups","industry","open-source"],
  "page_budget_per_channel": 40, "target_rows": 50,
  "env": {"web": "fetch|search_only", "interpreter": true, "files": true, "openalex": "keyed|keyless", "github_api": false, "openreview_api": false, "dblp": true},

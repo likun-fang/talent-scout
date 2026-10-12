@@ -12,6 +12,6 @@ Only public professional artefacts:
 - Public talks: conference programmes, meetup pages, company engineering blogs with bylines.
 - Open source: company GitHub organisations (see `open-source.md`).
 
-Public LinkedIn professional profiles can supplement current-role checks under `../45-web-verification.md`;
-login-gated pages and other social-network profiles stay outside the run. If the user names competitors, add them to the
+No social-network scraping, no login-gated pages; current roles are checked once on the cut table
+(`../45-web-verification.md`). If the user names competitors, add them to the
 domain map `companies:` list with the reason.

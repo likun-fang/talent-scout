@@ -3,7 +3,7 @@
 Goal: turn a domain phrase into `domain-map.yaml` **without hand-curation**. Use the sources below
 in order; each one is domain-agnostic. If `domain-cache/<slug>.yaml` exists, load it and refresh
 the dated fields and recompute publication-based counts for the run window instead of starting over.
-Cached counts from a wider window must not be reused as recent activity.
+The cache records the `window` its counts were computed over; counts from another window are not recent activity.
 
 ## 1. Venues and labs — OpenAlex (keyless JSON)
 

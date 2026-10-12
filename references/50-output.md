@@ -26,13 +26,12 @@ otherwise guesses a local code page and turns ä, ł, ś into mojibake; Mac read
 | homepage | public lab or personal page, when any signal carried one |
 | ranked_channels | channels counted for sorting: those with a hop-0 signal or a high/medium signal |
 
-Before sorting, retain only signals inside the run window (default: current calendar year and previous two,
-through the run date). Exclude missing/invalid dates and future signals; a person needs at least one qualifying
-signal. Recompute channels and hop depth from the retained signals. Historical identity and affiliation facts
-may remain as background, and `first_pub_year` is still a lifetime fact, not an activity filter.
-The script writes rejected signals to `roster.excluded-signals.json` and reports counts in Coverage.
-Year/month-only dates use the first day of that year/month. Pass `--date` from `run.meta.json` for reproducibility
-and `--window-years` if an explicitly requested window differs from three years.
+Before sorting, split each person's signals by the run window (default: the 36 months ending on the run date).
+A person needs at least one signal inside it; `channels_hit`, `hop_depth`, `ranked_channels` and the sort use only
+those. Signals outside the window, undated or future-dated stay in the row's `signals` and `evidence_urls` columns
+as evidence and are listed in `roster.excluded-signals.json`; Coverage reports both counts. `first_pub_year` is a
+lifetime fact, not an activity filter. Year/month-only dates use the first day of that year/month. Pass `--date`
+from `run.meta.json` for reproducibility and `--window-months` only when the user asked for another window.
 
 Sort by `ranked_channels`, then strongest signal, then newest signal, then name. Low-strength hop-1 signals (a name
 in an author list) stay as evidence but do not lift a row; otherwise the industry channel's author lists outrank ERC
@@ -43,6 +42,9 @@ sorting and report the cut in Coverage. There is no composite score; the cut is 
 Below the table, add a short **Coverage** block: channels run, pages read per channel, what was
 skipped at budget, competitions whose rosters were not public. Then an optional per-person
 evidence appendix (one bullet per signal with URL) for the top rows.
+
+After the table is cut, run the final pass in `45-web-verification.md` on those rows only. It fills `notes` with
+role excerpts and sources and reports in Coverage how many profiles were read and how many were refused.
 
 Script: `scripts/table_export.py persons.jsonl --region EU27+UK+CH --max-rows 50 --coverage-dir signals/` writes
 both files, the out-of-region list and the Coverage block (it appends every `signals/*.coverage.md`).

@@ -6,7 +6,9 @@
 Rows whose country is outside the region go to <out>.out-of-region.json. With --max-rows the table is cut
 after sorting and the Coverage block says how many rows were cut. --coverage-dir appends every
 *.coverage.md it finds to roster.md. Standard library only.
-Only signals from the current calendar year and previous two years, through --date, qualify by default.
+A person qualifies through at least one signal dated inside the window (default: the 36 months ending on
+--date). Ranking, channels_hit and hop_depth use qualifying signals only; older or undated signals stay in the
+row as evidence (signals and evidence_urls columns) and are listed in <out>.excluded-signals.json.
 Ranking uses eligible channel count, strongest signal, newest signal date, then name.
 """
 from __future__ import annotations
@@ -35,24 +37,33 @@ def signal_date(signal: dict) -> datetime.date:
         return datetime.date.min
 
 def ranked_channels(p: dict) -> int:
-    return len({s["channel"] for s in p.get("signals", []) if s.get("channel") and
+    return len({s["channel"] for s in p.get("qualifying", p.get("signals", [])) if s.get("channel") and
                 (s.get("hop_depth", 0) == 0 or s.get("strength") in {"high", "medium"})})
 
+def window_start(end: datetime.date, months: int) -> datetime.date:
+    """First day of the window: `months` back from `end`, same day of month (clamped), inclusive."""
+    year, month = divmod((end.year * 12 + end.month - 1) - months, 12)
+    month += 1
+    last = (datetime.date(year + month // 12, month % 12 + 1, 1) - datetime.timedelta(days=1)).day
+    return datetime.date(year, month, min(end.day, last))
+
 def filter_window(persons: list[dict], start: datetime.date, end: datetime.date) -> tuple:
+    """Split each person's signals into qualifying (in window) and background. A person without a
+    qualifying signal is dropped; the others keep every signal as evidence but rank on qualifying ones."""
     kept, rejected = [], []
     for person in persons:
-        signals = []
+        qualifying = []
         for signal in person.get("signals", []):
             date = signal_date(signal)
             if start <= date <= end:
-                signals.append(signal)
+                qualifying.append(signal)
             else:
                 reason = "missing_or_invalid_date" if date == datetime.date.min else "outside_window"
                 rejected.append({"name": person.get("name", ""), "reason": reason, "signal": signal})
-        if signals:
-            kept.append({**person, "signals": signals,
-                         "channels_hit": sorted({s["channel"] for s in signals if s.get("channel")}),
-                         "hop_depth": min(s.get("hop_depth", 0) for s in signals)})
+        if qualifying:
+            kept.append({**person, "qualifying": qualifying,
+                         "channels_hit": sorted({s["channel"] for s in qualifying if s.get("channel")}),
+                         "hop_depth": min(s.get("hop_depth", 0) for s in qualifying)})
     return kept, rejected
 
 def row_for(p: dict, domain: str, date: str) -> dict:
@@ -85,7 +96,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
     }
 
 def sort_key(p: dict) -> tuple:
-    sigs = p.get("signals", [])
+    sigs = p.get("qualifying", p.get("signals", []))
     strongest = max((STRENGTH.get(s.get("strength"), 0) for s in sigs), default=0)
     newest = max((signal_date(s) for s in sigs), default=datetime.date.min)
     return (-ranked_channels(p), -strongest, -newest.toordinal(), p.get("name", ""))
@@ -108,17 +119,17 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("persons"); p.add_argument("--domain", default=""); p.add_argument("--out", default="roster")
     p.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today())
-    p.add_argument("--window-years", type=int, default=3, help="Calendar years including the run year (default: 3)")
+    p.add_argument("--window-months", type=int, default=36, help="Months before --date that qualify a signal (default: 36)")
     p.add_argument("--region", default="EU27+UK+CH"); p.add_argument("--max-rows", type=int, default=0)
     p.add_argument("--coverage-dir", default=None)
     a = p.parse_args()
-    if not 1 <= a.window_years <= a.date.year:
-        p.error("--window-years must be positive and not exceed the run year")
+    if not 1 <= a.window_months <= a.date.year * 12:
+        p.error("--window-months must be positive and not reach before year 1")
     try:
         persons = [json.loads(l) for l in open(a.persons, encoding="utf-8") if l.strip()]
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"bad input: {exc}")
-    start = datetime.date(a.date.year - a.window_years + 1, 1, 1)
+    start = window_start(a.date, a.window_months)
     original_count = len(persons)
     persons, rejected = filter_window(persons, start, a.date)
     codes = region_codes(a.region)
@@ -135,8 +146,8 @@ def main() -> None:
     with open(f"{a.out}.excluded-signals.json", "w", encoding="utf-8") as f:
         json.dump(rejected, f, ensure_ascii=False, indent=2)
     window_coverage = (f"- signal window: {start} to {a.date} (inclusive; year/month-only dates use the first day)\n"
-                       f"- signals excluded by date: {len(rejected)} (see .excluded-signals.json)\n"
-                       f"- persons without a qualifying signal: {original_count - len(persons)}\n")
+                       f"- signals outside the window or undated, kept as evidence but not ranked: {len(rejected)} (see .excluded-signals.json)\n"
+                       f"- persons without a qualifying signal, not in table: {original_count - len(persons)}\n")
     write_md(rows, f"{a.out}.md", window_coverage + coverage_text(len(rows), cut, len(outside), a.coverage_dir))
     print(f"wrote {len(rows)} rows ({cut} cut, {len(outside)} outside region) → {a.out}.csv, {a.out}.md", file=sys.stderr)
 

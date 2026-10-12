@@ -1,6 +1,7 @@
 domain: "embodied AI / robot learning"
 slug: embodied-ai
 derived_on: "2026-10-08"
+window: {from: "2021-01-01", to: "2026-10-08"}   # counts below use this window; recompute for a 36-month run
 sources_used: [openalex-topics, openalex-group-by, erc-panels, euroscivoc, domain-cache-2026-10-08, web-search]
 region: "EU27+UK+CH"
 openalex_topics:

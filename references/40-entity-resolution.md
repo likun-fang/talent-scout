@@ -20,8 +20,8 @@
   wins too (an arXiv parsing error filed a whole Hugging Face team under Oxford). `scripts/current_affiliation.py`
   applies exactly this order and caches lookups under `cache/affiliation/` so reruns do not re-request.
 
-For current-role evidence from websites and public LinkedIn profiles, follow `45-web-verification.md`.
-The optional `scripts/visit_page.py` reader saves page text and access outcomes for review.
+Current-role checks against web pages and public LinkedIn profiles happen once, on the cut table, after stage 5
+(`45-web-verification.md`); they do not run per person here.
 
 ## Script
 `scripts/merge_persons.py signals.jsonl > persons.jsonl` implements the key ladder and leaves name-only

@@ -41,8 +41,8 @@ Stop a channel at its page budget. Write a `skipped` note listing what was not r
 
 ## Date rules (all channels)
 
-Use `window_start` and `window_end` from `run.meta.json`, defaulting to January 1 of the run year
-minus two through the run date. For 2026-10-12, the window is 2024-01-01 to 2026-10-12.
+Use `window_start` and `window_end` from `run.meta.json`: by default the 36 months ending on the run date.
+For 2026-10-12, the window is 2023-10-12 to 2026-10-12, inclusive.
 
 - Awards and prizes: award date/year; competitions: the relevant result date/year.
 - Funding: award/selection date, or project start date if award date is unavailable (say which in `note`).
@@ -55,6 +55,6 @@ minus two through the run date. For 2026-10-12, the window is 2024-01-01 to 2026
 
 Store `date` as YYYY, YYYY-MM, or YYYY-MM-DD; year/month-only dates are interpreted as their first day.
 Never substitute the crawl date for an unknown event date. Old and undated sources can help identify
-people or verify affiliations, but do not emit them as qualifying activity. Record exclusions and
-unresolved dates in channel coverage. A fresh parent event does not prove that an old team roster
+people or verify affiliations; emit them, with the true date or none, and the export keeps them as
+evidence without letting them qualify or rank a person. Record unresolved dates in channel coverage. A fresh parent event does not prove that an old team roster
 participated: confirm membership for that event before inheriting its date in a person signal.

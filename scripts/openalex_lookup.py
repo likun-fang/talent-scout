@@ -3,7 +3,8 @@
 
 Usage:
   openalex_lookup.py --topic "embodied AI" [--region EU27+UK+CH]   # lists the top 10 topics
-  openalex_lookup.py --topics T10462,T10653 [--region ...] [--since ...]          # venues/institutions/authors for chosen topics
+  openalex_lookup.py --topics T10462,T10653 [--region ...] [--date YYYY-MM-DD] [--since YYYY]   # venues/institutions/authors
+      for chosen topics, over the 36 months ending on --date (default today); --since YYYY widens to that January 1
   openalex_lookup.py --title "Paper title"
   openalex_lookup.py --author A1234567890
 Prints JSON to stdout. Standard library only.
@@ -43,10 +44,15 @@ def list_topics(phrase: str) -> dict:
                         "subfield": (t.get("subfield") or {}).get("display_name")} for t in topics],
             "next": "pick the topics that are the domain, then rerun with --topics T1,T2"}
 
-def topic_groups(topic_ids: str, region: str, since: int, until: datetime.date | None = None) -> dict:
+def window_start(end: datetime.date, months: int = 36) -> datetime.date:
+    year, month = divmod((end.year * 12 + end.month - 1) - months, 12)
+    month += 1
+    last = (datetime.date(year + month // 12, month % 12 + 1, 1) - datetime.timedelta(days=1)).day
+    return datetime.date(year, month, min(end.day, last))
+
+def topic_groups(topic_ids: str, region: str, start: datetime.date, until: datetime.date) -> dict:
     ids = "|".join(t.strip() for t in topic_ids.split(",") if t.strip())
-    until = until or datetime.date.today()
-    base = f"topics.id:{ids},from_publication_date:{since:04d}-01-01,to_publication_date:{until.isoformat()},authorships.countries:{'|'.join(region_codes(region))}"
+    base = f"topics.id:{ids},from_publication_date:{start.isoformat()},to_publication_date:{until.isoformat()},authorships.countries:{'|'.join(region_codes(region))}"
     def grouped(key: str) -> list[dict]:
         rows = get("/works", {"filter": base, "group_by": key, "per_page": 100}).get("group_by", [])
         return [{"id": r["key"].rsplit("/", 1)[-1], "name": r.get("key_display_name"), "count": r["count"]} for r in rows]
@@ -54,6 +60,7 @@ def topic_groups(topic_ids: str, region: str, since: int, until: datetime.date |
     return {
         "note": "counts are works with at least one author in region; institutions and authors are leads, not rows. "
                 "PMLR-hosted venues (CoRL) rarely appear here: add known venues by hand.",
+        "window": {"from": start.isoformat(), "to": until.isoformat()},
         "venues": venues[:25],
         "institutions": grouped("authorships.institutions.id")[:30],
         "authors": grouped("authorships.author.id")[:50],
@@ -86,15 +93,15 @@ def main() -> None:
     g.add_argument("--topic"); g.add_argument("--topics"); g.add_argument("--title"); g.add_argument("--author")
     p.add_argument("--region", default="EU27+UK+CH")
     p.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today(), help="Run date and publication cutoff")
-    p.add_argument("--since", type=int, help="First publication year; default: run year minus 2")
+    p.add_argument("--since", type=int, help="First publication year (January 1); default: 36 months before --date")
     a = p.parse_args()
-    since = a.since if a.since is not None else a.date.year - 2
-    if not 1 <= since <= a.date.year:
+    if a.since is not None and not 1 <= a.since <= a.date.year:
         p.error("--since must be between 1 and the run year")
+    start = datetime.date(a.since, 1, 1) if a.since is not None else window_start(a.date)
     if a.topic:
         out = list_topics(a.topic)
     elif a.topics:
-        out = topic_groups(a.topics, a.region, since, a.date)
+        out = topic_groups(a.topics, a.region, start, a.date)
     elif a.title:
         out = title_authors(a.title)
     else:

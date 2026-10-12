@@ -2,8 +2,8 @@
 
 Goal: find PEOPLE doing notable public work in <domain> (<sub-areas>) whose current or most recent
 affiliation is in <region>. Window for all channels, including funding: <window_start> through <window_end>, inclusive
-(default: current calendar year and previous two). Use event dates, never fetch dates.
-Follow the date rules in `references/channels/README.md`; document old or undated sources in coverage.
+(default: the 36 months ending on the run date). Use event dates, never fetch dates.
+Follow the date rules in `references/channels/README.md`; emit older or undated evidence with its real date or none.
 
 ## Output
 Append one JSON object per line to `signals/<channel>.jsonl` (schema: `assets/signal.schema.json`).
@@ -22,9 +22,8 @@ Append one JSON object per line to `signals/<channel>.jsonl` (schema: `assets/si
 
 ## Rules
 - Public professional record only: institutional pages, papers, grant registers, results pages, company team pages,
-  public code, and public LinkedIn professional profiles for identity/role verification (see
-  `references/45-web-verification.md`). Login-gated content, other social profiles, people-search sites
-  and private contact details stay out.
+  public code. No LinkedIn or other social profiles in this channel (the final pass handles current roles).
+  Login-gated content, people-search sites and private contact details stay out.
   No sensitive categories. Junior / school competitions and minors stay out.
 - Page budget: <N> fetched pages for this channel; API calls and git clones are not pages. Stop at budget.
 - Finish with `signals/<channel>.coverage.md`: pages read, skipped at budget, rosters not public, and every place the

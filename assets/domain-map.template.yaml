@@ -1,6 +1,7 @@
 domain: ""            # user phrase
 slug: ""              # kebab-case
 derived_on: ""        # YYYY-MM-DD
+window: {from: "", to: ""}   # publication-date window the counts below were computed over
 sources_used: []      # e.g., [openalex-topics, erc-panels, euroscivoc, web-search]
 region: "EU27+UK+CH"
 openalex_topics: []   # ids + names
