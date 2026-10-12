@@ -16,3 +16,8 @@ Competitions name **teams**, rarely people. Sweep emits `team` signals; stage 3 
 - Winners are often non-European; filter at team level before spending pages.
 - A TDP lists everyone including alumni; keep all with `role: team_member`, let the table show hop depth 1.
 - Student competitions can include minors (RoboCupJunior, IOI). Exclude junior / school leagues.
+
+## role_title and topics
+- `role_title`: team pages often group members under headings ("Team leader", "PhD students", "Supervisors"); copy
+  the heading. TDP and paper author lists carry none. An "Alumni" heading is a `note`, not a role.
+- `topics`: from the TDP or champion paper title, or the team's repository name; not from the league name.

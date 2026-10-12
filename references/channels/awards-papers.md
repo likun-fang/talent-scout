@@ -25,3 +25,8 @@ Signal types: `best_paper`, `outstanding_paper`, `distinguished_paper`, `best_st
 - OpenAlex `search=` treats `?` and `*` as wildcards; strip them from titles.
 - Award pages often list affiliations at publication time; a person may have moved. Record as `affiliation_raw`; stage 4 fetches current affiliation.
 - Several venues give awards per track; capture the track name in `snippet`.
+
+## role_title and topics
+- `role_title`: copy a title only when the award page prints it next to the name. Author lists carry none; author
+  position goes into `role`, and "best student paper" belongs in `snippet`, not in `role_title`.
+- `topics`: 1–3 phrases cut from the paper title as written ("legged locomotion", "diffusion policy").

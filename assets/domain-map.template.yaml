@@ -2,17 +2,20 @@ domain: ""            # user phrase
 slug: ""              # kebab-case
 derived_on: ""        # YYYY-MM-DD
 window: {from: "", to: ""}   # publication-date window the counts below were computed over
-sources_used: []      # e.g., [openalex-topics, erc-panels, euroscivoc, web-search]
-region: "EU27+UK+CH"
-openalex_topics: []   # ids + names
+sources_used: []      # e.g., [openalex-topics, erc-panels, euroscivoc, gepris, web-search]; note dropped leads here
+region_core: "DE+CH"
+region_extended: "EU27+UK+CH"
+# Every entry chosen or added by hand carries selection_reason; entries taken unchanged from a source may omit it.
+openalex_topics: []   # {id, name, fit: core|adjacent, selection_reason}
 venues:
-  conferences: []     # {name, openalex_source_id, award_page_pattern}
+  conferences: []     # {name, openalex_source_id, award_page_pattern, selection_reason}
   journals: []
-erc_panels: []        # e.g., [PE6, PE7] with reason
+panels_to_sweep: []   # ERC panels ordering the funding-eu sweep, e.g. {panel: PE6, reason: ...}
 euroscivoc_paths: []
-competitions: []      # {name, results_url_pattern, roster_source: tdp|team_site|repo|leaderboard}
-labs: []              # {name, country, openalex_institution_id, people_page}
+register_subject_filters: {dfg_review_boards: [], snsf_main_disciplines: []}   # funding-de-ch filters
+competitions: []      # {name, results_url_pattern, roster_source: tdp|team_site|repo|leaderboard, selection_reason}
+labs: []              # {name, country, openalex_institution_id, people_page}; core-region first
 companies: []         # {name, country, reason: eic|openalex-company|user}
 open_source_anchors: []  # repo URLs
-keywords: []          # for CORDIS / ERC title filtering
+keywords: []          # for CORDIS / ERC / GEPRIS / SNSF title filtering
 prizes_filter: ""     # discipline value to select from assets/national-prizes.yaml

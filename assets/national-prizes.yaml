@@ -1,7 +1,7 @@
 # Universal registry of national / regional prizes and academies relevant to engineering & computing.
 # discipline: which domains the prize can cover. url: laureate list or search page.
-- {name: "Leibniz Prize (DFG)", country: DE, discipline: all, url: "https://www.dfg.de/en/funded-projects/prizes-and-awards/leibniz-prize"}
-- {name: "Heinz Maier-Leibnitz Prize (DFG, early career)", country: DE, discipline: all, url: "https://www.dfg.de/en/funded-projects/prizes-and-awards/maier-leibnitz-prize"}
+- {name: "Leibniz Prize (DFG)", country: DE, discipline: all, url: "https://www.dfg.de/en/funded-projects/prizewinners/leibniz-prize"}
+- {name: "Heinz Maier-Leibnitz Prize (DFG, early career)", country: DE, discipline: all, url: "https://www.dfg.de/en/funded-projects/prizewinners/maier-leibnitz-prize"}
 - {name: "Alexander von Humboldt Professorship", country: DE, discipline: all, url: "https://www.humboldt-foundation.de/en/apply/sponsorship-programmes/alexander-von-humboldt-professorship"}
 - {name: "CNRS Gold / Silver / Bronze Medals", country: FR, discipline: all, url: "https://www.cnrs.fr/en/talents"}
 - {name: "Inria – Académie des sciences prizes", country: FR, discipline: computing, url: "https://www.inria.fr/en/inria-academie-des-sciences-awards"}
@@ -32,3 +32,14 @@
 - {name: "NWO Veni / Vidi / Vici (per-university news lists)", country: NL, discipline: all, url: "https://www.nwo.nl/en/talent-programme"}
 - {name: "Branco Weiss Fellowship", country: CH, discipline: all, url: "https://brancoweissfellowship.org/"}
 - {name: "IEEE Fellows via RAS Fellow listing PDF (covers several classes)", country: any, discipline: robotics, url: "https://www.ieee-ras.org/membership/fellows"}
+# Core-region (DE / CH) early-career and group-leader programmes. Entries with `swept_by` are read from the grant
+# registers by references/channels/funding-de-ch.md with the given signal_type; the national-prizes channel skips them.
+- {name: "DFG Emmy Noether Programme (independent junior research groups)", country: DE, discipline: all, url: "https://www.dfg.de/en/research-funding/funding-opportunities/programmes/individual/emmy-noether", signal_type: dfg_emmy_noether, swept_by: funding-de-ch}
+- {name: "DFG Heisenberg Programme (professorships, grants, fellowships)", country: DE, discipline: all, url: "https://www.dfg.de/en/research-funding/funding-opportunities/programmes/individual/heisenberg", signal_type: dfg_heisenberg, swept_by: funding-de-ch}
+- {name: "SNSF Starting Grants", country: CH, discipline: all, url: "https://www.snf.ch/en/w728UqT1Yw256Mz2/funding/careers/snsf-starting-grants", signal_type: snsf_starting_grant, swept_by: funding-de-ch}
+- {name: "SNSF Ambizione", country: CH, discipline: all, url: "https://www.snf.ch/en/N18L3oGWomTSSGkF/funding/careers/ambizione", signal_type: snsf_ambizione, swept_by: funding-de-ch}
+- {name: "SNSF Professorships / Eccellenza (discontinued; ongoing grants)", country: CH, discipline: all, url: "https://www.snf.ch/en/qB3Cj7WzYGcqbgVi/funding/funding/discontinued-funding-schemes/snsf-professorships", signal_type: snsf_professorship, swept_by: funding-de-ch}
+- {name: "Max Planck Research Groups", country: DE, discipline: all, url: "https://www.mpg.de/max-planck-research-groups"}
+- {name: "Helmholtz Investigator Groups", country: DE, discipline: all, url: "https://www.helmholtz.de/en/career/careers-at-helmholtz/helmholtz-investigator-groups/"}
+- {name: "Fraunhofer ATTRACT", country: DE, discipline: engineering, url: "https://www.fraunhofer.de/en/jobs-and-career/professionals/fraunhofer-attract-funding-program.html"}
+- {name: "ETH Domain: ETH Zurich Postdoctoral Fellowships", country: CH, discipline: all, url: "https://grantsoffice.ethz.ch/funding-opportunities/internal/eth-fellowships.html"}
