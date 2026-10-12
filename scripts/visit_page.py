@@ -5,8 +5,11 @@
   visit_page.py URL --browser [--channel chrome] --out x.json        # JS-rendered lab/company pages only
   visit_page.py --batch urls.txt --out-dir runs/<run>/pages/ [--delay 5]   # final-roster LinkedIn pass
 
-Plain HTTP is the only mode that reads LinkedIn public profiles (a headless browser lands on the
-authwall). For LinkedIn the record keeps the headline, Experience and Education excerpts, not the page
+Pages that refuse or come back as a JavaScript shell climb a keyless ladder: plain HTTP with a browser
+User-Agent, then the closest Wayback Machine snapshot, then Jina Reader (r.jina.ai), then a local headless
+Chrome when Playwright is installed. Each attempt is recorded; `fetch_via` names the step that produced the text.
+LinkedIn never climbs: plain HTTP is the only mode that reads a public profile (a headless browser lands on the
+authwall), and no archive or reader proxy is used for it. For LinkedIn the record keeps the headline, Experience and Education excerpts, not the page
 text; pass --full-text to keep everything. Batch mode runs serially with a delay and stops at the first
 LinkedIn authwall / 999 / 429, because the anonymous quota is per outbound IP, not per profile.
 Results are source material, not verified roles. Standard library only; browser mode needs Playwright.
@@ -26,6 +29,11 @@ import urllib.parse
 import urllib.request
 
 MAX_BYTES = 4_000_000
+MIN_TEXT = 200  # fewer characters than this on a 200 page is a JavaScript shell, not content
+BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
+PLAIN_UA = 'talent-scout/0.1 public-page-reader'  # r.jina.ai answers a browser UA with a Cloudflare challenge
+RENDER_WAIT_MS = 4000  # client-rendered rosters need a few seconds before the list exists
+DEFAULT_LADDER = ('http', 'wayback', 'jina', 'browser')
 VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'}
 BLOCK = {'p', 'div', 'section', 'article', 'li', 'h1', 'h2', 'h3', 'h4', 'header', 'footer', 'tr', 'br'}
 STOP_BATCH = {'login_required', 'blocked', 'rate_limited', 'challenge'}
@@ -114,9 +122,12 @@ class PublicRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def http_read(url: str, timeout: float) -> dict:
-    request = urllib.request.Request(url, headers={'User-Agent': 'talent-scout/0.1 public-page-reader',
-                                                  'Accept': 'text/html,text/plain;q=0.9'})
+def http_read(url: str, timeout: float, user_agent: str = BROWSER_UA) -> dict:
+    """One plain GET. A browser User-Agent is used because many public pages answer 403 to anything else;
+    nothing else about the request pretends to be a person: no cookies, no login, no proxy."""
+    request = urllib.request.Request(url, headers={'User-Agent': user_agent,
+                                                  'Accept': 'text/html,text/plain;q=0.9,*/*;q=0.5',
+                                                  'Accept-Language': 'en,de;q=0.8'})
     opener = urllib.request.build_opener(PublicRedirect())
     try:
         response = opener.open(request, timeout=timeout)
@@ -146,13 +157,22 @@ def http_read(url: str, timeout: float) -> dict:
         return {**result, **parsed, 'truncated': truncated}
 
 
+def launch(runtime, channel: str | None):
+    """Installed Chrome (or Edge) when asked for or available, else Playwright's own Chromium."""
+    candidates = [channel] if channel else ['chrome', None]
+    last = None
+    for candidate in candidates:
+        try:
+            return runtime.chromium.launch(headless=True, **({'channel': candidate} if candidate else {}))
+        except Exception as exc:  # playwright.Error: executable missing, channel not installed
+            last = exc
+    raise ImportError(f'no browser available for Playwright ({type(last).__name__}); install Google Chrome or run playwright install chromium')
+
+
 def browser_read(url: str, timeout: float, channel: str | None, wait_ms: int) -> dict:
     from playwright.sync_api import sync_playwright
     with sync_playwright() as runtime:
-        options = {'headless': True}
-        if channel:
-            options['channel'] = channel
-        browser = runtime.chromium.launch(**options)
+        browser = launch(runtime, channel)
         try:
             context = browser.new_context(accept_downloads=False)
             page = context.new_page()
@@ -171,6 +191,84 @@ def browser_read(url: str, timeout: float, channel: str | None, wait_ms: int) ->
             browser.close()
 
 
+def wayback_read(url: str, timeout: float) -> dict:
+    """Closest Wayback Machine capture, raw (the `id_` flag drops the archive toolbar)."""
+    query = 'https://archive.org/wayback/available?' + urllib.parse.urlencode({'url': url})
+    empty = {'text': '', 'title': '', 'links': [], 'final_url': url, 'http_status': None}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(query, headers={'User-Agent': PLAIN_UA}), timeout=timeout) as r:
+            closest = (json.load(r).get('archived_snapshots') or {}).get('closest') or {}
+    except urllib.error.HTTPError as exc:  # the availability API rate-limits after a handful of calls
+        if exc.code != 429:
+            return {**empty, 'status': 'unavailable', 'http_status': exc.code}
+        closest = {'available': True, 'timestamp': str(datetime.date.today().year), 'status': '200', 'via': 'redirect'}
+    if not closest.get('available') or not closest.get('timestamp') or not str(closest.get('status', '200')).startswith('2'):
+        return {**empty, 'status': 'unavailable'}
+    raw = f"https://web.archive.org/web/{closest['timestamp']}id_/{url}"
+    try:
+        record = http_read(raw, timeout)  # a year-only timestamp redirects to the closest capture
+    except urllib.error.HTTPError as exc:
+        return {**empty, 'status': 'unavailable', 'http_status': exc.code}
+    if record.get('http_status') == 404 or 'web.archive.org' not in (record.get('final_url') or ''):
+        return {**empty, 'status': 'unavailable', 'http_status': record.get('http_status')}
+    archived_at = re.search(r'/web/(\d{4,14})', record.get('final_url', '')) 
+    stamp = archived_at.group(1) if archived_at else closest['timestamp']
+    return {**record, 'archived_at': stamp, 'archive_url': f"https://web.archive.org/web/{stamp}/{url}"}
+
+
+def jina_read(url: str, timeout: float) -> dict:
+    """Jina Reader renders the page and returns it as text; keyless, rate-limited, public pages only."""
+    record = http_read('https://r.jina.ai/' + url, timeout, user_agent=PLAIN_UA)
+    text = record.get('text', '')
+    title = ''
+    if text.startswith('Title:'):
+        title, _, text = text.partition('\n')
+        title = title[6:].strip()
+        text = text.split('Markdown Content:', 1)[-1].strip() if 'Markdown Content:' in text else text
+    if record.get('http_status', 0) and record['http_status'] >= 400:
+        return {**record, 'text': '', 'title': title, 'status': 'unavailable'}
+    return {**record, 'text': text, 'title': title or record.get('title', ''), 'final_url': url}
+
+
+def needs_escalation(record: dict, min_chars: int = MIN_TEXT) -> bool:
+    status = classify(record)
+    return status != 'readable' or len(record.get('text', '').strip()) < min_chars
+
+
+def climb(url: str, timeout: float, ladder: tuple, channel: str | None, wait_ms: int,
+          min_chars: int = MIN_TEXT, render: bool = False) -> tuple:
+    """Try each step until one yields readable text. Returns (record, attempts).
+    `render` jumps straight from http to the browser: a people page whose list is built client-side
+    reads as a short but 'readable' navigation shell, which no text threshold can tell apart."""
+    steps = {'http': lambda: http_read(url, timeout), 'wayback': lambda: wayback_read(url, timeout),
+             'jina': lambda: jina_read(url, timeout),
+             'browser': lambda: browser_read(url, timeout, channel, max(wait_ms, RENDER_WAIT_MS))}
+    if render:
+        ladder = tuple(step for step in ladder if step in {'http', 'browser'}) or ('http', 'browser')
+    attempts, best, best_via, queue = [], None, None, list(ladder)
+    while queue:
+        step = queue.pop(0)
+        try:
+            record = steps[step]()
+        except ImportError:
+            attempts.append({'via': step, 'status': 'dependency_missing'})
+            continue
+        except Exception as exc:  # network, HTTP without body, JSON
+            attempts.append({'via': step, 'status': 'fetch_error', 'error': type(exc).__name__})
+            continue
+        status = classify(record)
+        attempts.append({'via': step, 'status': status, 'http_status': record.get('http_status'),
+                         'chars': len(record.get('text', '').strip())})
+        if best is None or (status not in STOP_BATCH and len(record.get('text', '')) > len(best.get('text', ''))):
+            best, best_via = record, step
+        if not needs_escalation(record, min_chars) and not (render and step == 'http' and 'browser' in queue):
+            return {**record, 'fetch_via': step}, attempts
+        if status == 'http_error' and record.get('http_status') == 404 and step == 'http':
+            queue = [s for s in queue if s == 'wayback']  # a missing page can only come from the archive
+    # Nothing readable: keep the attempt with the most text, so a partial render beats a refusal page.
+    return {**(best or {}), 'fetch_via': best_via}, attempts
+
+
 def classify(result: dict) -> str:
     """Access outcome from status code, final URL and page shape. Button labels such as
     'Join to view profile' appear on readable public profiles and are deliberately ignored."""
@@ -184,7 +282,8 @@ def classify(result: dict) -> str:
     if code == 429:
         return 'rate_limited'
     if any(word in title for word in ('captcha', 'security verification', 'just a moment')) or any(
-            word in text for word in ('verify you are human', 'verify you’re human', 'complete the captcha')):
+            word in text for word in ('verify you are human', 'verify you’re human', 'complete the captcha',
+                                      "making sure you're not a bot", 'anubis to protect', 'checking your browser')):
         return 'challenge'
     if code == 401 or result.get('password_form') or any(
             segment in path.split('/') for segment in ('login', 'authwall', 'checkpoint', 'signin', 'uas')):
@@ -229,18 +328,28 @@ def linkedin_sections(text: str, lines_per_section: int = 14) -> dict:
 
 
 def visit(url: str, browser: bool = False, timeout: float = 30, channel: str | None = None,
-          wait_ms: int = 1500, max_chars: int = 60000, full_text: bool = False) -> dict:
+          wait_ms: int = 1500, max_chars: int = 60000, full_text: bool = False,
+          ladder: tuple = DEFAULT_LADDER, min_chars: int = MIN_TEXT, render: bool = False) -> dict:
     validate_url(url)
+    linkedin = is_linkedin(url)
     result = {'requested_url': url, 'retrieved_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              'source_type': 'linkedin' if is_linkedin(url) else 'webpage',
+              'source_type': 'linkedin' if linkedin else 'webpage',
               'method': 'browser' if browser else 'http', 'final_url': url}
-    try:
-        result.update(browser_read(url, timeout, channel, wait_ms) if browser else http_read(url, timeout))
-    except ImportError:
-        result.update(status='dependency_missing', error='Install scripts/requirements-browser.txt to use --browser')
-    except Exception as exc:
-        # Do not serialize exception strings: URLs can contain access tokens.
-        result.update(status='fetch_error', error=type(exc).__name__)
+    if browser:
+        try:
+            result.update(browser_read(url, timeout, channel, wait_ms), fetch_via='browser')
+        except ImportError:
+            result.update(status='dependency_missing', error='Install scripts/requirements-browser.txt to use --browser')
+        except Exception as exc:
+            # Do not serialize exception strings: URLs can contain access tokens.
+            result.update(status='fetch_error', error=type(exc).__name__)
+    else:
+        record, attempts = climb(url, timeout, ('http',) if linkedin else ladder, channel, wait_ms,
+                                 min_chars, render and not linkedin)
+        result.update(record, attempts=attempts)
+        if not record.get('text') and attempts and all(a['status'] in {'fetch_error', 'dependency_missing'} for a in attempts):
+            result['status'] = attempts[0]['status']
+            result['error'] = attempts[0].get('error', 'Install scripts/requirements-browser.txt to use --browser')
     result['status'] = classify(result)
     if is_linkedin(result.get('final_url', '')):
         result['source_type'] = 'linkedin'
@@ -308,6 +417,12 @@ def main():
     parser.add_argument('--wait-ms', type=int, default=1500, help='Browser settling time after DOM load, maximum 10000')
     parser.add_argument('--max-chars', type=int, default=60000)
     parser.add_argument('--full-text', action='store_true', help='Keep full page text for LinkedIn records too')
+    parser.add_argument('--render', action='store_true',
+                        help='People/roster page built client-side: read it with the local browser after the plain fetch')
+    parser.add_argument('--min-chars', type=int, default=MIN_TEXT,
+                        help=f'Readable text shorter than this climbs the ladder (default {MIN_TEXT})')
+    parser.add_argument('--ladder', default=','.join(DEFAULT_LADDER),
+                        help='Fallback steps after a refused or empty page, in order (default: http,wayback,jina,browser); "http" alone disables fallbacks')
     args = parser.parse_args()
     if bool(args.url) == bool(args.batch):
         parser.error('Give exactly one of URL or --batch FILE')
@@ -315,8 +430,14 @@ def main():
         parser.error('Positive timeout/max-chars, wait-ms between 0 and 10000, non-negative delay required')
     if args.channel and not args.browser:
         parser.error('--channel requires --browser')
-    options = dict(browser=args.browser, timeout=args.timeout, channel=args.channel,
-                   wait_ms=args.wait_ms, max_chars=args.max_chars, full_text=args.full_text)
+    ladder = tuple(step.strip() for step in args.ladder.split(',') if step.strip())
+    if not ladder or ladder[0] != 'http' or set(ladder) - set(DEFAULT_LADDER):
+        parser.error('--ladder must start with http and use only: ' + ','.join(DEFAULT_LADDER))
+    if args.min_chars < 0:
+        parser.error('--min-chars must be non-negative')
+    options = dict(browser=args.browser, timeout=args.timeout, channel=args.channel, wait_ms=args.wait_ms,
+                   max_chars=args.max_chars, full_text=args.full_text, ladder=ladder, min_chars=args.min_chars,
+                   render=args.render)
     if args.batch:
         try:
             with open(args.batch, encoding='utf-8') as source:
@@ -342,7 +463,7 @@ def main():
     else:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     kept = len(result['text']) or sum(len(v) for v in result.get('sections', {}).values())
-    print(f"page status: {result['status']}; kept {kept} {'lines' if result['source_type'] == 'linkedin' else 'characters'}", file=sys.stderr)
+    print(f"page status: {result['status']} via {result.get('fetch_via')}; kept {kept} {'lines' if result['source_type'] == 'linkedin' else 'characters'}", file=sys.stderr)
     return 0 if result['status'] == 'readable' else 2
 
 

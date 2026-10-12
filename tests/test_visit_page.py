@@ -42,6 +42,7 @@ class ReaderTests(unittest.TestCase):
             ({'final_url': 'https://www.linkedin.com/', 'title': '领英: 登录或注册'}, 'login_required'),
             ({'final_url': 'https://www.linkedin.com/uas/login'}, 'login_required'),
             ({'text': 'Verify you are human'}, 'challenge'),
+            ({'http_status': 200, 'text': "Making sure you're not a bot! Loading... Anubis to protect the server"}, 'challenge'),
             ({'password_form': True}, 'login_required'),
             ({'http_status': 404}, 'http_error'),
             ({'text': '   '}, 'empty'),
@@ -78,7 +79,7 @@ class ReaderTests(unittest.TestCase):
 
     def test_does_not_verify_roles_and_marks_truncation(self):
         with patch('visit_page.http_read', return_value={'text': 'PhD student at Example', 'final_url': 'https://example.org/person'}):
-            record = visit('https://example.org/person', max_chars=8)
+            record = visit('https://example.org/person', max_chars=8, ladder=('http',))
         self.assertTrue(record['truncated'])
         self.assertFalse(record['role_verified'])
         self.assertTrue(record['needs_review'])
@@ -87,7 +88,7 @@ class ReaderTests(unittest.TestCase):
 
     def test_error_is_recorded_without_exception_details(self):
         with patch('visit_page.http_read', side_effect=RuntimeError('SECRET')):
-            record = visit('https://example.org/person')
+            record = visit('https://example.org/person', ladder=('http',))
         self.assertEqual(record['status'], 'fetch_error')
         self.assertEqual(record['error'], 'RuntimeError')
         self.assertNotIn('SECRET', str(record))
@@ -114,7 +115,7 @@ class ReaderTests(unittest.TestCase):
         urls = list(responses)
         with patch('visit_page.http_read', side_effect=lambda url, timeout: responses[url]), \
                 patch('visit_page.time.sleep') as sleep, tempfile.TemporaryDirectory() as tmp:
-            summary = batch(urls, Path(tmp), 5.0)
+            summary = batch(urls, Path(tmp), 5.0, ladder=('http',))
             files = sorted(Path(tmp).iterdir())
             first = json.loads(files[0].read_text())
         self.assertEqual((summary['read'], summary['refused'], summary['other']), (2, 1, 0))
@@ -128,10 +129,102 @@ class ReaderTests(unittest.TestCase):
     def test_batch_skips_invalid_urls_without_stopping(self):
         with patch('visit_page.http_read', return_value={'text': 'ok', 'final_url': 'https://example.org/'}), \
                 patch('visit_page.time.sleep'), tempfile.TemporaryDirectory() as tmp:
-            summary = batch(['http://localhost/x', 'https://example.org/'], Path(tmp), 0)
+            summary = batch(['http://localhost/x', 'https://example.org/'], Path(tmp), 0, ladder=('http',))
         self.assertEqual((summary['read'], summary['other']), (1, 1))
         self.assertIsNone(summary['stopped_at'])
 
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class LadderTests(unittest.TestCase):
+    LONG = 'Members of the lab. ' * 20
+
+    def test_climbs_until_readable_and_records_attempts(self):
+        with patch('visit_page.http_read', return_value={'http_status': 403, 'final_url': 'https://lab.example/people', 'text': ''}), \
+                patch('visit_page.wayback_read', return_value={'http_status': 200, 'final_url': 'https://web.archive.org/web/2025id_/x', 'text': 'shell', 'archived_at': '20250101'}), \
+                patch('visit_page.jina_read', return_value={'http_status': 200, 'final_url': 'https://lab.example/people', 'text': self.LONG, 'title': 'People'}), \
+                patch('visit_page.browser_read') as browser:
+            record = visit('https://lab.example/people')
+        self.assertEqual(record['status'], 'readable')
+        self.assertEqual(record['fetch_via'], 'jina')
+        self.assertEqual([a['via'] for a in record['attempts']], ['http', 'wayback', 'jina'])
+        self.assertEqual(record['attempts'][0]['status'], 'blocked')
+        self.assertFalse(browser.called)
+
+    def test_readable_http_never_climbs(self):
+        with patch('visit_page.http_read', return_value={'http_status': 200, 'final_url': 'https://lab.example/people', 'text': self.LONG}), \
+                patch('visit_page.wayback_read') as wayback:
+            record = visit('https://lab.example/people')
+        self.assertEqual(record['fetch_via'], 'http')
+        self.assertFalse(wayback.called)
+
+    def test_linkedin_never_climbs(self):
+        with patch('visit_page.http_read', return_value={'http_status': 999, 'final_url': 'https://www.linkedin.com/in/x', 'text': ''}), \
+                patch('visit_page.wayback_read') as wayback, patch('visit_page.jina_read') as jina:
+            record = visit('https://www.linkedin.com/in/x')
+        self.assertEqual(record['status'], 'blocked')
+        self.assertFalse(wayback.called or jina.called)
+
+    def test_404_only_tries_the_archive(self):
+        with patch('visit_page.http_read', return_value={'http_status': 404, 'final_url': 'https://lab.example/old', 'text': ''}), \
+                patch('visit_page.wayback_read', return_value={'status': 'unavailable', 'text': '', 'final_url': 'https://lab.example/old'}), \
+                patch('visit_page.jina_read') as jina, patch('visit_page.browser_read') as browser:
+            record = visit('https://lab.example/old')
+        self.assertEqual([a['via'] for a in record['attempts']], ['http', 'wayback'])
+        self.assertFalse(jina.called or browser.called)
+        self.assertEqual(record['status'], 'http_error')
+
+    def test_missing_playwright_is_recorded_not_fatal(self):
+        with patch('visit_page.http_read', return_value={'http_status': 403, 'final_url': 'https://x.example/', 'text': ''}), \
+                patch('visit_page.wayback_read', return_value={'status': 'unavailable', 'text': '', 'final_url': 'https://x.example/'}), \
+                patch('visit_page.jina_read', return_value={'http_status': 200, 'final_url': 'https://x.example/', 'text': ''}), \
+                patch('visit_page.browser_read', side_effect=ImportError):
+            record = visit('https://x.example/')
+        self.assertEqual(record['attempts'][-1], {'via': 'browser', 'status': 'dependency_missing'})
+        self.assertEqual(record['status'], 'blocked')
+
+    def test_jina_parses_title_and_markdown(self):
+        payload = {'http_status': 200, 'final_url': 'https://r.jina.ai/https://x', 'content_type': 'text/plain',
+                   'text': 'Title: People\n\nURL Source: https://x\n\nMarkdown Content:\n# People\nAlex (PhD student)'}
+        with patch('visit_page.http_read', return_value=payload):
+            record = visit_page.jina_read('https://x', 10)
+        self.assertEqual(record['title'], 'People')
+        self.assertTrue(record['text'].startswith('# People'))
+        self.assertEqual(record['final_url'], 'https://x')
+
+    def test_render_goes_from_http_straight_to_browser(self):
+        shell = 'Program\nPartners\nScholars\n' + 'IMPRS-IS is a diverse and international community of doctoral researchers. ' * 4
+        roster = 'Scholars\n' + '\n'.join(f'Person {i}\nMachine Learning' for i in range(60))
+        with patch('visit_page.http_read', return_value={'http_status': 200, 'final_url': 'https://imprs.example/scholars', 'text': shell}), \
+                patch('visit_page.wayback_read') as wayback, patch('visit_page.jina_read') as jina, \
+                patch('visit_page.browser_read', return_value={'http_status': 200, 'final_url': 'https://imprs.example/scholars', 'text': roster}) as browser:
+            record = visit('https://imprs.example/scholars', render=True, wait_ms=1500)
+        self.assertEqual(record['fetch_via'], 'browser')
+        self.assertEqual([a['via'] for a in record['attempts']], ['http', 'browser'])
+        self.assertFalse(wayback.called or jina.called)
+        self.assertEqual(browser.call_args[0][3], visit_page.RENDER_WAIT_MS)
+
+    def test_jina_uses_plain_user_agent(self):
+        with patch('visit_page.http_read', return_value={'http_status': 200, 'text': 'Title: T\n\nMarkdown Content:\nbody', 'final_url': 'x'}) as http:
+            visit_page.jina_read('https://x.example/', 10)
+        self.assertEqual(http.call_args.kwargs.get('user_agent'), visit_page.PLAIN_UA)
+
+    def test_wayback_rate_limit_falls_back_to_the_archive_redirect(self):
+        import urllib.error
+        err = urllib.error.HTTPError('https://archive.org/wayback/available', 429, 'Too Many', {}, None)
+        capture = {'http_status': 200, 'final_url': 'https://web.archive.org/web/20250301120000id_/https://x.example/', 'text': 'archived body ' * 20}
+        with patch('visit_page.urllib.request.urlopen', side_effect=err), patch('visit_page.http_read', return_value=capture) as http:
+            record = visit_page.wayback_read('https://x.example/', 10)
+        self.assertEqual(record['archived_at'], '20250301120000')
+        self.assertTrue(http.call_args[0][0].startswith('https://web.archive.org/web/'))
+        self.assertEqual(record['archive_url'], 'https://web.archive.org/web/20250301120000/https://x.example/')
+
+    def test_wayback_without_capture_is_unavailable(self):
+        import urllib.error
+        err = urllib.error.HTTPError('https://archive.org/wayback/available', 429, 'Too Many', {}, None)
+        missing = urllib.error.HTTPError('https://web.archive.org/web/2026id_/https://x.example/', 404, 'Not Found', {}, None)
+        with patch('visit_page.urllib.request.urlopen', side_effect=err), patch('visit_page.http_read', side_effect=missing):
+            record = visit_page.wayback_read('https://x.example/', 10)
+        self.assertEqual(record['status'], 'unavailable')

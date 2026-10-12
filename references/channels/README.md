@@ -54,7 +54,8 @@ not readable pages. Write a `skipped` note listing what was not read so the gap 
 
 When a hop lands on a group's people page (a PI's lab, a Research Training Group, an IMPRS, a company team), emit one
 `person` signal per listed current member with `signal_type: lab_member`, `role: team_member`, `hop_depth: 1`,
-`parent` = the group, `evidence_url` = the people page, and `role_title` = the **section heading the name sits under**,
+`parent` = the group, `evidence_url` = the people page (read it with `visit_page.py --render` when the plain fetch
+shows only navigation), and `role_title` = the **section heading the name sits under**,
 verbatim ("Doctoral students", "Postdocs", "PhD Students and Scientific Assistants"), never the page title. Leave
 `date` empty unless the page prints a cohort or start year: a membership page proves identity, institution and
 heading, not recent output; the person qualifies through a dated work found by the same hop. Alumni, bachelor and

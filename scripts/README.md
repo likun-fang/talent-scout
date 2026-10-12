@@ -44,7 +44,13 @@ this preserves the existing lists of lines in `sections`. A line cap or page/byt
 end marks it true; reaching the next heading or public-profile boundary marks it false. A readable
 public profile may still be incomplete even when this flag is false.
 
-For JavaScript-only lab or company pages, install the optional browser dependency in a project-local environment:
+Refused or empty pages climb a keyless ladder automatically (plain HTTP with a browser User-Agent → Wayback capture →
+Jina Reader → local browser); `attempts` lists every step, `fetch_via` the one that worked, `--ladder http` turns it
+off. A roster built client-side reads as a short "readable" shell: pass `--render` to go straight to the browser
+(`--min-chars` raises the shell threshold instead). The browser step uses installed Google Chrome when present.
+
+For JavaScript-only lab or company pages without Chrome, install the optional browser dependency in a project-local
+environment:
 
 ```sh
 python3 -m venv .venv-browser
