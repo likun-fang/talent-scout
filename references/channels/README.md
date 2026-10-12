@@ -31,6 +31,7 @@ that profile's works match the domain; name search alone returned a chemist for 
 |---------|------|--------------------|
 | Top-venue paper awards | `awards-papers.md` | partial (two cross-venue lists), otherwise award pages |
 | EU funding (ERC, CORDIS, Chips JU, EuroHPC, EIC) | `funding-eu.md` | yes: PDFs + CSV |
+| Core-region funding (DFG GEPRIS, SNSF; Research Training Groups, IMPRS) | `funding-de-ch.md` | yes: GEPRIS JSON backend, SNSF CSV datasets; member pages for doctoral students |
 | National prizes and academies | `national-prizes.md` | registry in `assets/national-prizes.yaml`, pages per prize |
 | Competitions | `competitions.md` | no: results pages + team documents |
 | Startups | `startups.md` | partial: EIC PDFs; company pages |
