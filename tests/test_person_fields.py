@@ -26,7 +26,7 @@ class RoleTests(unittest.TestCase):
 
     def test_explicit_title_mapping(self):
         titles = {
-            'professor': ['Professor', 'Prof.', 'Chair', 'Lehrstuhl', 'Group Leader', 'Head of Lab',
+            'professor': ['Professor', 'Prof.', 'Chair of Robotics', 'Lehrstuhl', 'Group Leader', 'Head of Lab',
                           'Head of Group', 'Head of Chair', 'Juniorprofessor', 'Assistant Professor',
                           'Associate Professor', 'Faculty', 'Principal Investigator', 'Direktor', 'Director'],
             'phd_student': ['PhD student', 'Doctoral student', 'Doctoral researcher', 'Doctoral candidate',

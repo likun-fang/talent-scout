@@ -43,9 +43,9 @@ stop at the first match. It uses only the standard library.
 
 | priority | evidence | role_class | role_confidence |
 |----------|----------|------------|-----------------|
-| 1 | Verbatim title: professor, prof., chair, lehrstuhl, group leader, head of lab/group/chair, juniorprofessor, assistant professor, associate professor, faculty, principal investigator; direktor/director with research-institute context | professor | high |
 | 1 | Verbatim title: phd student, doctoral student/researcher/candidate, doktorand, dissertation, ph.d. candidate | phd_student | high |
 | 1 | Verbatim title: postdoc, postdoctoral, senior scientist, research scientist, wissenschaftlicher mitarbeiter, research associate, staff scientist, oberassistent | researcher | high |
+| 1 | Verbatim title: professor, prof., chair of / chair holder / professor and chair, lehrstuhl, group leader, head of lab/group/chair, juniorprofessor, assistant/associate professor, faculty member or a bare "Faculty" heading, principal investigator; direktor/director with research-institute context. A bare "Chair" (board, session) is not a professorship | professor | high |
 | 1 | engineer, software, research engineer with institution type company; or a title containing GmbH/AG/Ltd/Inc | industry | high |
 | 2 | `erc_*`, `dfg_*`, `snsf_*` signal with `role: pi`; `snsf_ambizione` is the exception | professor; Ambizione → researcher | high |
 | 3 | OpenAlex `institution.type == company`, or `affiliation_raw` contains GmbH/AG/Ltd/Inc/SA as a word | industry | medium |
@@ -53,6 +53,8 @@ stop at the first match. It uses only the standard library.
 | 4 | Run year minus `first_pub_year` is at least 10 and strictly more than half of all signals have `role: last_author` or `pi` | professor | low |
 | 4 | All other cases, including a missing/invalid publication year or no majority | unknown | low |
 
+Within rule 1 the student and researcher patterns are tested before the professor pattern, so a lab line
+such as "Postdoctoral researcher in the group of Prof. Meyer" classifies the person, not the supervisor.
 Rule 1 sources are signal `role_title`, current ORCID employment `role-title`, and a final-pass
 LinkedIn headline. Within this rule, use the dated final-pass headline first, then current ORCID,
 then signal titles from newest to oldest. Stale ORCID employment rejected during affiliation resolution

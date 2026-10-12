@@ -138,10 +138,12 @@ def inst_tokens(value: str) -> set[str]:
     return {word for word in re.findall(r"\w+", normalized) if len(word) > 2 and word not in generic}
 
 
+# Most specific first: a lab line such as "Postdoctoral researcher in the group of Prof. Meyer" names the
+# person's own role before the supervisor's. Bare "chair" is a board or session title, not a professorship.
 TITLE_RULES = (
-    ('professor', r'\b(?:professor|prof\.|chair|lehrstuhl|group leader|head of (?:the )?(?:lab\w*|group|chair)|juniorprofessor|faculty|principal investigator)\b|\bprof\.'),
     ('phd_student', r'\b(?:ph\.?d\.? student|doctoral (?:student|researcher|candidate)|doktorand\w*|dissertation|ph\.?d\.? candidate)\b'),
     ('researcher', r'\b(?:postdoc\w*|senior scientist|research scientist|wissenschaftlicher mitarbeiter\w*|research associate|staff scientist|oberassistent)\b'),
+    ('professor', r'\b(?:professor|prof\.|chair of|chair holder|chaired|professor and chair|lehrstuhl\w*|group leader|head of (?:the )?(?:lab\w*|group|chair)|juniorprofessor|faculty member|principal investigator)\b|\bprof\.|^\s*faculty\s*$'),
 )
 COMPANY = r'\b(?:gmbh|ag|ltd|inc|sa)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_')

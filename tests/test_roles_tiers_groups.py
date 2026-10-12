@@ -168,3 +168,20 @@ class GroupTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TitleOrderTests(unittest.TestCase):
+    def test_own_role_beats_supervisor_mention(self):
+        from current_affiliation import title_class
+        self.assertEqual(title_class('Postdoctoral researcher in the group of Prof. Dr. Meyer'), 'researcher')
+        self.assertEqual(title_class('PhD student, supervised by Professor Lee'), 'phd_student')
+        self.assertEqual(title_class('Professor of Robotics'), 'professor')
+        self.assertEqual(title_class('Prof. Dr.-Ing.'), 'professor')
+
+    def test_bare_chair_is_not_a_professorship(self):
+        from current_affiliation import title_class
+        self.assertEqual(title_class('Chair, Acme Foundation'), '')
+        self.assertEqual(title_class('Session chair'), '')
+        self.assertEqual(title_class('Chair of Robotics and Embedded Systems'), 'professor')
+        self.assertEqual(title_class('Faculty'), 'professor')
+        self.assertEqual(title_class('Faculty of Engineering'), '')

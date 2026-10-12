@@ -240,6 +240,7 @@ def window_coverage(persons: list[dict], selected: list[dict], start: datetime.d
 
 
 def export(persons: list[dict], args) -> None:
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     selected, outside, rejected, cut, no_qualifying = select_persons(persons, args)
     rows = [row_for(p, args.domain, args.date.isoformat()) for p in selected]
     start = window_start(args.date, args.window_months)
