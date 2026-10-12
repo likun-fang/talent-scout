@@ -29,8 +29,12 @@ def region_codes(spec: str) -> list[str]:
 
 def get(path: str, params: dict) -> dict:
     url = f"{API}{path}?{urllib.parse.urlencode(params, safe=':,|>')}"
-    req = urllib.request.Request(url, headers={"User-Agent": "talent-scout/0.1 (mailto:unset)", **auth_headers()})
     try:
+        headers = auth_headers()
+    except RuntimeError as exc:
+        raise SystemExit(f"openalex configuration error: {exc}") from None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "talent-scout/0.1 (mailto:unset)", **headers})
         with urllib.request.urlopen(req, timeout=60) as resp:
             return json.load(resp)
     except Exception as exc:  # network / HTTP / JSON

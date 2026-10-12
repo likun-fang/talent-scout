@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,27 @@ from setup_openalex import save_key
 
 
 class AuthTests(unittest.TestCase):
+    def test_default_key_is_in_user_config(self):
+        self.assertEqual(auth.DEFAULT_KEY_FILE, Path.home() / '.config' / 'talent-scout' / 'openalex.key')
+
+    def test_default_file_loading(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'config' / 'openalex.key'
+            save_key('fixture-default-key', path)
+            with patch.dict(os.environ, {}, clear=True), patch.object(auth, 'DEFAULT_KEY_FILE', path):
+                self.assertEqual(auth.auth_headers(), {'Authorization': 'Bearer fixture-default-key'})
+
+    def test_missing_file_cli_has_one_line_error_without_traceback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = {**os.environ, 'OPENALEX_API_KEY': '',
+                   'OPENALEX_API_KEY_FILE': str(Path(directory) / 'missing')}
+            result = subprocess.run([sys.executable, str(Path(lookup.__file__)), '--topic', 'multimodal'],
+                                    env=env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, '')
+        self.assertEqual(result.stderr.strip(),
+                         'openalex configuration error: OPENALEX_API_KEY_FILE does not exist')
+
     def test_file_loading_and_env_precedence(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'private' / 'key'

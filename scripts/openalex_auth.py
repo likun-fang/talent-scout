@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-DEFAULT_KEY_FILE = Path(__file__).resolve().parents[1] / '.secrets' / 'openalex.key'
+DEFAULT_KEY_FILE = Path.home() / '.config' / 'talent-scout' / 'openalex.key'
 
 
 def api_key():

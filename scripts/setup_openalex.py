@@ -65,7 +65,7 @@ def main():
             return 1
         verify(key)
         save_key(key, DEFAULT_KEY_FILE)
-        print('Verified. Key saved to .secrets/openalex.key (owner read/write only; ignored by Git).')
+        print('Verified. Key saved to ~/.config/talent-scout/openalex.key (owner read/write only; outside the skill package).')
         print('Scripts will read this key automatically; you do not need to enter it again.')
         if os.environ.get('OPENALEX_API_KEY') or os.environ.get('OPENALEX_API_KEY_FILE'):
             print('Note: existing OPENALEX_API_KEY / OPENALEX_API_KEY_FILE environment variables take precedence over this local configuration.')
