@@ -66,7 +66,7 @@
         "graduiertenkolleg_member",
         "imprs_member"
       ],
-      "description": "Open vocabulary; existing erc_, dfg_ and snsf_ funding signals require role pi. Optional national_project/national_fellowship signals require evidence for role pi and do not trigger funding-role inference. resource_allocation records compute/in-kind support and is excluded from research-grant aggregation and funding-role inference. Membership signals use graduiertenkolleg_member or imprs_member."
+      "description": "Open vocabulary; erc_, dfg_, snsf_, fwf_, swecris_, rcn_, dff_, fris_ and aei_ funding signals require role pi. Optional national_project/national_fellowship signals require evidence for role pi and do not trigger funding-role inference. resource_allocation records compute/in-kind support and is excluded from research-grant aggregation and funding-role inference. Membership signals use graduiertenkolleg_member or imprs_member."
     },
     "strength": {
       "enum": [
@@ -135,7 +135,7 @@
       "if": {
         "properties": {
           "signal_type": {
-            "pattern": "^(erc_|dfg_|snsf_)"
+            "pattern": "^(erc_|dfg_|snsf_|fwf_|swecris_|rcn_|dff_|fris_|aei_)"
           }
         },
         "required": [

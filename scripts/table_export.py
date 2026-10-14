@@ -14,7 +14,7 @@ Ranking uses tier, eligible channel count, strongest signal, newest signal date,
 from __future__ import annotations
 import argparse, csv, datetime, glob, json, os, sys
 from pathlib import Path
-from current_affiliation import region_codes
+from current_affiliation import region_codes, apply_final_pass, classify_role
 from person_fields import topics_for
 
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
@@ -72,6 +72,7 @@ def filter_window(persons: list[dict], start: datetime.date, end: datetime.date)
     return kept, rejected
 
 def row_for(p: dict, domain: str, date: str) -> dict:
+    p = apply_final_pass(p)
     sigs = p.get("signals", [])
     newest = max(sigs, key=signal_date, default={})
     fits = {s["fit"] for s in sigs if s.get("fit")}
@@ -81,7 +82,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
     return {
         "name": p.get("name", ""),
         "current_affiliation": p.get("current_affiliation") or newest.get("affiliation_raw", ""),
-        "country": p.get("country") or newest.get("country", ""),
+        "country": country_for(p),
         "role": role,
         "domain": domain,
         "channels_hit": ";".join(p.get("channels_hit", [])),
@@ -129,6 +130,8 @@ def coverage_text(kept: int, cut: int, out_of_region: int, cov_dir: str | None) 
 
 
 def country_for(person: dict) -> str:
+    if person.get('final_pass_affiliation'):
+        return person.get('final_pass_country') or ''
     newest = max(person.get('signals', []), key=signal_date, default={})
     return person.get('country') or newest.get('country', '')
 
@@ -228,6 +231,9 @@ def write_groups(persons: list[dict], out: str, start: datetime.date, end: datet
 
 
 def select_persons(persons: list[dict], args) -> tuple:
+    persons = [apply_final_pass(p) for p in persons]
+    persons = [{**p, **classify_role(p, args.date.year)} if p.get('final_pass_affiliation') or
+               p.get('final_pass_title') or p.get('linkedin_headline') else p for p in persons]
     start = window_start(args.date, args.window_months)
     qualified, rejected = filter_window(persons, start, args.date)
     codes, core = region_codes(args.region), region_codes(args.region_core)

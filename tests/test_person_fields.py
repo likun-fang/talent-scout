@@ -64,9 +64,9 @@ class RoleTests(unittest.TestCase):
 
     def test_rule_precedence(self):
         result = self.classify(role_title='Doctoral student', signal_type='erc_starting', role='pi', affiliation_raw='Example GmbH')
-        self.assertEqual(result['role_class'], 'phd_student')
+        self.assertEqual(result['role_class'], 'industry')
         result = self.classify(signal_type='dfg_project', role='pi', affiliation_raw='Example GmbH')
-        self.assertEqual(result['role_class'], 'group_leader')
+        self.assertEqual(result['role_class'], 'industry')
         person = {'first_pub_year': 2023, 'signals': [signal(role='first_author', affiliation_raw='Example GmbH')]}
         self.assertEqual(ca.classify_role(person, 2026)['role_class'], 'industry')
 
@@ -123,7 +123,7 @@ class RoleTests(unittest.TestCase):
              patch.object(ca, 'openalex_current', return_value=('Example Institute', 'DE', '2026', 'company', 'https://openalex.org/I1')), \
              patch.object(ca, 'first_publication_year', return_value=2023):
             result = ca.enrich(person, {'DE'}, run_year=2026)
-        self.assertEqual(result['role_class'], 'phd_student')
+        self.assertEqual(result['role_class'], 'industry')
         self.assertEqual(result['last_verified'], '')
         self.assertEqual(result['first_pub_year'], 2023)
         self.assertNotIn('role_class', person)

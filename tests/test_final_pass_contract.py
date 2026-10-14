@@ -80,3 +80,111 @@ class GroupContractTests(unittest.TestCase):
         result = assign_groups([lead, junior, person('Alone')])
         self.assertEqual(result[1]['group'], 'PI @ EPFL')
         self.assertEqual(result[2]['group_evidence'], 'unattached')
+
+
+class FinalPassTests(unittest.TestCase):
+    def test_enrichment_and_export_apply_final_affiliation_before_tier(self):
+        import current_affiliation as ca
+        import table_export as te
+        from argparse import Namespace
+        import datetime
+        p = {**person('Mover', 'EPFL', role='first_author', country='CH', date='2025', channel='papers'),
+             'current_affiliation': 'EPFL', 'country': 'CH', 'affiliation_source': 'openalex old',
+             'notes': 'Preserve this note', 'final_pass_affiliation': 'NAVER LABS Europe',
+             'final_pass_country': 'FR', 'final_pass_title': 'Research Scientist',
+             'final_pass_url': 'https://naver.example/person', 'last_verified': '2026-10-12'}
+        original = copy.deepcopy(p)
+        enriched = ca.enrich(p, ca.region_codes('EU27+UK+CH+NO'), run_year=2026)
+        self.assertEqual((enriched['current_affiliation'], enriched['country']), ('NAVER LABS Europe', 'FR'))
+        self.assertEqual(enriched['affiliation_source'], 'final pass 2026-10-12 https://naver.example/person')
+        self.assertIn('source affiliation: EPFL (', enriched['notes'])
+        self.assertIn('Preserve this note', enriched['notes'])
+        args = Namespace(date=datetime.date(2026, 10, 12), window_months=36, region='EU27+UK+CH+NO',
+                         region_core='DE+CH', max_rows=0, domain='')
+        selected = te.select_persons([p], args)[0][0]
+        self.assertEqual((selected['country'], selected['tier'], selected['role_class']), ('FR', 4, 'industry'))
+        row = te.row_for(selected, '', '2026-10-12')
+        self.assertEqual((row['role'], row['latest_role']), ('first_author', 'first_author'))
+        self.assertEqual(p, original)
+
+    def test_final_pass_is_idempotent_and_never_reuses_old_country(self):
+        import current_affiliation as ca
+        p = {**person('Mover', country='CH'), 'current_affiliation': 'EPFL', 'country': 'CH',
+             'final_pass_affiliation': 'New Lab', 'affiliation_source': 'provider', 'notes': 'keep'}
+        updated = ca.apply_final_pass(p)
+        self.assertEqual(updated['country'], '')
+        self.assertEqual(ca.apply_final_pass(updated), updated)
+
+
+class IndustryTests(unittest.TestCase):
+    def test_company_before_title_but_professor_exception(self):
+        import current_affiliation as ca
+        for employer in ['NAVER LABS Europe', 'DeepMind', 'Meta', 'Sony', 'Bosch', 'Mistral', 'Aleph Alpha',
+                         'Example GmbH', 'Example AG', 'Example Ltd', 'Example Inc', 'Example SA',
+                         'Example SAS', 'Example B.V.', 'Example Labs', 'Example Research Europe']:
+            with self.subTest(employer=employer):
+                p = {**person('Employee', employer, role_title='Research Scientist'),
+                     'final_pass_affiliation': employer, 'last_verified': '2026-10-12',
+                     'final_pass_title': 'Research Scientist', 'final_pass_url': 'https://company.example/person'}
+                result = ca.classify_role(p, 2026)
+                self.assertEqual((result['role_class'], result['role_confidence']), ('industry', 'high'))
+                self.assertIn('industry | Research Scientist |', result['role_evidence'])
+                p['final_pass_title'] = 'Professor'
+                self.assertEqual(ca.classify_role(p, 2026)['role_class'], 'professor')
+        p = person('Employee', role_title='Research Scientist', institution_type='company')
+        self.assertEqual(ca.classify_role(p, 2026)['role_class'], 'industry')
+        self.assertEqual(ca.classify_role(p, 2026)['role_confidence'], 'medium')
+
+    def test_current_academic_affiliation_wins_over_old_company(self):
+        import current_affiliation as ca
+        p = {**person('Mover', 'Example Ltd', role_title='Research Scientist'),
+             'final_pass_affiliation': 'EPFL', 'final_pass_country': 'CH', 'last_verified': '2026-10-12',
+             'final_pass_title': 'Postdoc', 'final_pass_url': 'https://epfl.example/person'}
+        self.assertEqual(ca.classify_role(p, 2026, institution=('Old Ltd', 'GB', '2025', 'company', 'I1'))['role_class'], 'researcher')
+
+    def test_new_titles_and_honorary_annotation(self):
+        import current_affiliation as ca
+        for title in ['Research Junior Group Lead', 'JRG Leader', 'Junior Research Group Leader',
+                      'Site Lead', 'Head of Digital Humanities', 'Nachwuchsgruppenleiterin']:
+            self.assertEqual(ca.classify_role(person('A', role_title=title), 2026)['role_class'], 'group_leader', title)
+        for title in ['senior researcher and lecturer', 'clinical radiologist and imaging scientist',
+                      'clinical scientist', 'chargée de recherche', 'maître de conférences']:
+            r = ca.classify_role(person('A', role_title=title), 2026)
+            self.assertEqual((r['role_class'], r['role_confidence']), ('researcher', 'high'), title)
+        for title in ['Honorarprofessor', 'Honorary Professor']:
+            r = ca.classify_role(person('A', role_title=title), 2026)
+            self.assertEqual(r['role_class'], 'professor')
+            self.assertIn('honorary', r['role_evidence'])
+
+    def test_new_funding_roles_and_schema(self):
+        import current_affiliation as ca
+        import json, re
+        schema = json.loads((Path(__file__).resolve().parents[1] / 'assets/signal.schema.json').read_text())
+        pattern = schema['allOf'][0]['if']['properties']['signal_type']['pattern']
+        for kind in ['fwf_project', 'swecris_project', 'rcn_project', 'dff_project', 'fris_project', 'aei_project', 'fwf_start', 'fwf_esprit']:
+            r = ca.classify_role(person('A', role='pi', signal_type=kind), 2026)
+            self.assertEqual((r['role_class'], r['role_confidence']),
+                             ('researcher' if kind == 'fwf_esprit' else 'group_leader', 'medium'))
+            self.assertTrue(re.match(pattern, kind))
+
+
+class OfflineTests(unittest.TestCase):
+    def test_cli_uses_cached_responses_counts_misses_and_never_fetches(self):
+        import current_affiliation as ca
+        import tempfile, json, hashlib, io
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / 'persons.jsonl'
+            src.write_text(json.dumps({**person('A'), 'ids': {'openalex': 'A1', 'orcid': '0000'}}) + '\n')
+            cached = root / (hashlib.sha256(b'openalex-author/A1').hexdigest() + '.json')
+            cached.write_text(json.dumps({'last_known_institutions': [{'display_name': 'EPFL', 'country_code': 'CH', 'type': 'education', 'id': 'I1'}]}))
+            before = {p.name: p.read_bytes() for p in root.iterdir()}
+            out, err = io.StringIO(), io.StringIO()
+            with patch.object(sys, 'argv', ['current_affiliation.py', str(src), '--offline', '--cache-dir', tmp, '--date', '2026-10-12']), \
+                 patch('sys.stdout', out), patch('sys.stderr', err), \
+                 patch('urllib.request.urlopen', side_effect=AssertionError('network forbidden')):
+                ca.main()
+            self.assertEqual(json.loads(out.getvalue())['country'], 'CH')
+            self.assertIn('offline cache misses: 2', err.getvalue())
+            self.assertEqual({p.name: p.read_bytes() for p in root.iterdir()}, before)
