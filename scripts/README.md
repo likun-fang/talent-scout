@@ -84,7 +84,9 @@ python3 "$SKILL_ROOT/scripts/table_export.py" "$RUN_DIR/persons.enriched.jsonl" 
 Merging is offline. Enrichment looks up current ORCID role titles and OpenAlex institution types;
 classification itself is a pure function in `current_affiliation.py`. Current company employer takes precedence over title mapping, except professorial titles (mixed headings remain
 unknown); then use explicit titles, funding PI identity and publication-year/authorship inference. A dated final-pass
-employer is high confidence; OpenAlex company type is medium confidence.
+employer is high confidence; OpenAlex company type is medium confidence. Company-name matches exclude
+academic/healthcare terms unless GmbH/AG/Inc/Ltd is explicit; bare Meta/FAIR/Apple/Amazon and generic Labs
+do not qualify. SA is case-sensitive and must end the affiliation or precede a comma.
 `role_evidence` records the rule, verbatim excerpt and URL, including the German research-assistant caveat.
 See the exact mapping and the optional `linkedin_headline`/`linkedin_url` final-pass input adapter in
 `references/40-entity-resolution.md`. Provider enrichment never claims a final-pass verification.
@@ -97,7 +99,9 @@ minus core tier 3; other in-region people tier 4. Sort by tier, eligible channel
 newest date, name; apply the row cap afterward. The 36-month window remains unchanged.
 
 Group inference uses ordered parent/name/team-page, non-generic homepage-host, GitHub-organization, then
-same-institution parent/paper links. Multiple candidates require institution disambiguation; aliases, institutional
+same-institution parent/paper links. Shared-team anchors require professor/group_leader roles; a project PI
+researcher cannot acquire a team through shared parent or host fallback. Paper parents require the same
+institution, while professors always anchor their own groups. Multiple candidates require institution disambiguation; aliases, institutional
 OpenAlex IDs and RORs are supported. Unresolved or cyclic links stay unattached with evidence. See
 `references/40-entity-resolution.md` and `assets/institution-aliases.yaml`. `groups.csv` and `groups.md` aggregate the cut roster and sort
 by minimum tier, descending member count, PI name; `(unattached)` comes last. They include member roles,

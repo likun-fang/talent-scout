@@ -58,9 +58,12 @@ stop at the first match. It uses only the standard library.
 
 The employer check runs before title mapping and funding inference. Use the first available affiliation in
 `final_pass_affiliation`, `current_affiliation`, newest signal `affiliation_raw`. Match the company-name list
-(NAVER, DeepMind, Google, Meta/FAIR, Sony, Bosch, Mistral, Aleph Alpha, Microsoft, NVIDIA, Amazon, Apple,
-Hugging Face), the word forms GmbH / AG / Ltd / Inc / SA / SAS / B.V. / Labs / Research Europe, or a matching
-OpenAlex `institution.type == company`. A current academic affiliation suppresses a former company's type.
+(NAVER, DeepMind, Google, Facebook, Sony, Bosch, Mistral, Aleph Alpha, Microsoft, NVIDIA, Hugging Face),
+the word forms GmbH / AG / Ltd / Inc / SAS / B.V. / Research Europe, or a matching OpenAlex
+`institution.type == company`. Bare Meta, FAIR, Apple and Amazon are excluded. `SA` must be uppercase and
+followed by a comma or the end of the affiliation; `Labs` alone is insufficient (NAVER Labs / Bell Labs qualify).
+Hospital / Klinik / Clinic / University / Universität / Université / Universiteit / Institute of Technology /
+Hochschule / School / College suppress company matches unless an explicit GmbH / AG / Inc / Ltd suffix is present. A current academic affiliation suppresses a former company's type.
 Preserve the original title in evidence as `industry | Research Scientist | …`; do not infer a professor from
 company leadership. `fwf_project`, `swecris_project`, `rcn_project`, `dff_project`, `fris_project`, `aei_project`
 and `fwf_start` with `role: pi` map to group_leader at medium confidence; `fwf_esprit` maps to researcher.
@@ -90,20 +93,23 @@ a doctoral role. Person `topics` is the union of signal topics in input order, d
 limited to five; do not paraphrase or case-fold the phrases.
 
 `group` is `<PI name> @ <institution>`, using the leader's displayed institution. Leaders are people with
-`role_class` professor/group_leader or a pi/last_author signal. A PI signal anchors its own group. A leader
-without a PI signal can belong to another leader's team. Apply these rules in order; ambiguity stops the search:
+`role_class` professor/group_leader or a pi/last_author signal. A PI signal anchors its own group. Professors always anchor their own groups and never become members of
+another leader. A group_leader without a PI signal can belong to another leader's team. Apply these rules in order; ambiguity stops the search:
 
 | group rule | link evidence |
 |------------|---------------|
-| 1 | A signal `parent` equals a leader's name/name_raw, or that leader's signal parent/affiliation_raw/homepage or person homepage; compare after casefold, accent removal and stripping academic titles |
-| 2 | Member and leader homepages share a non-generic host. Personal github.io subdomains and lab domains count; sites.google.com, github.com, personnel directories and institution roots do not. A www-prefixed lab subdomain can count |
+| 1 | A signal `parent` equals a leader's name/name_raw/homepage, or the signal parent/affiliation_raw of a professor/group_leader. PI/last_author alone cannot anchor the shared-team branch. Compare after casefold, accent removal and stripping academic titles |
+| 2 | Member and leader homepages share a non-generic host. Personal github.io subdomains and lab domains count; sites.google.com, github.com, personnel directories and institution roots do not. A www-prefixed lab subdomain can count; a shared team page cannot bypass the professor/group_leader requirement through its host |
 | 3 | An open-source member repository's GitHub organization matches any leader evidence URL/homepage organization |
-| 4 | Same current institution and shared parent or a shared-paper last author, with matching signal institutions; leader self anchors also record rule 4 |
+| 4 | Same current institution and shared parent (professor/group_leader anchor) or a shared-paper last author, with matching signal institutions; leader self anchors also record rule 4 |
 | none | Empty group and `group_evidence: unattached` |
 
 For multiple candidates, retain those at the member's institution; if there is still not exactly one, leave
-`group` empty and record `ambiguous: A, B`. A single explicit link in rules 1–3 does not require the same
-institution. Preserve that distinction when reviewing moves or cross-institution groups. Resolve a linked
+`group` empty and record `ambiguous: A, B`. A rule-1 parent from awards-papers / industry / competitions,
+or a parent that is not used by any pool signal of type lab_member, is treated as paper evidence: require
+`same_institution` even for a unique leader. Otherwise record `coauthor only, different institution` and leave
+it unattached; later fallbacks do not override that rejection. Other unique team links, homepage-host and
+repository-organization links may cross institutions. Preserve that distinction when reviewing moves. Resolve a linked
 leader's own membership to its final PI and record the chain; cyclic or unresolved leader chains remain
 ambiguous. An isolated last-author signal without a linked member does not invent a team.
 

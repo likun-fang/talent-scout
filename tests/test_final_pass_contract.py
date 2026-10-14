@@ -40,11 +40,12 @@ class GroupContractTests(unittest.TestCase):
         self.assertEqual(result[1]['group_rule'], 1)
 
     def test_namesake_labs_need_unique_institution(self):
-        leaders = [person('A', 'Bonn', 'pi', parent='Vision Lab'), person('B', 'Bremen', 'pi', parent='Vision Lab')]
-        result = assign_groups([*leaders, person('Student', '', parent='Vision Lab')])[-1]
+        leaders = [{**person('A', 'Bonn', 'pi', parent='Vision Lab'), 'role_class': 'professor'},
+                   {**person('B', 'Bremen', 'pi', parent='Vision Lab'), 'role_class': 'professor'}]
+        result = assign_groups([*leaders, person('Student', '', parent='Vision Lab', signal_type='lab_member')])[-1]
         self.assertEqual(result['group'], '')
         self.assertIn('ambiguous: A, B', result['group_evidence'])
-        result = assign_groups([*leaders, person('Student', 'University of Bonn', parent='Vision Lab')])[-1]
+        result = assign_groups([*leaders, person('Student', 'University of Bonn', parent='Vision Lab', signal_type='lab_member')])[-1]
         self.assertEqual(result['group'], 'A @ Bonn')
 
     def test_personal_homepage_host_and_generic_hosts(self):
@@ -68,8 +69,8 @@ class GroupContractTests(unittest.TestCase):
         self.assertIn('epfl-vilab', result['group_evidence'])
 
     def test_institution_ids_not_author_ids_disambiguate(self):
-        lead = {**person('A', 'Long name', 'pi', parent='Lab'), 'institution_id': 'https://openalex.org/I1'}
-        other = person('B', 'Elsewhere', 'pi', parent='Lab')
+        lead = {**person('A', 'Long name', 'pi', parent='Lab'), 'institution_id': 'https://openalex.org/I1', 'role_class': 'professor'}
+        other = {**person('B', 'Elsewhere', 'pi', parent='Lab'), 'role_class': 'professor'}
         student = {**person('S', 'Alias', parent='Lab'), 'institution_id': 'I1'}
         self.assertEqual(assign_groups([lead, other, student])[-1]['group'], 'A @ Long name')
         lead.pop('institution_id'); student.pop('institution_id')
@@ -121,9 +122,9 @@ class FinalPassTests(unittest.TestCase):
 class IndustryTests(unittest.TestCase):
     def test_company_before_title_but_professor_exception(self):
         import current_affiliation as ca
-        for employer in ['NAVER LABS Europe', 'DeepMind', 'Meta', 'Sony', 'Bosch', 'Mistral', 'Aleph Alpha',
+        for employer in ['NAVER LABS Europe', 'DeepMind', 'Sony', 'Bosch', 'Mistral', 'Aleph Alpha',
                          'Example GmbH', 'Example AG', 'Example Ltd', 'Example Inc', 'Example SA',
-                         'Example SAS', 'Example B.V.', 'Example Labs', 'Example Research Europe']:
+                         'Example SAS', 'Example B.V.', 'Bell Labs', 'Example Research Europe']:
             with self.subTest(employer=employer):
                 p = {**person('Employee', employer, role_title='Research Scientist'),
                      'final_pass_affiliation': employer, 'last_verified': '2026-10-12',
@@ -237,8 +238,8 @@ class ExportContractTests(unittest.TestCase):
 
 class GroupResolutionTests(unittest.TestCase):
     def test_mutual_leader_links_are_ambiguous_not_two_inconsistent_groups(self):
-        a = {**person('A', parent='Shared team'), 'role_class': 'professor'}
-        b = {**person('B', parent='Shared team'), 'role_class': 'professor'}
+        a = {**person('A', parent='Shared team'), 'role_class': 'group_leader'}
+        b = {**person('B', parent='Shared team'), 'role_class': 'group_leader'}
         results = assign_groups([a, b, person('Student', parent='A')])
         self.assertTrue(all(not p['group'] for p in results))
         self.assertTrue(all('ambiguous:' in p['group_evidence'] for p in results))

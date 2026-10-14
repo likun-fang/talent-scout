@@ -179,7 +179,8 @@ class PersonFieldsTests(unittest.TestCase):
         return {'name': name, 'signals': [signal(name_raw=name, **changes)]}
 
     def test_pi_self_and_parent_grouping(self):
-        people = [self.person('PI', role='pi', parent='Project'), self.person('Student', parent='Project')]
+        people = [{**self.person('PI', role='pi', parent='Project'), 'role_class': 'group_leader'},
+                  self.person('Student', parent='Project')]
         original = copy.deepcopy(people)
         self.assertEqual([p['group'] for p in assign_groups(people)], ['PI @ Example Institute'] * 2)
         self.assertEqual(people, original)
@@ -195,8 +196,8 @@ class PersonFieldsTests(unittest.TestCase):
                   self.person('Student', parent='Project'), self.person('Other', parent='Project', affiliation_raw='Other Institute')]
         self.assertEqual([p['group'] for p in assign_groups(people)][2:], ['', ''])
         moved = {**people[2], 'current_affiliation': 'New Institute'}
-        # A unique explicit parent now wins before the same-institution fallback.
-        self.assertEqual(assign_groups([people[0], moved])[1]['group'], 'PI1 @ Example Institute')
+        # A paper-like parent cannot attach a member after an institutional move.
+        self.assertEqual(assign_groups([people[0], moved])[1]['group'], '')
         self.assertEqual(assign_groups([self.person('PI', role='pi', affiliation_raw='')])[0]['group'], '')
 
     def test_merge_cli_emits_all_fields_and_preserves_identity_rules(self):

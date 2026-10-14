@@ -174,8 +174,11 @@ MIXED = r'\s(?:and|und|&|/|or|oder)\s|,\s|/'
 OTHER_MEMBERS = r'\b(?:staff|scientific (?:assistants?|staff|employees?)|technical|administrative|alumni|members?|guests?|visitors?|students?)\b'
 SUPERVISOR = r'\b(?:in the group of|in the lab of|supervised by|advised by|with prof|advisor|betreut von|sous la direction de|supervisad[oa] por|onder begeleiding van)\b.*$'
 PRECEDENCE = ('phd_student', 'professor', 'group_leader', 'researcher')
-COMPANY = r'\b(?:gmbh|ag|ltd|inc|sa|sas|b\.v\.|labs|research europe)(?:\b|(?<=\.))'
-COMPANY_NAMES = r'\b(?:naver|deepmind|google|meta|facebook|fair|sony|bosch|mistral|aleph alpha|microsoft|nvidia|amazon|apple|hugging face)\b'
+COMPANY = (r'\b(?:gmbh|ag|ltd|inc|sas|b\.v\.|research europe)(?:\b|(?<=\.))'
+           r'|\b(?-i:SA)(?=\s*(?:,|$))|\b(?:naver|bell)\s+labs\b')
+COMPANY_NAMES = r'\b(?:naver|deepmind|google|facebook|sony|bosch|mistral|aleph alpha|microsoft|nvidia|hugging face)\b'
+COMPANY_SUFFIX = r'\b(?:gmbh|ag|inc|ltd)\b'
+ACADEMIC_EMPLOYER = r'\b(?:hospital|klinik|clinic|university|universität|université|universiteit|institute of technology|hochschule|school|college)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_', 'fwf_', 'swecris_', 'rcn_', 'dff_', 'fris_', 'aei_')
 # Personal grants name the holder's own career stage; every other funding PI leads a project.
 FUNDING_ROLE = {'snsf_ambizione': 'researcher', 'dfg_walter_benjamin': 'researcher', 'snsf_postdoc_mobility': 'researcher',
@@ -287,6 +290,8 @@ def company_evidence(person: dict, institution: tuple | None) -> tuple | None:
     affiliation = person.get('final_pass_affiliation') or person.get('current_affiliation') or newest.get('affiliation_raw', '')
     final = bool(person.get('final_pass_affiliation'))
     url = person.get('final_pass_url', '') if final else newest.get('evidence_url', '')
+    if re.search(ACADEMIC_EMPLOYER, affiliation, re.I) and not re.search(COMPANY_SUFFIX, affiliation, re.I):
+        return None
     if re.search(COMPANY, affiliation, re.I) or re.search(COMPANY_NAMES, affiliation, re.I):
         return ('high' if final and person.get('last_verified') else 'medium',
                 f"final pass {person.get('last_verified', '')}" if final else 'current employer', affiliation, url)

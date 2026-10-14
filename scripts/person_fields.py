@@ -67,7 +67,8 @@ def related(member: dict, leader: dict) -> bool:
         for b in leader.get('signals', []):
             if not same_institution(a, b):
                 continue
-            shared_parent = a.get('parent') and a.get('parent') == b.get('parent')
+            shared_parent = (leader.get('role_class') in {'professor', 'group_leader'}
+                             and a.get('parent') and a.get('parent') == b.get('parent'))
             same_paper = (b.get('role') == 'last_author' and a.get('role') in {'first_author', 'coauthor'}
                           and a.get('evidence_url') and a.get('evidence_url') == b.get('evidence_url'))
             if shared_parent or same_paper:
@@ -88,17 +89,31 @@ def evidence_url(person: dict) -> str:
                 next(iter(homepages(person)), ''))
 
 
-def rule_one(member: dict, leader: dict) -> str:
+def shared_parent_link(member: dict, leader: dict) -> bool:
+    targets = {parent_name(s.get(key, '')) for s in leader.get('signals', [])
+               for key in ('parent', 'affiliation_raw') if s.get(key)}
+    return any(parent_name(s['parent']) in targets for s in member.get('signals', []) if s.get('parent'))
+
+
+def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, str]:
     names = [leader.get('name', ''), leader.get('name_raw', '')]
     names += [s.get('name_raw', '') for s in leader.get('signals', [])]
-    values = homepages(leader) + names
-    values += [s.get(key, '') for s in leader.get('signals', []) for key in ('parent', 'affiliation_raw')]
-    targets = {parent_name(v) for v in values if v}
+    direct = {parent_name(v) for v in homepages(leader) + names if v}
+    shared = {parent_name(s[key]) for s in leader.get('signals', [])
+              for key in ('parent', 'affiliation_raw') if s.get(key)}
+    rejected = ''
     for signal in member.get('signals', []):
         parent = signal.get('parent')
-        if parent and parent_name(parent) in targets:
-            return f"parent {parent} -> {leader['name']} | {signal.get('evidence_url') or evidence_url(leader)}"
-    return ''
+        key = parent_name(parent) if parent else ''
+        if not key or not (key in direct or key in shared and leader.get('role_class') in {'professor', 'group_leader'}):
+            continue
+        url = signal.get('evidence_url') or evidence_url(leader)
+        paper = signal.get('channel') in {'awards-papers', 'industry', 'competitions'} or key not in lab_parents
+        if paper and not same_institution(member, leader):
+            rejected = f"coauthor only, different institution: {parent} -> {leader['name']} | {url}"
+            continue
+        return f"parent {parent} -> {leader['name']} | {url}", ''
+    return '', rejected
 
 
 def choose(member: dict, candidates: list[tuple], rule: int) -> dict | None:
@@ -147,6 +162,8 @@ def github_org(url: str) -> str:
 
 
 def domain_link(member: dict, leader: dict) -> str:
+    if leader.get('role_class') not in {'professor', 'group_leader'} and shared_parent_link(member, leader):
+        return ''  # The same team page cannot bypass the team-anchor requirement through its host.
     shared = personal_hosts(member) & personal_hosts(leader)
     if shared:
         host = sorted(shared)[0]
@@ -171,15 +188,21 @@ def assign_groups(persons: list[dict]) -> list[dict]:
     """Resolve ordered links to unique leaders, recording the rule even for ambiguity."""
     leaders = [p for p in persons if affiliation_for(p) and (p.get('role_class') in {'professor', 'group_leader'}
                or any(s.get('role') in {'pi', 'last_author'} for s in p.get('signals', [])))]
+    lab_parents = {parent_name(s['parent']) for p in persons for s in p.get('signals', [])
+                   if s.get('signal_type') == 'lab_member' and s.get('parent')}
     results = []
     for person in persons:
         pi = any(s.get('role') == 'pi' for s in person.get('signals', []))
         own = {'_leader': id(person), 'group': f"{person['name']} @ {affiliation_for(person)}", 'group_rule': 4,
                'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}"}
-        match = own if pi and affiliation_for(person) else None
+        match = own if (pi or person.get('role_class') == 'professor') and affiliation_for(person) else None
         if match is None:
-            candidates = [(leader, rule_one(person, leader)) for leader in leaders if leader is not person]
-            match = choose(person, [(leader, link) for leader, link in candidates if link], 1)
+            candidates = [(leader, rule_one(person, leader, lab_parents)) for leader in leaders if leader is not person]
+            match = choose(person, [(leader, link) for leader, (link, _) in candidates if link], 1)
+            if match is None:
+                rejected = [reason for _, (_, reason) in candidates if reason]
+                if rejected:
+                    match = {'group': '', 'group_rule': 1, 'group_evidence': 'rule 1: ' + '; '.join(rejected)}
         for rule, link_for in ((2, domain_link), (3, repository_link)):
             if match is None:
                 candidates = [(leader, link_for(person, leader)) for leader in leaders if leader is not person]
