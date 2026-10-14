@@ -195,7 +195,8 @@ class PersonFieldsTests(unittest.TestCase):
                   self.person('Student', parent='Project'), self.person('Other', parent='Project', affiliation_raw='Other Institute')]
         self.assertEqual([p['group'] for p in assign_groups(people)][2:], ['', ''])
         moved = {**people[2], 'current_affiliation': 'New Institute'}
-        self.assertEqual(assign_groups([people[0], moved])[1]['group'], '')
+        # A unique explicit parent now wins before the same-institution fallback.
+        self.assertEqual(assign_groups([people[0], moved])[1]['group'], 'PI1 @ Example Institute')
         self.assertEqual(assign_groups([self.person('PI', role='pi', affiliation_raw='')])[0]['group'], '')
 
     def test_merge_cli_emits_all_fields_and_preserves_identity_rules(self):
