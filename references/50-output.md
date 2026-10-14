@@ -48,7 +48,7 @@ Assign tiers before sorting:
 |------|--------------------------------|
 | 1 | in core (default DE+CH), professor or group_leader |
 | 2 | in core, researcher or phd_student |
-| 3 | in extended minus core (default EU27+UK+CH minus DE+CH), phd_student |
+| 3 | in extended minus core (default EU27+UK+CH+NO minus DE+CH), phd_student |
 | 4 | all other people in extended, including industry and unknown roles |
 
 Countries outside extended go to `roster.out-of-region.json` and do not enter the table.
@@ -56,19 +56,20 @@ Sort by tier ascending, `ranked_channels` descending, strongest qualifying signa
 newest qualifying signal descending, then name ascending. Low-strength hop-1 signals (a name
 in an author list) stay as evidence but do not lift a row; otherwise the industry channel's author lists outrank ERC
 grants and prizes. Keep only rows whose country is in
-the region; write the others to `roster.out-of-region.json` and count them. Cut the table to `target_rows` after
-sorting and report the cut in Coverage. There is no composite score; the cut is a budget, not a judgement.
+the region; write the others to `roster.out-of-region.json` and count them. The default `--max-rows 0` keeps all qualifying people. If an explicit cap is supplied, apply it after
+sorting and report the cut in Coverage. There is no composite score; final-pass reads are budgeted by group.
 
 Below the table, add a short **Coverage** block: channels run, pages read per channel, what was
 skipped at budget, competitions whose rosters were not public. Report separately the number of window-excluded signals retained on the final table's people and the
 number of all signals belonging to omitted people (no qualifying signal, outside the region, missing evidence,
 or cut by `--max-rows`). Counts use person records, not names, so namesakes cannot collide. Then add the
 per-person evidence appendix: `role_evidence` including the rule and source, plus one bullet per signal
-with its URL. `role_evidence` does not become a table column.
+with its URL. `role_evidence` is column 25; `group_evidence` is included in this appendix only, without adding a column.
 
-After the table is cut, run the final pass in `45-web-verification.md` on those rows only. It fills `notes` with
-role excerpts and sources, sets `last_verified` only for an actual page read, and reports in Coverage how
-many profiles were read and how many were refused. Preserve these dates on re-export.
+After initial export, run the final pass in `45-web-verification.md` by group: PI team page first, individual pages
+next. It fills notes, title, current-affiliation and country fields, sets `last_verified` only for an actual page
+read, and reports reads/refusals in Coverage. Re-export using the corrected country for tiers and region filtering;
+keep the provider affiliation/source in notes and preserve verification dates, signal roles and verbatim topics.
 
 ## Group view
 
@@ -89,23 +90,25 @@ Columns, in order:
 - `recent_outputs`: the strongest three signals inside the run window, ties by newest date and then
   signal type/URL; `signal_type@date: snippet` with at most 80 characters of the snippet. Shared outputs
   are deduplicated by type, date and evidence URL, retaining the strongest instance.
-- `active_funding`: all retained `erc_`/`dfg_`/`snsf_` signals as `signal_type@date`, deduplicated and
+- `active_funding`: all retained `erc_`/`dfg_`/`snsf_`/`fwf_`/`swecris_`/`rcn_`/`dff_`/`fris_`/`aei_` signals and `national_project`/`national_fellowship` signals as `signal_type@date`, deduplicated and
   joined with `;`. The contract supplies no funding end dates: this is funding evidence, not an assertion
   that an older award is still active.
 - `open_source`: deduplicated evidence URLs from the `open-source` channel. `evidence_urls`: all group
   evidence URLs. Both keep retained background evidence and use `;`.
 
 Sort groups by minimum tier ascending, member count descending, then PI name ascending.
-People with empty `group` go into a single `(ungrouped)` row at the end, only when needed; it has no
+People with empty `group` go into a single `(unattached)` row at the end, only when needed; it has no
 invented PI or institution. Below `groups.md`, Coverage reports the number of named groups (excluding
-that row), ungrouped people, and that the view covers the cut roster. Both CSVs use UTF-8 with BOM.
+that row), unattached people, and that the view covers the cut roster. Both CSVs use UTF-8 with BOM.
 
 Script (paths are relative to `RUN_DIR`; resources live under `SKILL_ROOT`):
 
 ```sh
-python3 "$SKILL_ROOT/scripts/table_export.py" "$RUN_DIR/persons.jsonl" --date 2026-10-12 --region-core DE+CH --region-extended EU27+UK+CH --max-rows 50 --coverage-dir "$RUN_DIR/signals" --out "$RUN_DIR/roster"
+python3 "$SKILL_ROOT/scripts/table_export.py" "$RUN_DIR/persons.jsonl" --date 2026-10-12 --region-core DE+CH --region-extended EU27+UK+CH+NO --max-rows 0 --coverage-dir "$RUN_DIR/signals" --out "$RUN_DIR/roster"
 ```
 
 `--region` remains an alias for `--region-extended`. `--max-rows 0` keeps all qualifying in-region people.
 The script writes both person files, both group files, the out-of-region and excluded-signal JSON files,
 and appends every `signals/*.coverage.md` to roster Coverage. It does not rewrite `persons.jsonl`.
+
+Before writing either CSV or Markdown table, fold line breaks and runs of whitespace in every cell to a single space. Source signals and person `topics` are not rewritten; this is export formatting only. Markdown escapes cell pipes to preserve their displayed content.

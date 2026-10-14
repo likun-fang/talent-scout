@@ -230,7 +230,7 @@ class PersonFieldsTests(unittest.TestCase):
             self.assertIn(kind, examples)
         self.assertEqual(schema['allOf'][0]['then']['properties']['role']['const'], 'pi')
         import table_export
-        columns = (root / 'assets/person-table.columns.md').read_text().strip().split(', ')
+        columns = (root / 'assets/person-table.columns.md').read_text().splitlines()[0].split(', ')
         self.assertEqual(columns, table_export.COLUMNS)
         self.assertEqual(len(columns), 25)
         self.assertEqual(columns[-6:], ['role_class', 'role_confidence', 'tier', 'topics', 'group', 'role_evidence'])

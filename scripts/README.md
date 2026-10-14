@@ -30,7 +30,7 @@ Static HTML/text (no extra dependencies):
 python3 scripts/visit_page.py 'https://example.org/person' --out runs/demo/pages/person.json
 ```
 
-One serial LinkedIn batch for the cut table, 5 s apart, stopping at the first authwall / 999 / 429:
+One serial LinkedIn batch for unresolved exported profiles, 5 s apart, stopping at the first authwall / 999 / 429:
 
 ```sh
 python3 scripts/visit_page.py --batch runs/demo/linkedin-urls.txt --out-dir runs/demo/pages/linkedin/ --delay 5
@@ -77,27 +77,30 @@ and export/enrichment also accept `--region-extended`.
 
 ```sh
 python3 "$SKILL_ROOT/scripts/merge_persons.py" "$RUN_DIR/signals.jsonl" --date 2026-10-12 --region-core DE+CH > "$RUN_DIR/persons.jsonl"
-python3 "$SKILL_ROOT/scripts/current_affiliation.py" "$RUN_DIR/persons.jsonl" --date 2026-10-12 --region-core DE+CH --region-extended EU27+UK+CH --cache-dir "$RUN_DIR/cache/affiliation" > "$RUN_DIR/persons.enriched.jsonl"
-python3 "$SKILL_ROOT/scripts/table_export.py" "$RUN_DIR/persons.enriched.jsonl" --date 2026-10-12 --region-core DE+CH --region-extended EU27+UK+CH --max-rows 50 --coverage-dir "$RUN_DIR/signals" --out "$RUN_DIR/roster"
+python3 "$SKILL_ROOT/scripts/current_affiliation.py" "$RUN_DIR/persons.jsonl" --date 2026-10-12 --region-core DE+CH --region-extended EU27+UK+CH+NO --cache-dir "$RUN_DIR/cache/affiliation" > "$RUN_DIR/persons.enriched.jsonl"
+python3 "$SKILL_ROOT/scripts/table_export.py" "$RUN_DIR/persons.enriched.jsonl" --date 2026-10-12 --region-core DE+CH --region-extended EU27+UK+CH+NO --max-rows 0 --coverage-dir "$RUN_DIR/signals" --out "$RUN_DIR/roster"
 ```
 
 Merging is offline. Enrichment looks up current ORCID role titles and OpenAlex institution types;
-classification itself is a pure function in `current_affiliation.py`. Explicit titles take precedence
-over funding PI identity, then company type/name, then publication-year and authorship inference.
+classification itself is a pure function in `current_affiliation.py`. Current company employer takes precedence over title mapping, except professorial titles (mixed headings remain
+unknown); then use explicit titles, funding PI identity and publication-year/authorship inference. A dated final-pass
+employer is high confidence; OpenAlex company type is medium confidence.
 `role_evidence` records the rule, verbatim excerpt and URL, including the German research-assistant caveat.
 See the exact mapping and the optional `linkedin_headline`/`linkedin_url` final-pass input adapter in
 `references/40-entity-resolution.md`. Provider enrichment never claims a final-pass verification.
 `last_verified` remains empty unless a final-pass reader explicitly supplied an actual read date.
 
-The last five roster columns are `role_class, role_confidence, tier, topics, group`. Person topics are
-exactly deduplicated, capped at five, and serialized with `;`. The evidence appendix carries `role_evidence`.
+The last six roster columns are `role_class, role_confidence, tier, topics, group, role_evidence`; there are 25 columns total. Person topics are
+exactly deduplicated, capped at five, and serialized with `;`. The evidence appendix carries both `role_evidence` and `group_evidence`; only role evidence is also a table column.
 Core professors and group leaders are tier 1; core researchers/doctoral students tier 2; doctoral students in extended
 minus core tier 3; other in-region people tier 4. Sort by tier, eligible channel count, strongest signal,
 newest date, name; apply the row cap afterward. The 36-month window remains unchanged.
 
-Group inference requires a unique leader linked through the same institution and parent or paper last
-author; unresolved people stay ungrouped. `groups.csv` and `groups.md` aggregate the cut roster and sort
-by minimum tier, descending member count, PI name; `(ungrouped)` comes last. They include member roles,
+Group inference uses ordered parent/name/team-page, non-generic homepage-host, GitHub-organization, then
+same-institution parent/paper links. Multiple candidates require institution disambiguation; aliases, institutional
+OpenAlex IDs and RORs are supported. Unresolved or cyclic links stay unattached with evidence. See
+`references/40-entity-resolution.md` and `assets/institution-aliases.yaml`. `groups.csv` and `groups.md` aggregate the cut roster and sort
+by minimum tier, descending member count, PI name; `(unattached)` comes last. They include member roles,
 top three recent outputs, funding evidence, open-source links and Coverage counts. `active_funding`
 lists retained funding signals; absent award end dates, it does not establish that a grant is still active.
 See `references/50-output.md` for exact columns and aggregation rules.
@@ -127,3 +130,20 @@ No key means anonymous requests; the setup script does not enable billing or cha
 The previous repository-local `.secrets/openalex.key` location is no longer read automatically.
 If you used it, configure your key again with the setup script, then remove the old copy before packaging
 the skill. Git ignore rules do not exclude files from arbitrary directory archives.
+
+## Final-pass corrections and offline replay
+
+`final_pass_affiliation` (verbatim) and `final_pass_country` (ISO-2) override provider values before tier calculation.
+`affiliation_source` becomes `final pass <last_verified> <final_pass_url>`; notes keep the prior affiliation/source.
+Signal `role`, `latest_role` and raw topics remain unchanged. Re-export refreshes reviewed titles and groups.
+
+```sh
+python3 "$SKILL_ROOT/scripts/current_affiliation.py" "$RUN_DIR/persons.jsonl" --date 2026-10-12 --offline --cache-dir "$RUN_DIR/cache/affiliation" > "$RUN_DIR/persons.enriched.jsonl"
+python3 "$SKILL_ROOT/scripts/table_export.py" "$RUN_DIR/persons.enriched.jsonl" --date 2026-10-12 --max-rows 0 --out "$RUN_DIR/roster"
+```
+
+`--offline` never requests the network, reads API credentials or writes cache files; it skips missing/corrupt cache
+queries and prints `offline cache misses: N`. The count is skipped query attempts, not distinct people. Normal
+mode keeps provider caching. Default extended region is EU27+UK+CH+NO (including explicit `NO`); core is DE+CH.
+The default row cap is 0 (unlimited). CSV and Markdown table cells use the same whitespace folding; source topics
+stay verbatim. Year-only dates qualify when the year overlaps the window; month-only dates use their first day.
