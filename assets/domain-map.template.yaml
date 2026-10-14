@@ -4,7 +4,7 @@ derived_on: ""        # YYYY-MM-DD
 window: {from: "", to: ""}   # publication-date window the counts below were computed over
 sources_used: []      # e.g., [openalex-topics, erc-panels, euroscivoc, gepris, web-search]; note dropped leads here
 region_core: "DE+CH"
-region_extended: "EU27+UK+CH"
+region_extended: "EU27+UK+CH+NO"
 # Every entry chosen or added by hand carries selection_reason; entries taken unchanged from a source may omit it.
 openalex_topics: []   # {id, name, fit: core|adjacent, selection_reason}
 venues:
