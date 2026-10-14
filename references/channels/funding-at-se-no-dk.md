@@ -16,7 +16,14 @@ Checked live on 2026-10-14. URLs opened:
 `https://www.fwf.ac.at/en/discover/open-api`, `https://www.fwf.ac.at/en/discover/open-api/queries`,
 `https://doi.org/10.55776/STA235`, `https://www.fwf.ac.at/en/funding/portfolio/careers/fwf-astra-awards`,
 `https://www.fwf.ac.at/en/funding/portfolio/careers/esprit`,
-`https://www.fwf.ac.at/en/funding/portfolio/careers/erwin-schroedinger`, `https://api.ror.org/v2/organizations/054pv6659`.
+`https://www.fwf.ac.at/en/funding/portfolio/careers/erwin-schroedinger`, `https://api.ror.org/v2/organizations/054pv6659`;
+`https://www.vr.se/english/swecris/swecris-api.html`, `https://www.vr.se/english/swecris.html`,
+`https://www.vr.se/swecris/swecris-api/manual-kom-igang-med-swecris-api.html`,
+`https://swecris-api.vr.se/swagger/SweCRISOpenAPISpecificationv1.0/swagger.json`,
+`https://swecris-api.vr.se/v1/projects?page=1&size=1`, `https://swecris-api.vr.se/v1/funders`,
+`https://swecris-api.vr.se/v1/scp/search?searchText=robot&page=1&size=2`,
+`https://swecris-api.vr.se/v1/scp/export?searchText=machine%20learning&page=1&size=2000&token=…`,
+`https://www.vr.se/english/swecris.html#/project/2024-05867_VR` (rendered).
 
 ## Keys
 
@@ -27,8 +34,10 @@ Briefs, notes and coverage name the path, never the value. Read it at call time:
 | Source | File | Where it comes from | Registration | Quota |
 |---|---|---|---|---|
 | FWF | `fwf.key` | the whole body of `https://openapi.fwf.ac.at/fwfkey` (one 64-character hex string) | none | not stated |
+| Swecris | `swecris.key` | the public token printed on `https://www.vr.se/english/swecris/swecris-api.html` (on 2026-10-14: valid from 2026-04-09; VR changes it "on a regular basis") | optional: a personal token from the form at `https://www.vr.se/english/swecris/swecris-api/request-for-api-token.html` (first name, surname, e-mail; organisation optional), sent by e-mail within a week | not stated |
 
-When FWF answers 403 `invalid_api_key`, fetch the key page again: the page always serves the current key.
+When FWF answers 403 `invalid_api_key`, fetch the key page again: the page always serves the current key. When the
+Swecris export answers 401, copy the token from VR's page again.
 
 ## FWF Open API (AT)
 
@@ -111,3 +120,77 @@ doc.funds programmes are doctoral schools: their member pages follow the shared 
 
 When this channel runs, it owns the FWF START, ASTRA and Wittgenstein records; `national-prizes` skips its FWF entry
 (`swept_by` in `assets/national-prizes.yaml`).
+
+## Swecris (SE)
+
+The national project database that the Swedish Research Council (VR) keeps for the government. It holds grants from
+governmental and private funders to organisations in Sweden; `https://www.vr.se/english/swecris.html` lists each
+funder's years and update rhythm (VR and Vinnova from 2008, continuously; the Swedish Energy Agency from 2010, once a
+year).
+
+Two routes, tested 2026-10-14 with the public token:
+
+- The REST routes of the Swagger spec (`/v1/projects`, `/v1/persons/…`, `/v1/funders`, `/v1/scp/search`, …) answered
+  401 with no body, with the token sent as `Authorization: Bearer` (the method VR's manual names), as a bare
+  `Authorization` value and as a `token` query parameter. Not verified: whether a personal token opens them.
+- The export route `GET https://swecris-api.vr.se/v1/scp/export`, which is in the same Swagger spec, returned a CSV.
+  Without `token` it answers 401 `{"message":"Unauthorized"}`. A made-up token value also got 200, so a 200 here does
+  not prove the token is still current.
+
+Use the export route:
+
+```sh
+curl -s -G 'https://swecris-api.vr.se/v1/scp/export' --data-urlencode 'searchText=robot learning' \
+  --data-urlencode 'year[]=2024' -d page=1 -d size=2000 \
+  --data-urlencode "token=$(cat ~/.config/talent-scout/swecris.key)" -o "$RUN_DIR/cache/swecris/robot-learning-2024.csv"
+```
+
+The token sits in the URL, so record the query in coverage without it. `searchText` matches abstracts as well as
+titles (CLEAR-BOT came back for `robot learning` through its abstract); `machine learning` returned 1,146 projects with
+funding years up to 2026. `year[]` filters on `FundingYear` (`year[]=2024` gave 121 rows, all 2024); repeat it for
+each window year, or drop it and filter locally.
+Other filters: `fundingOrganisation[]`, `organisationType[]`, `scbIds[]` (Swedish subject codes).
+
+The file is semicolon-separated UTF-8 with a BOM and carries stray NUL bytes (68 in a 4.7 MB file); strip them before
+the CSV parser, which otherwise stops with "line contains NUL". One row per project. Columns: `ProjectId` (the
+suffix names the funder: `_VR`, `_Vinnova`, `_Energi`, `_Formas`, `_HLF`, `_Forte`, `_KI`, `_RJ`, …),
+`ProjectTitleSv`, `ProjectTitleEn`, `ProjectAbstractSv`, `ProjectAbstractEn`, `ProjectStartDate`, `ProjectEndDate`,
+`CoordinatingOrganisationId`, `CoordinatingOrganisationNameSv`, `CoordinatingOrganisationNameEn`,
+`CoordinatingOrganisationTypeOfOrganisationSv`, `CoordinatingOrganisationTypeOfOrganisationEn` (University, Company,
+Governmental, University College, Non profits & Foundations, Other), `FundingOrganisationId`,
+`FundingOrganisationNameSv`, `FundingOrganisationNameEn`, `FundingOrganisationTypeOfOrganisationSv`,
+`FundingOrganisationTypeOfOrganisationEn`, `FundingsSek`, `FundingYear`, `FundingStartDate`, `FundingEndDate`,
+`TypeOfAwardId`, `TypeOfAwardDescrSv`, `TypeOfAwardDescrEn`, `UpdatedDate`, `LoadedDate`, `InvolvedPeople`, `Scbs`.
+
+`InvolvedPeople` packs every person into one field: `¤¤¤<person id>¤<full name>¤<ORCID or empty>¤<role EN>¤<role SV>¤<gender>`,
+repeated. Roles seen: `Principal Investigator` / `Projektledare` and `Co-Investigator` / `Projektdeltagare`. Drop the
+gender element. The person id is not a merge key: 61 of 1,071 ORCIDs in the test export sat under more than one id,
+some with different name spellings. The ORCID is filled in 1,496 of 2,203 entries.
+
+Swedish Energy Agency projects often have an empty `InvolvedPeople` (71 of 137 rows in the test export): VR's page
+says their project leaders are not shown "due to the principle on data minimisation in GDPR". Such a project gives
+an `org` signal for the coordinating organisation, `role: unknown`, `signal_type: national_project`, and no person.
+
+| `TypeOfAwardDescrEn` | signal_type | strength |
+|---|---|---|
+| Project grant, Research environment, Unclassified (most Vinnova and Energy Agency rows) | `swecris_project` | medium |
+| Grant for positions or stipends | `national_fellowship`, `role: pi` (personal funding, no funding-role inference) | medium |
+| Research infrastructure | none: equipment and facilities, not a research project | — |
+
+Emit one `person` signal per `Principal Investigator`:
+
+- `name_raw`: the full name as packed. `role: pi`. `ids.orcid` when present; put the Swecris person id in `note`.
+- `affiliation_raw`: `CoordinatingOrganisationNameEn`, the organisation that administers the grant; Swecris names no
+  department. `country: SE`: Swecris covers funding to organisations in Sweden. A `Company` coordinator stays as
+  printed; stage 4 reads the company name.
+- `date`: the date part of `ProjectStartDate` when it is on or before the run date, otherwise `FundingYear`; say which
+  in `note`. Swecris has no decision date.
+- `evidence_url`: `https://www.vr.se/english/swecris.html#/project/<ProjectId>`. The page is client-rendered: read it
+  with `visit_page.py --browser`; it prints the title, the project period and the abstract.
+- `snippet`: `TypeOfAwardDescrEn`, `FundingOrganisationNameEn`, the English title and the role label.
+- `role_title`: leave empty; `Principal Investigator` is the funder's role label, kept in `snippet`.
+- `topics`: 1–3 phrases cut verbatim from `ProjectTitleEn`, or `ProjectTitleSv` when the English title is empty
+  (9 of 1,146 rows).
+
+Co-Investigators go into the PI signal's `note`, like GEPRIS cooperation partners: the record does not say whether
+they work in the PI's group or lead their own elsewhere.
