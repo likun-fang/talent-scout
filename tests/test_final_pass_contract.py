@@ -48,7 +48,9 @@ class GroupContractTests(unittest.TestCase):
         self.assertEqual(result['group'], 'A @ Bonn')
 
     def test_personal_homepage_host_and_generic_hosts(self):
-        for host, expected in [('dtruhn.github.io', 'Truhn @ RWTH Aachen'), ('sites.google.com', ''),
+        for host, expected in [('dtruhn.github.io', 'Truhn @ RWTH Aachen'),
+                               ('aidx-lab.org', 'Truhn @ RWTH Aachen'),
+                               ('www.dsme.rwth-aachen.de', 'Truhn @ RWTH Aachen'), ('sites.google.com', ''),
                                ('github.com', ''), ('people.epfl.ch', ''), ('www.rwth-aachen.de', '')]:
             with self.subTest(host=host):
                 result = assign_groups([person('Truhn', 'RWTH Aachen', 'pi', homepage=f'https://{host}/'),
@@ -231,3 +233,29 @@ class ExportContractTests(unittest.TestCase):
         self.assertEqual(row['active_funding'], 'fwf_start@2025')
         self.assertEqual(p, original)
         self.assertEqual(row['topics'], 'Exact  Topic')
+
+
+class GroupResolutionTests(unittest.TestCase):
+    def test_mutual_leader_links_are_ambiguous_not_two_inconsistent_groups(self):
+        a = {**person('A', parent='Shared team'), 'role_class': 'professor'}
+        b = {**person('B', parent='Shared team'), 'role_class': 'professor'}
+        results = assign_groups([a, b, person('Student', parent='A')])
+        self.assertTrue(all(not p['group'] for p in results))
+        self.assertTrue(all('ambiguous:' in p['group_evidence'] for p in results))
+
+    def test_member_of_nested_leader_uses_resolved_group_with_chain_evidence(self):
+        lead = person('PI', role='pi')
+        junior = {**person('Junior', parent='PI'), 'role_class': 'group_leader'}
+        student = person('Student', parent='Junior')
+        results = assign_groups([lead, junior, student])
+        self.assertEqual([p['group'] for p in results], ['PI @ EPFL'] * 3)
+        self.assertIn('via Junior', results[-1]['group_evidence'])
+
+
+class ReviewedHeadingTests(unittest.TestCase):
+    def test_reviewed_mixed_heading_does_not_fall_back_to_old_professorship(self):
+        import current_affiliation as ca
+        p = {**person('A', role='pi', role_title='Professor', signal_type='erc_starting'),
+             'final_pass_title': 'Staff / PhD Students', 'final_pass_url': 'https://lab.example/team',
+             'last_verified': '2026-10-12'}
+        self.assertEqual(ca.classify_role(p, 2026)['role_class'], 'unknown')

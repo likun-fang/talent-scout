@@ -15,10 +15,10 @@ def topics_for(signals: list[dict]) -> list[str]:
 def affiliation_for(person: dict) -> str:
     if person.get('final_pass_affiliation'):
         return person['final_pass_affiliation']
-    if person.get('affiliation_raw'):
-        return person['affiliation_raw']
     if person.get('current_affiliation'):
         return person['current_affiliation']
+    if person.get('affiliation_raw'):
+        return person['affiliation_raw']
     signals = sorted(person.get('signals', []), key=lambda s: s.get('date') or '', reverse=True)
     return next((s['affiliation_raw'] for s in signals if s.get('affiliation_raw')), '')
 
@@ -76,7 +76,7 @@ def related(member: dict, leader: dict) -> bool:
 
 
 def parent_name(value: str) -> str:
-    return normalized(re.sub(r'\b(?:professor|prof|dr|dr-ing|ph\.?d)\.?\s*', '', normalized(value)))
+    return normalized(re.sub(r'\b(?:professor|prof|dr(?:[.-]ing)?|ph\.?d)\b\.?\s*', '', normalized(value)))
 
 
 def homepages(person: dict) -> list[str]:
@@ -113,7 +113,7 @@ def choose(member: dict, candidates: list[tuple], rule: int) -> dict | None:
         return {'group': '', 'group_rule': rule,
                 'group_evidence': f'rule {rule}: ambiguous: {names} | {evidence_url(member)}'}
     leader, match = candidates[0]
-    return {'group': f"{leader['name']} @ {affiliation_for(leader)}", 'group_rule': rule,
+    return {'_leader': id(leader), 'group': f"{leader['name']} @ {affiliation_for(leader)}", 'group_rule': rule,
             'group_evidence': f'rule {rule}: {match}'}
 
 
@@ -123,11 +123,19 @@ GENERIC_HOSTS = {'sites.google.com', 'github.com', 'www.github.com', 'people.epf
 
 def personal_hosts(person: dict) -> set[str]:
     hosts = {(urlsplit(url).hostname or '').casefold() for url in homepages(person)}
-    # Shared directories and institution roots cannot identify a particular team.
-    return {host for host in hosts if host and host not in GENERIC_HOSTS
-            and not host.startswith(('www.', 'people.', 'person.', 'profiles.', 'staff.', 'users.'))
-            and len(host.split('.')) > 2} - {
-                host for host in hosts if len(host.split('.')) == 3 and host.endswith(('.ac.uk', '.edu.uk'))}
+    roots = {'epfl.ch', 'ethz.ch', 'rwth-aachen.de', 'tuwien.at', 'dlr.de', 'tum.de', 'mpg.de',
+             'uni-bonn.de', 'uni-bremen.de', 'uni-freiburg.de', 'tu-darmstadt.de'}
+    accepted = set()
+    for host in hosts:
+        bare = host.removeprefix('www.')
+        labels = len(bare.split('.'))
+        institutional_root = (host.startswith('www.') and labels == 2 or bare in roots or
+                              bare.endswith('.edu') and labels == 2 or
+                              bare.endswith(('.ac.uk', '.edu.uk')) and labels == 3)
+        directory = bare.startswith(('people.', 'person.', 'profiles.', 'staff.', 'users.'))
+        if host and bare not in GENERIC_HOSTS and not institutional_root and not directory:
+            accepted.add(host)
+    return accepted
 
 
 def github_org(url: str) -> str:
@@ -166,7 +174,7 @@ def assign_groups(persons: list[dict]) -> list[dict]:
     results = []
     for person in persons:
         pi = any(s.get('role') == 'pi' for s in person.get('signals', []))
-        own = {'group': f"{person['name']} @ {affiliation_for(person)}", 'group_rule': 4,
+        own = {'_leader': id(person), 'group': f"{person['name']} @ {affiliation_for(person)}", 'group_rule': 4,
                'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}"}
         match = own if pi and affiliation_for(person) else None
         if match is None:
@@ -186,7 +194,33 @@ def assign_groups(persons: list[dict]) -> list[dict]:
                 any(other is not person and related(other, person) for other in persons)):
             match = own
         results.append({**person, 'group_rule': None, **(match or {'group': '', 'group_evidence': 'unattached'})})
-    return results
+    by_id = {id(person): index for index, person in enumerate(persons)}
+    incoming = {p.get('_leader') for p in results if p.get('_leader')}
+    for original, result in zip(persons, results):
+        if id(original) in incoming and result['group_evidence'] == 'unattached':
+            result.update(_leader=id(original), group=f"{original['name']} @ {affiliation_for(original)}",
+                          group_rule=4, group_evidence=f"rule 4: linked leader self {original['name']} | {evidence_url(original)}")
+    resolved = []
+    for index, result in enumerate(results):
+        path, current = [], index
+        while current not in path:
+            path.append(current)
+            target = by_id.get(results[current].get('_leader'))
+            if target is None or target == current:
+                break
+            current = target
+        else:
+            current = None
+        updated = {key: value for key, value in result.items() if key != '_leader'}
+        if len(path) > 1:
+            if current is None or not results[current]['group']:
+                names = ', '.join(results[i]['name'] for i in path)
+                updated.update(group='', group_evidence=f"rule {result['group_rule']}: ambiguous: {names} (leader chain unresolved) | {evidence_url(persons[index])}")
+            elif result['group'] != results[current]['group']:
+                via = '; '.join(f"via {results[i]['name']}: {results[i]['group_evidence']}" for i in path[1:])
+                updated.update(group=results[current]['group'], group_evidence=f"{result['group_evidence']} | {via}")
+        resolved.append(updated)
+    return resolved
 
 
 def group_for(person: dict, leaders: list[dict], persons: list[dict]) -> str:

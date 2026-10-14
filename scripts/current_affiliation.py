@@ -321,9 +321,11 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
                            f'industry | {title}', company[3] or url)
     if verified:
         role_class = title_class(verified[0], person.get('institution_type', ''), person.get('current_affiliation', ''))
-        if role_class and role_class != 'mixed':
+        if role_class == 'mixed':
+            return role_result('unknown', 'low', 0, 'final pass: mixed heading proves membership only', verified[0], verified[1])
+        if role_class:
             return role_result(role_class, 'high', 0, f"final pass {person.get('last_verified')}", verified[0], verified[1])
-    mixed = ('final pass: mixed heading proves membership only', verified[0], verified[1]) if verified and role_class == 'mixed' else None
+    mixed = None
     for source, title, url, inst_type, affiliation in entries:
         role_class = title_class(title, inst_type, affiliation)
         if role_class == 'mixed':
