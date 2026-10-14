@@ -54,7 +54,7 @@ page budget in the run's `channels` configuration and worker brief. Extending `r
 
 | Channel id | File | Sources |
 |------------|------|---------|
-| `funding-fr-es-nl-be` | [Validated ANR, NWO, FRIS and FNRS funding](funding-fr-es-nl-be.md) | ANR detail pages, NWO API, FRIS SOAP services (Flanders, covers FWO), FNRS DataScops JSON; AEI is an entry-page lead only, extraction disabled |
+| `funding-fr-es-nl-be` | [Validated FR, ES, NL and BE funding](funding-fr-es-nl-be.md) | ANR detail pages, NWO API, FRIS SOAP services (Flanders, covers FWO), FNRS DataScops JSON, AEI grant table (institutions only; people by hop) |
 | `funding-at-se-no-dk` | [Austrian, Swedish, Norwegian and Danish registers](funding-at-se-no-dk.md) | FWF Open API (public key page), Swecris CSV export (public token), RCN open-data CSV (no key); DFF API disabled until a key file exists |
 
 Stop a channel at its page budget: the budget counts fetch attempts, including failures and replacement sources,

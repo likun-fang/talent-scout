@@ -1,30 +1,29 @@
-# Optional national funding channel: validated ANR, NWO, FRIS and FNRS paths
+# Optional national funding channel: validated ANR, NWO, FRIS, FNRS and AEI paths
 
 Channel id: `funding-fr-es-nl-be` (reserved geographic scope). ANR (FR), NWO (NL), FRIS (BE, Flanders) and FNRS
-DataScops (BE, Wallonia–Brussels) extraction is enabled.
+DataScops (BE, Wallonia–Brussels) extraction is enabled. AEI (ES) gives projects and institutions; its people come
+from hops.
 This is an opt-in sibling of `funding-de-ch`, not a replacement. Add it to the
 run's `channels` with its own page budget (40 unless the run specifies another budget) and pass it in the worker
 brief. Keep the existing eight defaults, region tiers, merge rules and funding-role inference unchanged.
 
 Read the shared [signal, member-page and date rules](README.md) and [hop rules](../30-hops.md). Inputs are the
 run's `region_core`, `region_extended`, `window_start`, `window_end` and domain-map keywords. Search only the
-validated countries FR, NL and BE (FRIS and DataScops) that are in `region_extended`; visit core countries first.
-AEI below is an entry-page lead only: do not sweep it or emit its signals through this
-channel until a separate extraction validation is recorded. Report ES as unvalidated, not zero
-matches. No country or
+validated countries FR, NL, BE and ES that are in `region_extended`; visit core countries first.
+The AEI table names no researcher: report ES people as found through hops, never as zero matches. No country or
 multimodal keyword is an implicit inclusion criterion: project titles or abstracts must match the domain map.
 
 ## Sources and discovery
 
 The official entry pages below were opened on 2026-10-12. Their availability and published search guidance were
 checked. A live ANR/NWO sample is recorded in `docs/runs/2026-10-12-multimodal-funding-pilot.md`;
-FRIS and DataScops were read live on 2026-10-14 (below); AEI extraction remains unvalidated. Read current forms/API documentation
+FRIS, DataScops and the AEI table download were read live on 2026-10-14 (below). Read current forms/API documentation
 before using filters. Do not assume every portal exposes the same fields or a public bulk API.
 
 | Country | Official entry | Status and follow-up |
 |---------|----------------|----------------------|
 | FR | [ANR funded projects](https://anr.fr/fr/projets-finances-et-impact/projets-finances/) | Validated detail-page extraction. Search domain keywords; inspect project details and linked project/institution sites. The entry page also links ANR datasets. |
-| ES | [AEI awarded grants](https://www.aei.gob.es/ayudas-concedidas/buscador-ayudas-concedidas) | Entry page only; extraction disabled. Future validation: title, keywords or abstract filters; narrow by call year/area where useful. Keep the grant reference to resolve the same project on its host's website. |
+| ES | [AEI awarded grants](https://www.aei.gob.es/ayudas-concedidas/buscador-ayudas-concedidas) | Validated table download, no key. The table has no researcher column: it gives project, reference and institution; people come from the host's pages. Rules below. |
 | NL | [NWO API documentation](https://data.nwo.nl/en/how-to-use-the-nwopen-api) | Validated API extraction. Use the documented Projects endpoint or linked project database. Inspect titles, summaries, researchers, institutions and outputs where supplied. |
 | BE | [FWO funded research](https://www.fwo.be/en/results-outreach/database-financed-research/) | Validated through FRIS, which FWO's page points to: SOAP services at `https://frisr4.researchportal.be/ws/`, no authentication. FRIS also holds university, VLAIO and EU projects of Flemish institutions. Rules below. |
 | BE | [FNRS DataScops entry](https://www.frs-fnrs.be/fr/recherches-financees-par-le-fnrs-datascops) | Validated through the JSON backend of `https://datascops.frs-fnrs.be`, no key. Rules below. |
@@ -188,6 +187,36 @@ Co-promoters, co-tutelle partners and co-applicants go into `note`. `name_raw`: 
 `role_title`: leave empty. `topics`: 1–3 phrases cut verbatim from `titre_application_en`, or the French title when
 there is no English one.
 
+### AEI records (ES): table download, people by hop
+
+Read live on 2026-10-14. URLs opened: `https://www.aei.gob.es/ayudas-concedidas/buscador-ayudas-concedidas`,
+`…/buscador-ayudas-concedidas?year=2024&title=robot`,
+`https://www.aei.gob.es/ayudas-concedidas/buscador-ayudas-concedidas/download/2024/All/All/All?title=robot`, and a
+university's copy of an AEI resolution annex, `https://investiga.uva.es/files/2025/06/DATOS-2023-orientada-1.pdf`.
+
+The finder is a plain GET form: `year`, `convocatory`, `code` (reference), `gender`, `area`, `subarea`, `title`,
+`keywords`, `cif`, `name` (the institution), `ccaa`, `province`, `granted[min]`, `granted[max]`, `summary`. A results
+page prints a "Descargar archivo" link, `/ayudas-concedidas/buscador-ayudas-concedidas/download/<year>/All/All/All?<the
+text filters>`, which returns a CSV attachment: semicolon-separated UTF-8 with a BOM, one row per grant. Columns:
+`Año`, `Convocatoria`, `Referencia`, `Género`, `Área`, `Subárea`, `Título`, `C.I.F.`, `Entidad`, `CC.AA.`,
+`Provincia`, `€ Conced.`, `Resumen`. `year=2024&title=robot` gave 53 rows. `Resumen` was empty on 14 of them.
+
+There is no researcher column. `Género` gives the gender of a person the table does not name: never store it. The
+resolution annex ("Anexo I. Relación de ayudas concedidas") lists reference, title, centre, years and budget, and no
+researcher either. A web search for one 2024 reference (`PID2024-161069OB-C31`) returned no page naming its
+investigator on 2026-10-14.
+
+- For each table row whose title or summary matches the domain map, emit an `org` signal: `name_raw` = `Entidad`,
+  `role: unknown`, `signal_type: national_project`, `date` = `Año` (the call year; say so in `note`), the reference,
+  `Convocatoria` and title in `snippet`, `evidence_url` = the download URL with its filters. `country: ES`.
+- Hop to people through the reference: the institution's research portal or project page, the project website, or
+  the acknowledgement of a paper. Emit a `person` with `signal_type: aei_project`, `role: pi` only when that page
+  names the person as "Investigador/a principal" (IP, IP1, IP2) of that reference; the page is the `evidence_url`,
+  `parent` = the `org` signal's `name_raw`, `hop_depth: 1`. Co-IPs both count as `pi`.
+- Personal schemes in `Convocatoria` (Juan de la Cierva, Ramón y Cajal, Contratos Predoctorales, Torres Quevedo) fund
+  a person, not a project: a named holder found by hop gets `national_fellowship`, with the scheme in `snippet`.
+- `topics`: cut verbatim from `Título`; some titles are in capitals without accents, copy them as printed.
+
 ### Emit accepted records
 
 1. Select a project whose title/abstract matches the domain map. Preserve its canonical record URL, reference,
@@ -221,8 +250,9 @@ An unresolved country stays absent with an explanatory note until the existing a
   belongs in `role` and its supporting `snippet`; do not invent an academic title from a funding programme.
 - Attach ORCID or a verified OpenAlex/person identifier only when it belongs to that person. Project references,
   grant IDs and institution IDs belong in `note` or project evidence, never as person merge keys.
-- `fris_project` (FRIS Promoters) is a register-prefixed type like `dfg_project` and does trigger the funding-role
-  rule (group leader, medium), because the register labels project leadership explicitly.
+- `fris_project` (FRIS Promoters) and `aei_project` (an IP named on a page for that reference) are register-prefixed
+  types like `dfg_project` and do trigger the funding-role rule (group leader, medium), because the source labels
+  project leadership explicitly.
 - `national_project` and `national_fellowship` use the schema's existing open signal vocabulary. They deliberately
   do not use `erc_`, `dfg_` or `snsf_` prefixes. They do not activate the existing funding-based professor/group-leader
   inference; current roles must be established through the normal title/affiliation evidence workflow.
@@ -232,7 +262,7 @@ An unresolved country stays absent with an explanatory note until the existing a
 ## Budget, overlap and output
 
 Write `signals/funding-fr-es-nl-be.jsonl` and `signals/funding-fr-es-nl-be.coverage.md`. The page budget covers the
-whole enabled channel (ANR, NWO, FRIS and DataScops), including follow-up hops, failed fetches and replacement pages. API/dataset
+whole enabled channel (ANR, NWO, FRIS, DataScops and AEI), including follow-up hops, failed fetches and replacement pages. API/dataset
 downloads follow the existing run budget policy; they do not grant unlimited page reads for person verification.
 Record attempts and results by source/country so a budget-limited sweep is distinguishable from no matches.
 
