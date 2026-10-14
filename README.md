@@ -2,7 +2,7 @@
 
 An [Agent Skills](https://agentskills.io) package: give it a technical domain, get back a sourced roster of the
 people and research groups doing notable work in it, for technology discovery and collaboration. The core region is
-Germany + Switzerland, the extended region EU27 + UK + CH; people are discovered across paper awards, national prizes,
+Germany + Switzerland, the extended region EU27 + UK + CH + NO; people are discovered across paper awards, national prizes,
 EU, DFG and SNSF funding, competitions, startups, industry labs and open source.
 
 Runs in any skills-aware agent (Claude.ai, Claude Code, ChatGPT, Codex, Cursor, ...) using only

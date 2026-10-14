@@ -36,6 +36,8 @@ Append one JSON object per line to `RUN_DIR/signals/<channel>.jsonl` (schema: `S
 - Public professional record only: institutional pages, papers, grant registers, results pages, company team pages,
   public code. No LinkedIn or other social profiles in this channel (the final pass handles current roles).
   Login-gated content, people-search sites and private contact details stay out.
+- Keys: a source that needs a key or public token reads it from `~/.config/talent-scout/<source>.key`; name the
+  path in notes and coverage, never the value. Do not register accounts or request keys on the user's behalf.
   No sensitive categories. Junior / school competitions and minors stay out.
 - Page budget: <N> fetch attempts for this channel, counting failed and replacement fetches; API calls, dataset
   downloads and git clones are not pages. Stop at the Nth attempt, not the Nth readable page.

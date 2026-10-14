@@ -1,6 +1,6 @@
 ---
 name: talent-scout
-description: Find the research groups and people behind notable work in a technical domain, core region Germany + Switzerland and extended region EU27 + UK + CH, and deliver a sourced roster and group table for technology discovery and collaboration. Use when asked to find talent, researchers, engineers, labs or teams in a field, to list who is doing notable work in a domain, or to build a roster from public signals such as paper awards, prizes, EU, DFG and SNSF funding, competitions, startups and open source.
+description: Find the research groups and people behind notable work in a technical domain, core region Germany + Switzerland and extended region EU27 + UK + CH + NO, and deliver a sourced roster and group table for technology discovery and collaboration. Use when asked to find talent, researchers, engineers, labs or teams in a field, to list who is doing notable work in a domain, or to build a roster from public signals such as paper awards, prizes, EU, DFG and SNSF funding, competitions, startups and open source.
 ---
 
 # Talent Scout
@@ -23,7 +23,7 @@ Each stage names the file to read when you reach it and the condition that ends 
 | 2 | Sweep channels into signals, hopping to people inside each channel | `references/channels/README.md`, then one file per channel in the run; hop rules in `references/30-hops.md` | every channel in `run.meta.json` has either reached its page budget or exhausted its sources; `signals/<channel>.jsonl` and `signals/<channel>.coverage.md` exist for each |
 | 3 | Close the hop gaps | `references/30-hops.md` | every non-person signal across channels has produced person signals or a `roster not public` note; `signals.jsonl` is the concatenation |
 | 4 | Merge signals into persons, then enrich | `references/40-entity-resolution.md` | `persons.jsonl` written by `merge_persons.py` **and passed through `current_affiliation.py`** (ORCID title and employment, OpenAlex institution and first publication year); each person has a strong key, or a weak key with same institution, or is marked `ambiguous`; each carries `role_class`, `role_evidence`, `role_confidence`, `tier`, `topics`, `group` |
-| 5 | Emit the roster and the group view | `references/50-output.md` | `roster.csv`, `roster.md`, `groups.csv` and `groups.md` written with the fixed columns, sorted by tier, cut to `target_rows`, with the Coverage block |
+| 5 | Emit the roster and the group view | `references/50-output.md` | `roster.csv`, `roster.md`, `groups.csv` and `groups.md` written with the fixed columns, sorted by tier, uncapped unless the user set `target_rows`, with the Coverage block |
 
 Two moments to stop for the user: after stage 1 (the domain map and the chosen OpenAlex topics, one screen) and after
 stage 2 (the raw candidate count, before budget goes into enrichment). Show the screen, stop, and wait for the user's
@@ -68,13 +68,15 @@ The procedure is domain-agnostic; the domain map is derived at stage 1 and cache
 signal for which fields to re-check. Region codes, ERC panels, EuroSciVoc paths and the national prize
 registry are universal and live in `assets/`.
 
-## Final pass: current roles on the cut table
+## Final pass: current roles and affiliations, by group
 
-After stage 5 has cut the table to `target_rows`, and only then, check current roles for those rows. Read the
-professor's or group's own homepage first, then lab, company and personal pages, then public LinkedIn profiles read
-one at a time with a delay (`references/45-web-verification.md`). The optional `scripts/visit_page.py` records page
-excerpts and access status; reading a page does not itself verify a role. Nothing in this pass changes who is in the
-table. Set `stage_status["final_pass"]` when done.
+After the stage 5 export, and only then, check current roles and affiliations. Work group by group, tier 1 first:
+read the PI's team page once, which verifies the PI and lists the current members, then individual pages, then public
+LinkedIn profiles read one at a time with a delay (`references/45-web-verification.md`). The budget counts pages, so
+one team page covers a whole group. The optional `scripts/visit_page.py` records page excerpts and access status;
+reading a page does not itself verify a role. Write what the page says into `final_pass_title`,
+`final_pass_affiliation` and `final_pass_country`, then re-export: a corrected country or role changes the tier,
+but the pass adds nobody to the table. Set `stage_status["final_pass"]` when done.
 
 ## Scripts
 

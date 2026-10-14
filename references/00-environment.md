@@ -41,18 +41,21 @@ the stage-1 summary, so the user can change them there.
 - Domain phrase [required, no default] and 0–5 seed names / labs / venues the user already knows [none].
 - Region, two layers (codes in `assets/countries.yaml`):
   - `region_core` [DE+CH]: professors and research groups here come first in the table;
-  - `region_extended` [EU27+UK+CH]: everyone with a qualifying signal here gets a row; doctoral students in the
+  - `region_extended` [EU27+UK+CH+NO]: everyone with a qualifying signal here gets a row; doctoral students in the
     extended region rank right after the core-region rows. The tiers are in `references/50-output.md`.
   "Based in region" means the person's **current or most recent affiliation** is in the region, regardless of
   nationality. People outside `region_extended` get no person signal.
 - Time window [the 36 months ending on the run date, for all channels including funding]. For a run on 2026-10-12
   this is 2023-10-12 through 2026-10-12, inclusive. Record the exact bounds. Use the event or work date, never the
   date a page was fetched; see `channels/README.md`.
-- Final-pass budget [LinkedIn profile reads: 20, serial, 5 s apart, optional; see `45-web-verification.md`. The anonymous
-  quota is per outbound address and is often already spent, so the pass must not depend on it].
+- Final-pass budget [team pages: one per group, tier 1 first; LinkedIn profile reads: 20, serial, 5 s apart, optional;
+  see `45-web-verification.md`. The anonymous quota is per outbound address and is often already spent, so the pass
+  must not depend on it].
 - Channels to run [the eight default channels listed below; optional channels require explicit selection]. Page budget per channel [40 fetch attempts, counting failures and replacements; API calls,
   dataset downloads and git clones are not pages]. Target
-  roster size [50 rows]; the table is cut to this after sorting, and the Coverage block reports how many rows were cut.
+  roster size [uncapped, `target_rows: 0`]: every qualifying person in the region gets a row and the final pass
+  budget, not the row count, limits the work; when the user asks for a cut, the table is cut after sorting and the
+  Coverage block reports how many rows were cut.
 - `RUN_DIR` [see Paths].
 
 ## Write `run.meta.json`
@@ -61,10 +64,10 @@ Write it to `RUN_DIR/run.meta.json`:
 
 ```json
 {"domain": "...", "purpose": "discovery of technology and research groups through their public professional record; roles recorded as data",
- "seeds": [], "region_core": "DE+CH", "region_extended": "EU27+UK+CH", "region": "EU27+UK+CH",
+ "seeds": [], "region_core": "DE+CH", "region_extended": "EU27+UK+CH+NO", "region": "EU27+UK+CH+NO",
  "window_months": 36, "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 20,
  "channels": ["awards-papers","funding-eu","funding-de-ch","national-prizes","competitions","startups","industry","open-source"],
- "page_budget_per_channel": 40, "target_rows": 50,
+ "page_budget_per_channel": 40, "target_rows": 0,
  "run_dir": "/absolute/path/to/runs/<slug>-YYYY-MM-DD",
  "stage_status": {"0": "done", "1": "", "2": "", "3": "", "4": "", "5": "", "final_pass": ""},
  "env": {"web": "fetch|search_only|none", "interpreter": true, "files": true, "openalex": "keyed|keyless", "github_api": false,

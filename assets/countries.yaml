@@ -1,10 +1,11 @@
 # Region definitions (ISO 3166-1 alpha-2), two layers recorded in run.meta.json:
 #   region_core     = core      (default DE+CH): professors and groups here come first
-#   region_extended = extended  (default EU27+UK+CH): every row must be in here; doctoral students here rank next
+#   region_extended = extended  (default EU27+UK+CH+NO): every row must be in here; doctoral students here rank next
+#   Norway is in the extended region by the maintainer's decision (2026-10-14); IS and LI are not.
 # Tiers built from the two layers: references/50-output.md. The old single `region` field equals region_extended.
 eu27: [AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE]
 uk_ch: [GB, CH]
 eea_extra: [IS, LI, NO]
 core: [DE, CH]
-extended: eu27 + uk_ch
+extended: eu27 + uk_ch + [NO]
 default: extended   # where a single region is asked for (the old `region` field)
