@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fill current_affiliation / country / affiliation_source on persons.jsonl.
 
-  OPENALEX_API_KEY=... current_affiliation.py persons.jsonl [--region EU27+UK+CH]
+  OPENALEX_API_KEY=... current_affiliation.py persons.jsonl [--region EU27+UK+CH+NO]
       [--cache-dir ./cache/affiliation/] [--workers 1] > persons.enriched.jsonl
 
 Order of trust, per person:
@@ -26,7 +26,7 @@ from openalex_auth import auth_headers
 
 REGIONS = {
     "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
-    "UK": ["GB"], "CH": ["CH"], "EEA": ["IS","LI","NO"],
+    "UK": ["GB"], "CH": ["CH"], "NO": ["NO"], "EEA": ["IS","LI","NO"],
 }
 
 def region_codes(spec: str) -> set[str]:
@@ -389,7 +389,7 @@ def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("persons"); ap.add_argument("--region", "--region-extended", dest="region", default="EU27+UK+CH")
+    ap.add_argument("persons"); ap.add_argument("--region", "--region-extended", dest="region", default="EU27+UK+CH+NO")
     ap.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today())
     ap.add_argument("--region-core", default="DE+CH")
     ap.add_argument("--cache-dir", default="./cache/affiliation/", help="Directory for reusable lookup JSON")

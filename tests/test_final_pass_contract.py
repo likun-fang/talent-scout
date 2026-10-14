@@ -188,3 +188,46 @@ class OfflineTests(unittest.TestCase):
             self.assertEqual(json.loads(out.getvalue())['country'], 'CH')
             self.assertIn('offline cache misses: 2', err.getvalue())
             self.assertEqual({p.name: p.read_bytes() for p in root.iterdir()}, before)
+
+
+class ExportContractTests(unittest.TestCase):
+    def test_export_defaults_norway_unattached_whitespace_and_evidence(self):
+        import table_export as te
+        import tempfile, json, csv
+        from unittest.mock import patch
+        p = person('Norwegian', 'Lab', country='NO', date='2023', channel='papers',
+                   snippet='ANR\n  project\t title', topics=['Exact Topic'])
+        p.update(group_evidence='unattached', notes='Note\r\n  with\tspaces')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src = root / 'persons.jsonl'
+            src.write_text(json.dumps(p) + '\n')
+            with patch.object(sys, 'argv', ['table_export.py', str(src), '--date', '2026-10-12', '--out', str(root/'roster')]):
+                te.main()
+            with (root / 'roster.csv').open(encoding='utf-8-sig', newline='') as f:
+                rows = list(csv.DictReader(f))
+            with (root / 'groups.csv').open(encoding='utf-8-sig', newline='') as f:
+                groups = list(csv.DictReader(f))
+            md = (root / 'roster.md').read_text()
+            group_md = (root / 'groups.md').read_text()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['notes'], 'Note with spaces')
+        self.assertIn('Note with spaces', md)
+        self.assertIn('year-only dates qualify when the year overlaps the window', md)
+        self.assertIn('unattached', md)
+        self.assertEqual(groups[0]['group'], '(unattached)')
+        self.assertEqual(groups[0]['member_count'], '1')
+        self.assertIn('ANR project title', groups[0]['recent_outputs'])
+        self.assertIn('ANR project title', group_md)
+        self.assertEqual(len(rows[0]), 25)
+
+    def test_new_funding_in_group_view_and_raw_topics_unchanged(self):
+        import table_export as te
+        import datetime
+        p = person('A', role='pi', signal_type='fwf_start', date='2025', topics=['Exact  Topic'])
+        p.update(tier=1, group='A @ EPFL')
+        original = copy.deepcopy(p)
+        row = te.group_rows([p], datetime.date(2023, 10, 12), datetime.date(2026, 10, 12))[0]
+        self.assertEqual(row['active_funding'], 'fwf_start@2025')
+        self.assertEqual(p, original)
+        self.assertEqual(row['topics'], 'Exact  Topic')
