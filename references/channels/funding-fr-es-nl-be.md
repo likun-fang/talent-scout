@@ -1,15 +1,16 @@
-# Optional national funding channel: validated ANR, NWO and FRIS paths
+# Optional national funding channel: validated ANR, NWO, FRIS and FNRS paths
 
-Channel id: `funding-fr-es-nl-be` (reserved geographic scope). ANR (FR), NWO (NL) and FRIS (BE, Flanders) extraction is enabled.
+Channel id: `funding-fr-es-nl-be` (reserved geographic scope). ANR (FR), NWO (NL), FRIS (BE, Flanders) and FNRS
+DataScops (BE, Wallonia–Brussels) extraction is enabled.
 This is an opt-in sibling of `funding-de-ch`, not a replacement. Add it to the
 run's `channels` with its own page budget (40 unless the run specifies another budget) and pass it in the worker
 brief. Keep the existing eight defaults, region tiers, merge rules and funding-role inference unchanged.
 
 Read the shared [signal, member-page and date rules](README.md) and [hop rules](../30-hops.md). Inputs are the
 run's `region_core`, `region_extended`, `window_start`, `window_end` and domain-map keywords. Search only the
-validated countries FR, NL and BE (Flanders, through FRIS) that are in `region_extended`; visit core countries first.
-AEI and FNRS below are entry-page leads only: do not sweep them or emit their signals through this
-channel until a separate extraction validation is recorded. Report ES and French-speaking BE as unvalidated, not zero
+validated countries FR, NL and BE (FRIS and DataScops) that are in `region_extended`; visit core countries first.
+AEI below is an entry-page lead only: do not sweep it or emit its signals through this
+channel until a separate extraction validation is recorded. Report ES as unvalidated, not zero
 matches. No country or
 multimodal keyword is an implicit inclusion criterion: project titles or abstracts must match the domain map.
 
@@ -17,7 +18,7 @@ multimodal keyword is an implicit inclusion criterion: project titles or abstrac
 
 The official entry pages below were opened on 2026-10-12. Their availability and published search guidance were
 checked. A live ANR/NWO sample is recorded in `docs/runs/2026-10-12-multimodal-funding-pilot.md`;
-FRIS was read live on 2026-10-14 (below); AEI and FNRS extraction remains unvalidated. Read current forms/API documentation
+FRIS and DataScops were read live on 2026-10-14 (below); AEI extraction remains unvalidated. Read current forms/API documentation
 before using filters. Do not assume every portal exposes the same fields or a public bulk API.
 
 | Country | Official entry | Status and follow-up |
@@ -26,11 +27,11 @@ before using filters. Do not assume every portal exposes the same fields or a pu
 | ES | [AEI awarded grants](https://www.aei.gob.es/ayudas-concedidas/buscador-ayudas-concedidas) | Entry page only; extraction disabled. Future validation: title, keywords or abstract filters; narrow by call year/area where useful. Keep the grant reference to resolve the same project on its host's website. |
 | NL | [NWO API documentation](https://data.nwo.nl/en/how-to-use-the-nwopen-api) | Validated API extraction. Use the documented Projects endpoint or linked project database. Inspect titles, summaries, researchers, institutions and outputs where supplied. |
 | BE | [FWO funded research](https://www.fwo.be/en/results-outreach/database-financed-research/) | Validated through FRIS, which FWO's page points to: SOAP services at `https://frisr4.researchportal.be/ws/`, no authentication. FRIS also holds university, VLAIO and EU projects of Flemish institutions. Rules below. |
-| BE | [FNRS DataScops entry](https://www.frs-fnrs.be/fr/recherches-financees-par-le-fnrs-datascops) | Entry page only; extraction disabled. For future validation, follow its DataScops link; search keywords and inspect funding periods, subject filters, projects and named researchers. |
+| BE | [FNRS DataScops entry](https://www.frs-fnrs.be/fr/recherches-financees-par-le-fnrs-datascops) | Validated through the JSON backend of `https://datascops.frs-fnrs.be`, no key. Rules below. |
 
 - Search English domain-map keywords first. Add relevant French, Spanish or Dutch equivalents to search queries
   where English has poor coverage, recording the actual queries in coverage. Do not translate source quotations.
-- FRIS covers Flanders only; it does not cover FNRS or the French-speaking universities.
+- FRIS covers Flanders only; DataScops covers FNRS grants at the French-speaking universities. Run both for BE.
 - AEI call year and a portal's funding-period filter are discovery aids, not proof of the award/start date.
   Inspect each selected record before setting `date`.
 - NWO's documented endpoint is `https://nwopen-api.nwo.nl/NWOpen-API/api/Projects?`. Check the linked API documentation
@@ -147,6 +148,46 @@ Search projects with one POST (`Content-Type: text/xml; charset=utf-8`, `SOAPAct
 - `role_title`: leave empty; Promoter and Fellow are register roles. `topics`: 1–3 phrases cut verbatim from the
   English `cfTitle`.
 
+### FNRS DataScops records (BE, Wallonia–Brussels): validated extraction rules
+
+Read live on 2026-10-14. URLs opened: `https://datascops.frs-fnrs.be/` and its scripts (`main-3F7PFGLH.js`),
+`https://datascops.frs-fnrs.be/public2/rest/datascops/application-search/0/search?language_code=en` (POST),
+`https://datascops.frs-fnrs.be/public2/rest/datascops/datascops/40041825?language_code=en`. The page is an Angular
+application; a headless browser showed the JSON calls it makes, and both answered 200 to curl without login.
+
+```sh
+curl -s -X POST 'https://datascops.frs-fnrs.be/public2/rest/datascops/application-search/0/search?language_code=en' \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"condition":"and","rules":[]},"sortKeys":{},"page_from":1,"page_size":30,"full_text_query":"robot","pageIndex":1,"facetFilters":{},"language_code":"en"}'
+```
+
+- The answer has `count` (a string; `robot`: 134), `rows` and `facets`. Thirty rows come back per page whatever
+  `page_size` says; raise `page_from` and `pageIndex` together (page 2 gave rows 31–60).
+- A row: `id_application`, `annee` (call year), `appel_en` (call), `nom_instrument_en`, `titre_application_en`,
+  `titre_application_fr`, `resume_application_en`, `date_debut_effective`, `date_fin_effective`, `institution`,
+  `nom_applicant`, `tags` (Finished, In progress) and `contacts[]` with `prenom`, `nom`, `institution`,
+  `id_type_application_contact` and `libelle_contact`. The UI lists these as funded projects; every row seen had
+  status id 242.
+- Contact labels seen: `Applicant` (`APPL`), `Promoter` (`PROM`), `Co-promoter` (`COPROM`), `Co-tutelle`,
+  `Co-applicant`. Fellowships (Research Fellow, FRIA, FRESH, Postdoctoral Researcher, Research Associate) name the
+  holder as Applicant and the supervisor as Promoter. Project instruments (Research Project, Research Credit,
+  Incentive grant for scientific research, WEL-T, Incitant Horizon Europe) name an Applicant and no Promoter.
+- One application: `GET https://datascops.frs-fnrs.be/public2/rest/datascops/datascops/<id_application>?language_code=en`
+  returns the same fields plus `type_appel` and `categorie_type_appel`. Use it as `evidence_url`.
+- The `sexe` facet is a gender breakdown: never store it.
+
+| Record shape | signal |
+|---|---|
+| a `Promoter` is named | Promoter: `person`, `signal_type: national_project`, `role: pi`. Applicant: `person`, `signal_type: national_fellowship`, `role: team_member`, `parent` = the Promoter's `name_raw`, `hop_depth: 1`; the Applicant holds the fellowship in the Promoter's group |
+| no `Promoter` (project instruments) | the sole Applicant: `person`, `signal_type: national_project`, `role: pi`. With no Promoter on the record, the Applicant is the grant holder; NWO's rule against applicants does not apply, because NWO lists a separate project leader |
+| Equipment | none: an equipment grant, not a research project |
+
+Co-promoters, co-tutelle partners and co-applicants go into `note`. `name_raw`: `prenom` + `nom` from `contacts`
+(`nom_applicant` prints the family name in capitals). `affiliation_raw`: the contact's `institution`; `country: BE`.
+`date`: `date_debut_effective` when on or before the run date, otherwise `annee`; say which in `note`.
+`role_title`: leave empty. `topics`: 1–3 phrases cut verbatim from `titre_application_en`, or the French title when
+there is no English one.
+
 ### Emit accepted records
 
 1. Select a project whose title/abstract matches the domain map. Preserve its canonical record URL, reference,
@@ -191,7 +232,7 @@ An unresolved country stays absent with an explanatory note until the existing a
 ## Budget, overlap and output
 
 Write `signals/funding-fr-es-nl-be.jsonl` and `signals/funding-fr-es-nl-be.coverage.md`. The page budget covers the
-whole enabled channel (ANR, NWO and FRIS), including follow-up hops, failed fetches and replacement pages. API/dataset
+whole enabled channel (ANR, NWO, FRIS and DataScops), including follow-up hops, failed fetches and replacement pages. API/dataset
 downloads follow the existing run budget policy; they do not grant unlimited page reads for person verification.
 Record attempts and results by source/country so a budget-limited sweep is distinguishable from no matches.
 
