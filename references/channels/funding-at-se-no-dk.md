@@ -28,7 +28,11 @@ Checked live on 2026-10-14. URLs opened:
 `README.md`, `git ls-remote https://github.com/Forskningsradet/open-data refs/heads/main`,
 `https://www.forskningsradet.no/tall-analyse/statistikk/offentlige-data/`, `https://prosjektbanken.forskningsradet.no/`,
 `https://prosjektbanken.forskningsradet.no/project/FORISS/338694`,
-`https://prosjektbanken.forskningsradet.no/project/FORISS/354071`.
+`https://prosjektbanken.forskningsradet.no/project/FORISS/354071`;
+`https://dff.dk/en/our-funded-projects/api-access/`, `https://p16-eksternapi.e-grant.dk/api/v2/Bevilling` (no key),
+`https://p16-eksternapi.e-grant.dk/swagger/v2/swagger.json`,
+`https://dff.dk/en/our-funded-projects/see-an-overview-of-supported-research/` (rendered, with
+`?Bevilling.TitelDK=robot&page=1` and with `?GoCaseId=5247-00011A`).
 
 ## Keys
 
@@ -41,6 +45,7 @@ Briefs, notes and coverage name the path, never the value. Read it at call time:
 | FWF | `fwf.key` | the whole body of `https://openapi.fwf.ac.at/fwfkey` (one 64-character hex string) | none | not stated |
 | Swecris | `swecris.key` | the public token printed on `https://www.vr.se/english/swecris/swecris-api.html` (on 2026-10-14: valid from 2026-04-09; VR changes it "on a regular basis") | optional: a personal token from the form at `https://www.vr.se/english/swecris/swecris-api/request-for-api-token.html` (first name, surname, e-mail; organisation optional), sent by e-mail within a week | not stated |
 | RCN | none | a public CSV on GitHub | none | — |
+| DFF | `dff.key` | an e-mail from DFF after a written request to dff@ufm.dk (below) | yes: DFF sets up access by hand and asks for a Danish CVR and P number; up to three weeks | rate limiting and throttling, numbers not stated |
 
 When FWF answers 403 `invalid_api_key`, fetch the key page again: the page always serves the current key. When the
 Swecris export answers 401, copy the token from VR's page again.
@@ -264,3 +269,69 @@ Emit one `person` signal per kept row:
 
 Drop `prosjektleder_kjonn`. `dr_stip_aarsverk` and `postdok_aarsverk` say a project pays doctoral or postdoc years,
 not who holds them: look for those people on the leader's team page under the shared `lab_member` rules.
+
+## Independent Research Fund Denmark, DFF (DK)
+
+**The API route is disabled until `~/.config/talent-scout/dff.key` exists.** DFF gives its API key only on request,
+and the request needs a Danish company registration, so the channel never applies for one itself.
+
+To get a key (the user does this): write to dff@ufm.dk with the company name and department name, the CVR number and
+P number, the contact person(s), e-mail address(es) (DFF prefers a shared departmental address) and the purpose. DFF
+then sets up the access and sends a passkey by e-mail; DFF's page says this may take up to three weeks. Use is free.
+Save the passkey to `~/.config/talent-scout/dff.key` with mode 600.
+
+**API** (field names from DFF's documentation; no live call with a key was made):
+
+```sh
+curl -s 'https://p16-eksternapi.e-grant.dk/api/v2/Bevilling?FritekstSoegning=robot&Sidenummer=1&Sidestoerrelse=100' \
+  -H 'accept: text/plain' -H "X-API-Key: $(cat ~/.config/talent-scout/dff.key)"
+```
+
+- Without the key it answers 401 `{"message":"Unauthorized","status":401}`. The Swagger spec at
+  `https://p16-eksternapi.e-grant.dk/swagger/v2/swagger.json` is readable without one and names the scheme: header
+  `X-API-Key`, "Organization API Key".
+- Query parameters: `Sidenummer` (page), `Sidestoerrelse` (page size), `Finanslovsaar` (budget year),
+  `VirkemiddelNavnDK` / `EN` (instrument), `BevillingsgiverDK` / `EN` (council or committee), `BevillingsejerDK` /
+  `EN`, `PolitiskTemaDK` / `EN`, `FritekstSoegning` (free text). `GET /api/v2/BevillingerFilterList?sprog=en` lists
+  the filter values. Results come in pages; the whole set cannot be fetched in one call.
+- Response: `AntalResultater`, `Sidenummer`, `Sidestoerrelse`, `AntalSider`, and `Data[]`, each with `Bevilling`
+  (`GoCaseId`, `TitelDK`, `TitelEN`, `BeskrivelseDK` / `EN`, `BevillingsejerDK` / `EN`, `BevillingsgiverDK` / `EN`,
+  `VirkemiddelNavnDK` / `EN`, `AbstractDK` / `EN`, `Finanslovsaar`, `BevilgetBeloeb`, `WebPubliceringstidspunkt`,
+  `PolitiskTemaDK` / `EN`), `Ansoeger` (`FuldNavn`, `Fornavn`, `Efternavn`, `AnsoegerRolleDK` / `EN`) and
+  `Organisation` (`OrganisationNavnDK` / `EN`, `Administrator`, `CVR`).
+- DFF's terms: calls are rate-limited and throttled, so cache responses under `RUN_DIR/cache/dff/`; credit DFF when
+  using the data; no support. DFF warns that "grant provider" and "administrator" are not standardised before 2027.
+
+**Without a key**, the public overview at `https://dff.dk/en/our-funded-projects/see-an-overview-of-supported-research/`
+lists every grant since 2014, ten per page, newest first. It is client-rendered: read it with
+`visit_page.py --browser`. The query `?Bevilling.TitelDK=<keyword>&page=<n>` sets the page's free-text search, which
+covers abstracts too: `robot` gave 7 pages, among them "Situating the Logistics of Care". Each grant prints the
+title, the council or committee, the instrument, "Grantee", the name, the institution, the year and the amount. The
+rendered text has no case number and no per-grant link, and `?GoCaseId=<id>` showed the unfiltered list. While the
+API route is disabled, use the overview only to confirm a named person or project found by another channel, one read
+per lookup within the page budget; it is not a sweep route.
+
+| Instrument as printed | signal_type | strength |
+|---|---|---|
+| Sapere Aude: DFF-Research Leader (`VirkemiddelNavnEN` "Sapere Aude: DFF-Starting Grant") | `dff_project` | high |
+| DFF-Research Project 2, DFF-Thematic and the other project instruments | `dff_project` | medium |
+| an instrument whose name says postdoc | `national_fellowship`, `role: pi` (personal grant, no funding-role inference) | medium |
+
+Signals: `name_raw` from `Ansoeger.FuldNavn` (or the name under "Grantee"), `role: pi`, `affiliation_raw` from
+`Organisation.OrganisationNavnEN` (or the institution under the name), `country: DK` when that institution is in
+Denmark. `date`: the date part of `WebPubliceringstidspunkt`, when DFF published the grant, else `Finanslovsaar` as a
+year; say which in `note`. `evidence_url`: the overview URL with the query that showed the grant, and `GoCaseId` (API only)
+in `note`; pages shift as new grants arrive, so copy the grant's printed block into `snippet`. `role_title`: leave
+empty ("Grantee" is a label). `topics`: 1–3 phrases cut verbatim from `TitelEN` or the printed title.
+
+## Relevance, dates, budget and output
+
+- A keyword hit is a lead, not an accepted project. Read the title and abstract against the domain map before
+  emitting anything, as in [the relevance gate of `funding-fr-es-nl-be.md`](funding-fr-es-nl-be.md#relevance-and-funding-gate-before-emitting-signals):
+  FWF `_str.prproposalsummary.en`, Swecris `ProjectAbstractEn`, the RCN project page's "Populærvitenskapelig
+  framstilling" (the CSV has no abstract), the DFF abstract. Record excluded projects in coverage.
+- The window rules of the shared README apply. A grant decided before the window and still running is background.
+- Write `signals/funding-at-se-no-dk.jsonl` and `signals/funding-at-se-no-dk.coverage.md`. API calls and CSV
+  downloads are not pages; project pages, the DFF overview and member pages count against the page budget.
+- Coverage lists, per source: the queries (without tokens), rows reviewed, kept and excluded, which key files were
+  present, Swecris REST still 401 or not, the RCN commit read and the missing Tibi grants, and DFF as disabled or keyed.
