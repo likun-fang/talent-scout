@@ -7,6 +7,8 @@ medium for early-career prizes which are usually the more useful ones for findin
 
 Registry entries with `swept_by: funding-de-ch` (Emmy Noether, Heisenberg, SNSF Starting Grant, Ambizione, SNSF
 Professorship) are read from the grant registers by `funding-de-ch.md`; skip them here so nobody is counted twice.
+`swept_by: funding-at-se-no-dk` (FWF Wittgenstein, START, ASTRA) names an optional channel: skip the entry only when
+that channel is in the run, otherwise read its laureate page here.
 The Max Planck, Helmholtz, Fraunhofer and ETH early-career entries publish group leaders and fellows on programme or
 institute news pages, often without a yearly list: search `"<programme>" <year>` per window year and record what was
 not found in coverage.
