@@ -11,7 +11,8 @@
 - {name: "Latsis Prize (ETH / EPFL / national)", country: CH, discipline: all, url: "https://www.fondationlatsis.org/"}
 - {name: "Spinoza Prize / Vici-Vidi-Veni (NWO)", country: NL, discipline: all, url: "https://www.nwo.nl/en/spinoza-prize"}
 - {name: "Francqui Prize", country: BE, discipline: all, url: "https://www.francquifoundation.be/"}
-- {name: "Wittgenstein Award / START (FWF)", country: AT, discipline: all, url: "https://www.fwf.ac.at/en/"}
+- {name: "FWF Wittgenstein Award", country: AT, discipline: all, url: "https://www.fwf.ac.at/en/", signal_type: fwf_project, swept_by: funding-at-se-no-dk}
+- {name: "FWF START Awards / FWF ASTRA Awards", country: AT, discipline: all, url: "https://www.fwf.ac.at/en/", signal_type: fwf_start, swept_by: funding-at-se-no-dk}
 - {name: "Göran Gustafsson Prize / Wallenberg Academy Fellows", country: SE, discipline: all, url: "https://kaw.wallenberg.org/"}
 - {name: "Villum / Lundbeck / Elite Research Prize", country: DK, discipline: all, url: "https://ufm.dk/en"}
 - {name: "Premio Nacional de Investigación / Jaume I", country: ES, discipline: all, url: "https://www.fprj.es/"}

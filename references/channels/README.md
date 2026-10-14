@@ -55,6 +55,7 @@ page budget in the run's `channels` configuration and worker brief. Extending `r
 | Channel id | File | Sources |
 |------------|------|---------|
 | `funding-fr-es-nl-be` | [Validated ANR and NWO funding](funding-fr-es-nl-be.md) | ANR detail pages and NWO API; AEI, FWO/FRIS and FNRS are entry-page leads only, extraction disabled |
+| `funding-at-se-no-dk` | [Austrian, Swedish, Norwegian and Danish registers](funding-at-se-no-dk.md) | FWF Open API (public key page) |
 
 Stop a channel at its page budget: the budget counts fetch attempts, including failures and replacement sources,
 not readable pages. Write a `skipped` note listing what was not read so the gap is visible.
