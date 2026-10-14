@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fill current_affiliation / country / affiliation_source on persons.jsonl.
 
-  OPENALEX_API_KEY=... current_affiliation.py persons.jsonl [--region EU27+UK+CH]
+  OPENALEX_API_KEY=... current_affiliation.py persons.jsonl [--region EU27+UK+CH+NO]
       [--cache-dir ./cache/affiliation/] [--workers 1] > persons.enriched.jsonl
 
 Order of trust, per person:
@@ -21,12 +21,12 @@ import urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
-from person_fields import assign_groups, topics_for
+from person_fields import assign_groups, topics_for, same_institution
 from openalex_auth import auth_headers
 
 REGIONS = {
     "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
-    "UK": ["GB"], "CH": ["CH"], "EEA": ["IS","LI","NO"],
+    "UK": ["GB"], "CH": ["CH"], "NO": ["NO"], "EEA": ["IS","LI","NO"],
 }
 
 def region_codes(spec: str) -> set[str]:
@@ -35,8 +35,10 @@ def region_codes(spec: str) -> set[str]:
 class ResponseCache:
     """Cache raw JSON atomically; coalesce duplicate lookups within one run."""
 
-    def __init__(self, directory: str) -> None:
+    def __init__(self, directory: str, offline: bool = False) -> None:
         self.directory = Path(directory)
+        self.offline = offline
+        self.misses = 0
         self._guard = threading.Lock()
         self._locks: dict[str, threading.Lock] = {}
 
@@ -53,6 +55,10 @@ class ResponseCache:
                     return cached
             except (OSError, ValueError):
                 pass
+            if self.offline:
+                with self._guard:
+                    self.misses += 1
+                return None
             response = fetch()
             if not isinstance(response, dict):
                 return None
@@ -104,7 +110,7 @@ def orcid_current(orcid: str, cache: ResponseCache | None = None) -> tuple | Non
 
 def openalex_get(path: str, cache_key: str, cache: ResponseCache | None) -> dict | None:
     try:
-        headers = auth_headers()
+        headers = {} if cache is not None and cache.offline else auth_headers()
     except RuntimeError as exc:
         raise SystemExit(f"openalex configuration error: {exc}") from None
     return cached_get(cache_key, f"https://api.openalex.org/{path}", cache, headers)
@@ -147,9 +153,9 @@ def inst_tokens(value: str) -> set[str]:
 # "Wissenschaftliche Mitarbeiterinnen") are a main source of role_title.
 TITLE_RULES = (
     ('phd_student', r'\b(?:ph\.?d\.? (?:students?|candidates?|researchers?)|doctoral (?:students?|researchers?|candidates?)|doktorand\w*|dissertation|promovierende\w*)\b'),
-    ('researcher', r'\b(?:postdoc\w*|senior scientists?|research scientists?|wissenschaftliche\w* mitarbeiter\w*|research associates?|staff scientists?|oberassistent\w*|research fellows?)\b'),
-    ('professor', r'\b(?:professors?|professorin\w*|prof\.|chair of|chair holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|faculty members?)\b|\bprof\.|^\s*faculty\s*$'),
-    ('group_leader', r'\b(?:group leaders?|heads? of (?:the )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department)|principal investigators?|nachwuchsgruppenleiter\w*|team leaders?|lab directors?)\b|^\s*pi\s*$'),
+    ('researcher', r'\b(?:postdoc\w*|senior scientists?|senior researchers?|imaging scientists?|clinical scientists?|research scientists?|wissenschaftliche\w* mitarbeiter\w*|research associates?|staff scientists?|oberassistent\w*|research fellows?)\b'),
+    ('professor', r'\b(?:honorarprofessor\w*|honorary professors?|professors?|professorin\w*|prof\.|chair of|chair holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|faculty members?)\b|\bprof\.|^\s*faculty\s*$'),
+    ('group_leader', r'\b(?:research junior group leads?|jrg leaders?|junior research group leaders?|site leads?|group leaders?|heads? of (?:the )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department)|heads? of [\w][\w\s,-]{0,60}|principal investigators?|nachwuchsgruppenleiter\w*|team leaders?|lab directors?)\b|^\s*pi\s*$'),
 )
 # Add country-specific titles without widening the existing English/German rules.
 # These are appointments/stages, not degree names (doctorat/doctorado/Dr.). French
@@ -168,11 +174,18 @@ MIXED = r'\s(?:and|und|&|/|or|oder)\s|,\s|/'
 OTHER_MEMBERS = r'\b(?:staff|scientific (?:assistants?|staff|employees?)|technical|administrative|alumni|members?|guests?|visitors?|students?)\b'
 SUPERVISOR = r'\b(?:in the group of|in the lab of|supervised by|advised by|with prof|advisor|betreut von|sous la direction de|supervisad[oa] por|onder begeleiding van)\b.*$'
 PRECEDENCE = ('phd_student', 'professor', 'group_leader', 'researcher')
-COMPANY = r'\b(?:gmbh|ag|ltd|inc|sa)\b'
-FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_')
+COMPANY = (r'\b(?:gmbh|ag|ltd|inc|sas|b\.v\.|research europe)(?:\b|(?<=\.))'
+           r'|\b(?-i:SA)(?=\s*(?:,|$))|\b(?:naver|bell)\s+labs\b')
+COMPANY_NAMES = r'\b(?:naver|deepmind|google|facebook|sony|bosch|mistral|aleph alpha|microsoft|nvidia|hugging face)\b'
+COMPANY_SUFFIX = r'\b(?:gmbh|ag|inc|ltd)\b'
+ACADEMIC_EMPLOYER = r'\b(?:hospital|klinik|clinic|university|universität|université|universiteit|institute of technology|hochschule|school|college)\b'
+FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_', 'fwf_', 'swecris_', 'rcn_', 'dff_', 'fris_', 'aei_')
 # Personal grants name the holder's own career stage; every other funding PI leads a project.
 FUNDING_ROLE = {'snsf_ambizione': 'researcher', 'dfg_walter_benjamin': 'researcher', 'snsf_postdoc_mobility': 'researcher',
-                'snsf_doc_ch': 'phd_student', 'snsf_doc_mobility': 'phd_student'}
+                'snsf_doc_ch': 'phd_student', 'snsf_doc_mobility': 'phd_student',
+                'fwf_esprit': 'researcher', 'fwf_start': 'group_leader',
+                **dict.fromkeys(('fwf_project', 'swecris_project', 'rcn_project', 'dff_project',
+                                 'fris_project', 'aei_project'), 'group_leader')}
 
 
 def title_class(title: str, institution_type: str = '', affiliation: str = '') -> str:
@@ -205,6 +218,8 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '') -
 
 def role_result(role_class: str, confidence: str, rule: int, source: str, excerpt: str, url: str) -> dict:
     caveat = ' (DE: may be PhD student)' if re.search(r'wissenschaftlicher mitarbeiter', excerpt, re.I) else ''
+    if re.search(r'\b(?:honorarprofessor\w*|honorary professor)\b', excerpt, re.I):
+        caveat += ' (honorary)'
     return {'role_class': role_class, 'role_confidence': confidence,
             'role_evidence': f'rule {rule}: {source}{caveat} | {excerpt} | {url}'}
 
@@ -251,16 +266,72 @@ def final_pass_title(person: dict) -> tuple | None:
     return None
 
 
+def apply_final_pass(person: dict) -> dict:
+    """Apply reviewed affiliation without mutating signals or losing the provider provenance."""
+    if not person.get('final_pass_affiliation'):
+        return dict(person)
+    source = f"final pass {person.get('last_verified', '')} {person.get('final_pass_url', '')}".strip()
+    notes = person.get('notes', '')
+    if person.get('affiliation_source') != source:
+        newest = max(person.get('signals', []), key=lambda s: date_value(s.get('date')), default={})
+        old = person.get('current_affiliation') or newest.get('affiliation_raw', '')
+        old_source = person.get('affiliation_source') or f"evidence {newest.get('date', '')}"
+        provenance = f"source affiliation: {old} ({old_source})"
+        if old and provenance not in notes:
+            notes = '; '.join(filter(None, [notes, provenance]))
+    return {**person, 'current_affiliation': person['final_pass_affiliation'],
+            'country': person.get('final_pass_country') or '', 'affiliation_source': source, 'notes': notes}
+
+
+def company_evidence(person: dict, institution: tuple | None) -> tuple | None:
+    """Use the most current employer; a former company's type cannot override a reviewed move."""
+    signals = sorted(person.get('signals', []), key=lambda s: date_value(s.get('date')), reverse=True)
+    newest = next((s for s in signals if s.get('affiliation_raw')), {})
+    affiliation = person.get('final_pass_affiliation') or person.get('current_affiliation') or newest.get('affiliation_raw', '')
+    final = bool(person.get('final_pass_affiliation'))
+    url = person.get('final_pass_url', '') if final else newest.get('evidence_url', '')
+    if re.search(ACADEMIC_EMPLOYER, affiliation, re.I) and not re.search(COMPANY_SUFFIX, affiliation, re.I):
+        return None
+    if re.search(COMPANY, affiliation, re.I) or re.search(COMPANY_NAMES, affiliation, re.I):
+        return ('high' if final and person.get('last_verified') else 'medium',
+                f"final pass {person.get('last_verified', '')}" if final else 'current employer', affiliation, url)
+    if institution and len(institution) > 3 and institution[3] == 'company' and (
+            not affiliation or same_institution(affiliation, institution[0])):
+        return ('medium', 'OpenAlex institution.type', affiliation or institution[0], institution[4])
+    if person.get('institution_type') == 'company' and (not final or same_institution(
+            affiliation, person.get('institution_name', ''))):
+        return ('medium', 'OpenAlex institution.type', affiliation, person.get('institution_url', ''))
+    if not final:
+        for signal in signals:
+            if signal.get('institution_type') == 'company' and (not affiliation or same_institution(affiliation, signal.get('affiliation_raw', ''))):
+                return ('medium', 'signal institution.type', affiliation, signal.get('evidence_url', ''))
+    return None
+
+
 def classify_role(person: dict, run_year: int, employment: tuple | None = None,
                   institution: tuple | None = None) -> dict:
     """First matching rule wins. Classification is pure and never dates a verification."""
     verified = final_pass_title(person)
+    company = company_evidence(person, institution)
+    entries = title_evidence(person, employment, institution)
+    if company:
+        title = verified[0] if verified else next((entry[1] for entry in entries), '')
+        url = verified[1] if verified else next((entry[2] for entry in entries), company[3])
+        own_class = title_class(title)
+        if own_class == 'professor':
+            return role_result('professor', 'high', 0 if verified else 1, 'professorial title', title, url)
+        if own_class == 'mixed':
+            return role_result('unknown', 'low', 0 if verified else 1, 'mixed heading proves membership only', title, url)
+        return role_result('industry', company[0], 3, f'{company[1]} ({company[2]})',
+                           f'industry | {title}', company[3] or url)
     if verified:
         role_class = title_class(verified[0], person.get('institution_type', ''), person.get('current_affiliation', ''))
-        if role_class and role_class != 'mixed':
+        if role_class == 'mixed':
+            return role_result('unknown', 'low', 0, 'final pass: mixed heading proves membership only', verified[0], verified[1])
+        if role_class:
             return role_result(role_class, 'high', 0, f"final pass {person.get('last_verified')}", verified[0], verified[1])
     mixed = None
-    for source, title, url, inst_type, affiliation in title_evidence(person, employment, institution):
+    for source, title, url, inst_type, affiliation in entries:
         role_class = title_class(title, inst_type, affiliation)
         if role_class == 'mixed':
             mixed = mixed or (source, title, url)
@@ -276,13 +347,6 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
             return role_result(role_class, 'medium', 2, 'funding PI (no title seen)', signal.get('snippet') or kind, signal.get('evidence_url', ''))
     if mixed:
         return role_result('unknown', 'low', 1, f'{mixed[0]}: mixed heading proves membership only', mixed[1], mixed[2])
-    if institution and len(institution) > 3 and institution[3] == 'company':
-        return role_result('industry', 'medium', 3, 'OpenAlex institution.type', 'company', institution[4])
-    if person.get('institution_type') == 'company':
-        return role_result('industry', 'medium', 3, 'OpenAlex institution.type', 'company', person.get('institution_url', ''))
-    for signal in signals:
-        if re.search(COMPANY, signal.get('affiliation_raw', ''), re.I):
-            return role_result('industry', 'medium', 3, 'affiliation_raw', signal['affiliation_raw'], signal.get('evidence_url', ''))
     return inferred_role(person, run_year)
 
 def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
@@ -293,6 +357,8 @@ def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
     ev_date = date_value(ev[2])
     ev_year = ev_date.year if ev_date != datetime.date.min else 0
     notes = list(p.get("notes_list", []))
+    if p.get("notes"):
+        notes.append(p["notes"])
     ids = p.get("ids") or {}
     oc = orcid_current(ids["orcid"], cache) if ids.get("orcid") else None
     oa = openalex_current(ids["openalex"], cache) if ids.get("openalex") else None
@@ -318,17 +384,23 @@ def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
     publication = {"first_pub_year": first_year if first_year is not None else p.get("first_pub_year", "")} if ids.get("openalex") else {}
     result = {**p, **publication, "current_affiliation": cur[0], "country": cur[1], "affiliation_source": cur[2],
               "topics": topics_for(sigs), "last_verified": p.get("last_verified") or "",
-              "notes": "; ".join(n for n in notes if n)[:500]}
+              "notes": "; ".join(dict.fromkeys(n for n in notes if n))}
     employment = oc if oc and not stale_orcid else None
     institution = oa if oa and not stale_openalex and oa[0] == cur[0] else None
+    if institution:
+        result.update(institution_type=institution[3], institution_name=institution[0], institution_id=institution[4])
+    result = apply_final_pass(result)
+    if result.get('final_pass_affiliation') and employment and not same_institution(result['current_affiliation'], employment[1]):
+        employment = None
     return {**result, **classify_role(result, run_year or datetime.date.today().year, employment, institution)}
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("persons"); ap.add_argument("--region", "--region-extended", dest="region", default="EU27+UK+CH")
+    ap.add_argument("persons"); ap.add_argument("--region", "--region-extended", dest="region", default="EU27+UK+CH+NO")
     ap.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today())
     ap.add_argument("--region-core", default="DE+CH")
     ap.add_argument("--cache-dir", default="./cache/affiliation/", help="Directory for reusable lookup JSON")
+    ap.add_argument("--offline", action="store_true", help="Read cache only; skip and count missing queries without network or cache writes")
     ap.add_argument("--workers", type=int, choices=range(1, 7), default=1,
                     help="Concurrent persons to enrich (1-6); output stays in input order")
     a = ap.parse_args()
@@ -338,13 +410,13 @@ def main() -> None:
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"bad input: {exc}")
     codes = region_codes(a.region)
-    cache = ResponseCache(a.cache_dir)
+    cache = ResponseCache(a.cache_dir, offline=a.offline)
     with ThreadPoolExecutor(max_workers=a.workers) as executor:
         results = list(executor.map(lambda person: enrich(person, codes, cache, a.date.year), persons))
     from table_export import tier_for
     for result in assign_groups(results):
         print(json.dumps({**result, "tier": tier_for(result, region_codes(a.region_core), codes)}, ensure_ascii=False))
-    print(f"enriched {len(persons)} persons", file=sys.stderr)
+    print(f"enriched {len(persons)} persons" + (f"; offline cache misses: {cache.misses}" if a.offline else ""), file=sys.stderr)
 
 if __name__ == "__main__":
     main()

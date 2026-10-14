@@ -2,7 +2,7 @@
 """Write roster.csv and roster.md from persons.jsonl with the fixed talent-scout columns.
 
   table_export.py persons.jsonl [--domain "<phrase>"] [--date YYYY-MM-DD] [--out roster]
-                  [--region EU27+UK+CH] [--max-rows N] [--coverage-dir signals/]
+                  [--region EU27+UK+CH+NO] [--max-rows N] [--coverage-dir signals/]
 Rows whose country is outside the region go to <out>.out-of-region.json. With --max-rows the table is cut
 after sorting and the Coverage block says how many rows were cut. --coverage-dir appends every
 *.coverage.md it finds to roster.md. Standard library only.
@@ -14,8 +14,8 @@ Ranking uses tier, eligible channel count, strongest signal, newest signal date,
 from __future__ import annotations
 import argparse, csv, datetime, glob, json, os, sys
 from pathlib import Path
-from current_affiliation import region_codes
-from person_fields import topics_for
+from current_affiliation import region_codes, apply_final_pass, classify_role, FUNDING_PREFIXES
+from person_fields import topics_for, assign_groups
 
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
            "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes",
@@ -72,6 +72,7 @@ def filter_window(persons: list[dict], start: datetime.date, end: datetime.date)
     return kept, rejected
 
 def row_for(p: dict, domain: str, date: str) -> dict:
+    p = apply_final_pass(p)
     sigs = p.get("signals", [])
     newest = max(sigs, key=signal_date, default={})
     fits = {s["fit"] for s in sigs if s.get("fit")}
@@ -81,7 +82,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
     return {
         "name": p.get("name", ""),
         "current_affiliation": p.get("current_affiliation") or newest.get("affiliation_raw", ""),
-        "country": p.get("country") or newest.get("country", ""),
+        "country": country_for(p),
         "role": role,
         "domain": domain,
         "channels_hit": ";".join(p.get("channels_hit", [])),
@@ -112,11 +113,15 @@ def sort_key(p: dict) -> tuple:
     newest = max((signal_date(s) for s in sigs), default=datetime.date.min)
     return (p.get("tier", 4), -ranked_channels(p), -strongest, -newest.toordinal(), p.get("name", ""))
 
+def flat(value) -> str:
+    return ' '.join(str(value).split())
+
+
 def write_md(rows: list[dict], path: str, coverage: str, columns: list[str] = COLUMNS, appendix: str = "") -> None:
     with open(path, "w", encoding="utf-8") as f:
         f.write("| " + " | ".join(columns) + " |\n|" + "---|" * len(columns) + "\n")
         for r in rows:
-            f.write("| " + " | ".join(str(r[c]).replace("|", "/").replace("\n", " ").replace("\r", " ") for c in columns) + " |\n")
+            f.write("| " + " | ".join(flat(r[c]).replace("|", "\\|") for c in columns) + " |\n")
         f.write("\n## Coverage\n\n" + coverage + appendix)
 
 def coverage_text(kept: int, cut: int, out_of_region: int, cov_dir: str | None) -> str:
@@ -129,13 +134,15 @@ def coverage_text(kept: int, cut: int, out_of_region: int, cov_dir: str | None) 
 
 
 def country_for(person: dict) -> str:
+    if person.get('final_pass_affiliation'):
+        return person.get('final_pass_country') or ''
     newest = max(person.get('signals', []), key=signal_date, default={})
     return person.get('country') or newest.get('country', '')
 
 
 def tier_for(person: dict, core: set[str], extended: set[str] | None = None) -> int:
     country = country_for(person)
-    if country not in (extended if extended is not None else region_codes('EU27+UK+CH')):
+    if country not in (extended if extended is not None else region_codes('EU27+UK+CH+NO')):
         return 4  # Export removes these records before ranking.
     role = person.get('role_class', 'unknown')
     if country in core and role in {'professor', 'group_leader'}:
@@ -151,8 +158,9 @@ def evidence_appendix(persons: list[dict]) -> str:
     lines = ['\n## Evidence\n']
     for person in persons:
         lines.append(f"\n### {person['name']}\n")
-        lines.append(person.get('role_evidence', 'Role evidence unavailable') + '\n')
-        lines.extend(f"- {s.get('signal_type', '')}@{s.get('date') or ''}: {s.get('snippet', '')} | {s.get('evidence_url', '')}"
+        lines.append(flat(person.get('role_evidence', 'Role evidence unavailable')) + '\n')
+        lines.append(flat(person.get('group_evidence', 'unattached')) + '\n')
+        lines.extend(flat(f"- {s.get('signal_type', '')}@{s.get('date') or ''}: {s.get('snippet', '')} | {s.get('evidence_url', '')}")
                      for s in person.get('signals', []))
     return '\n'.join(lines) + '\n'
 
@@ -186,7 +194,7 @@ def group_row(group: str, persons: list[dict], start: datetime.date, end: dateti
                     key=lambda s: (-STRENGTH.get(s.get('strength'), 0), -signal_date(s).toordinal(),
                                    s.get('signal_type', ''), s.get('evidence_url', '')))
     return {
-        'group': group or '(ungrouped)', 'pi_name': pi_name, 'institution': institution,
+        'group': group or '(unattached)', 'pi_name': pi_name, 'institution': institution,
         'country': join_unique(country_for(p) for p in members), 'tier': min(p['tier'] for p in members),
         'homepage': pi.get('homepage') or next((s['homepage'] for s in pi.get('signals', []) if s.get('homepage')), ''),
         'topics': ';'.join(topics_for(signals)),
@@ -194,7 +202,7 @@ def group_row(group: str, persons: list[dict], start: datetime.date, end: dateti
         'member_count': len(members),
         'recent_outputs': ';'.join(f"{s.get('signal_type')}@{s.get('date') or ''}: {(s.get('snippet') or '')[:80]}" for s in recent[:3]),
         'active_funding': join_unique(f"{s.get('signal_type')}@{s.get('date') or ''}" for s in signals
-                                      if s.get('signal_type', '').startswith(('erc_', 'dfg_', 'snsf_'))
+                                      if s.get('signal_type', '').startswith(FUNDING_PREFIXES)
                                       or s.get('signal_type') in ('national_project', 'national_fellowship')),
         'open_source': join_unique(s.get('evidence_url', '') for s in signals if s.get('channel') == 'open-source'),
         'evidence_urls': join_unique(s.get('evidence_url', '') for s in signals),
@@ -206,28 +214,33 @@ def group_rows(persons: list[dict], start: datetime.date, end: datetime.date) ->
     for person in persons:
         groups.setdefault(person.get('group') or '', []).append(person)
     rows = [group_row(group, members, start, end) for group, members in groups.items()]
-    return sorted(rows, key=lambda row: (row['group'] == '(ungrouped)', row['tier'], -row['member_count'], row['pi_name']))
+    return sorted(rows, key=lambda row: (row['group'] == '(unattached)', row['tier'], -row['member_count'], row['pi_name']))
 
 
 def write_csv(rows: list[dict], path: str, columns: list[str]) -> None:
     with open(path, 'w', encoding='utf-8-sig', newline='') as target:
         writer = csv.DictWriter(target, fieldnames=columns)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows({key: flat(value) for key, value in row.items()} for row in rows)
 
 
 def write_groups(persons: list[dict], out: str, start: datetime.date, end: datetime.date) -> None:
     rows = group_rows(persons, start, end)
     path = Path(out).parent / 'groups'
     count = sum(bool(p.get('group')) for p in persons)
-    coverage = (f"- groups: {sum(row['group'] != '(ungrouped)' for row in rows)}\n"
-                f"- ungrouped persons: {len(persons) - count}\n"
+    coverage = (f"- groups: {sum(row['group'] != '(unattached)' for row in rows)}\n"
+                f"- unattached persons: {len(persons) - count}\n"
                 '- scope: people retained in the cut roster\n')
     write_csv(rows, str(path) + '.csv', GROUP_COLUMNS)
     write_md(rows, str(path) + '.md', coverage, GROUP_COLUMNS)
 
 
 def select_persons(persons: list[dict], args) -> tuple:
+    persons = [apply_final_pass(p) for p in persons]
+    persons = [{**p, **classify_role(p, args.date.year)} if p.get('final_pass_affiliation') or
+               p.get('final_pass_title') or p.get('linkedin_headline') else p for p in persons]
+    if any(p.get('final_pass_affiliation') or p.get('final_pass_title') for p in persons):
+        persons = assign_groups(persons)
     start = window_start(args.date, args.window_months)
     qualified, rejected = filter_window(persons, start, args.date)
     codes, core = region_codes(args.region), region_codes(args.region_core)
@@ -243,7 +256,7 @@ def window_coverage(persons: list[dict], selected: list[dict], start: datetime.d
                     end: datetime.date, no_qualifying: int) -> str:
     retained_background = sum(not in_window(s, start, end) for p in selected for s in p.get('signals', []))
     omitted_signals = sum(len(p.get('signals', [])) for p in persons) - sum(len(p.get('signals', [])) for p in selected)
-    return (f'- signal window: {start} to {end} (inclusive; year/month-only dates use the first day)\n'
+    return (f'- signal window: {start} to {end} (inclusive; month-only dates use the first day; year-only dates qualify when the year overlaps the window)\n'
             f'- signals outside the window or undated, retained on table persons as evidence but not ranked: {retained_background}\n'
             f'- signals belonging to omitted persons (window, region, missing evidence or row cut): {omitted_signals}\n'
             '- window-excluded signals from both retained and omitted persons: see .excluded-signals.json\n'
@@ -274,7 +287,7 @@ def main() -> None:
     parser.add_argument('--out', default='roster')
     parser.add_argument('--date', type=datetime.date.fromisoformat, default=datetime.date.today())
     parser.add_argument('--window-months', type=int, default=36)
-    parser.add_argument('--region', '--region-extended', dest='region', default='EU27+UK+CH')
+    parser.add_argument('--region', '--region-extended', dest='region', default='EU27+UK+CH+NO')
     parser.add_argument('--region-core', default='DE+CH')
     parser.add_argument('--max-rows', type=int, default=0)
     parser.add_argument('--coverage-dir', default=None)

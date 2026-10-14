@@ -129,7 +129,7 @@ class GroupTests(unittest.TestCase):
                   person('B', group='B @ Lab', tier=2), person('B2', group='B @ Lab', tier=2),
                   person('C', group='C @ Lab', tier=2), person('U', group='', tier=1)]
         rows = te.group_rows(people, START, END)
-        self.assertEqual([r['group'] for r in rows], ['Z @ Lab', 'B @ Lab', 'A @ Lab', 'C @ Lab', '(ungrouped)'])
+        self.assertEqual([r['group'] for r in rows], ['Z @ Lab', 'B @ Lab', 'A @ Lab', 'C @ Lab', '(unattached)'])
         self.assertEqual(rows[-1]['members'], 'U(unknown)')
         self.assertEqual(rows[-1]['pi_name'], '')
 
@@ -152,7 +152,7 @@ class GroupTests(unittest.TestCase):
             md = (Path(tmp) / 'groups.md').read_text()
         self.assertIn('| group | pi_name |', md)
         self.assertIn('groups: 0', md)
-        self.assertIn('ungrouped persons: 0', md)
+        self.assertIn('unattached persons: 0', md)
 
     def test_recent_outputs_top_three_and_members_name_order(self):
         signals = [signal(date=f'202{year}', evidence_url=f'https://example.org/{year}', strength='low') for year in (4, 5, 6)]

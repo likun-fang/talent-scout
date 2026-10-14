@@ -1,0 +1,14 @@
+{
+  "EPFL": ["École Polytechnique Fédérale de Lausanne", "EPF Lausanne – EPFL"],
+  "ETH Zurich": ["ETH Zürich", "ETH Zurich – ETHZ", "Eidgenössische Technische Hochschule Zürich"],
+  "RWTH Aachen University": ["RWTH Aachen", "Rheinisch-Westfälische Technische Hochschule Aachen"],
+  "Technical University of Munich": ["TUM", "Technische Universität München"],
+  "Technical University of Darmstadt": ["TU Darmstadt", "Technische Universität Darmstadt"],
+  "Technical University of Berlin": ["TU Berlin", "Technische Universität Berlin"],
+  "University of Amsterdam": ["Universiteit van Amsterdam", "UvA"],
+  "University of Tübingen": ["Universität Tübingen", "Eberhard Karls Universität Tübingen"],
+  "Karlsruhe Institute of Technology": ["KIT", "Karlsruher Institut für Technologie"],
+  "TU Wien": ["Technische Universität Wien", "Vienna University of Technology"],
+  "University of Zurich": ["Universität Zürich", "UZH"],
+  "Hamburg University of Technology": ["Technische Universität Hamburg", "TU Hamburg", "TUHH"]
+}

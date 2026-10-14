@@ -2,7 +2,7 @@
 """Keyless OpenAlex helpers for talent-scout.
 
 Usage:
-  openalex_lookup.py --topic "embodied AI" [--region EU27+UK+CH]   # lists the top 10 topics
+  openalex_lookup.py --topic "embodied AI" [--region EU27+UK+CH+NO]   # lists the top 10 topics
   openalex_lookup.py --topics T10462,T10653 [--region ...] [--date YYYY-MM-DD] [--since YYYY]   # venues/institutions/authors
       for chosen topics, over the 36 months ending on --date (default today); --since YYYY widens to that January 1
   openalex_lookup.py --title "Paper title"
@@ -106,7 +106,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--topic"); g.add_argument("--topics"); g.add_argument("--title"); g.add_argument("--author")
-    p.add_argument("--region", default="EU27+UK+CH")
+    p.add_argument("--region", default="EU27+UK+CH+NO")
     p.add_argument("--date", type=datetime.date.fromisoformat, default=datetime.date.today(), help="Run date and publication cutoff")
     p.add_argument("--since", type=int, help="First publication year (January 1); default: 36 months before --date")
     a = p.parse_args()

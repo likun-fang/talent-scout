@@ -64,9 +64,9 @@ class RoleTests(unittest.TestCase):
 
     def test_rule_precedence(self):
         result = self.classify(role_title='Doctoral student', signal_type='erc_starting', role='pi', affiliation_raw='Example GmbH')
-        self.assertEqual(result['role_class'], 'phd_student')
+        self.assertEqual(result['role_class'], 'industry')
         result = self.classify(signal_type='dfg_project', role='pi', affiliation_raw='Example GmbH')
-        self.assertEqual(result['role_class'], 'group_leader')
+        self.assertEqual(result['role_class'], 'industry')
         person = {'first_pub_year': 2023, 'signals': [signal(role='first_author', affiliation_raw='Example GmbH')]}
         self.assertEqual(ca.classify_role(person, 2026)['role_class'], 'industry')
 
@@ -123,7 +123,7 @@ class RoleTests(unittest.TestCase):
              patch.object(ca, 'openalex_current', return_value=('Example Institute', 'DE', '2026', 'company', 'https://openalex.org/I1')), \
              patch.object(ca, 'first_publication_year', return_value=2023):
             result = ca.enrich(person, {'DE'}, run_year=2026)
-        self.assertEqual(result['role_class'], 'phd_student')
+        self.assertEqual(result['role_class'], 'industry')
         self.assertEqual(result['last_verified'], '')
         self.assertEqual(result['first_pub_year'], 2023)
         self.assertNotIn('role_class', person)
@@ -179,7 +179,8 @@ class PersonFieldsTests(unittest.TestCase):
         return {'name': name, 'signals': [signal(name_raw=name, **changes)]}
 
     def test_pi_self_and_parent_grouping(self):
-        people = [self.person('PI', role='pi', parent='Project'), self.person('Student', parent='Project')]
+        people = [{**self.person('PI', role='pi', parent='Project'), 'role_class': 'group_leader'},
+                  self.person('Student', parent='Project')]
         original = copy.deepcopy(people)
         self.assertEqual([p['group'] for p in assign_groups(people)], ['PI @ Example Institute'] * 2)
         self.assertEqual(people, original)
@@ -195,6 +196,7 @@ class PersonFieldsTests(unittest.TestCase):
                   self.person('Student', parent='Project'), self.person('Other', parent='Project', affiliation_raw='Other Institute')]
         self.assertEqual([p['group'] for p in assign_groups(people)][2:], ['', ''])
         moved = {**people[2], 'current_affiliation': 'New Institute'}
+        # A paper-like parent cannot attach a member after an institutional move.
         self.assertEqual(assign_groups([people[0], moved])[1]['group'], '')
         self.assertEqual(assign_groups([self.person('PI', role='pi', affiliation_raw='')])[0]['group'], '')
 
@@ -229,7 +231,7 @@ class PersonFieldsTests(unittest.TestCase):
             self.assertIn(kind, examples)
         self.assertEqual(schema['allOf'][0]['then']['properties']['role']['const'], 'pi')
         import table_export
-        columns = (root / 'assets/person-table.columns.md').read_text().strip().split(', ')
+        columns = (root / 'assets/person-table.columns.md').read_text().splitlines()[0].split(', ')
         self.assertEqual(columns, table_export.COLUMNS)
         self.assertEqual(len(columns), 25)
         self.assertEqual(columns[-6:], ['role_class', 'role_confidence', 'tier', 'topics', 'group', 'role_evidence'])
