@@ -23,7 +23,12 @@ Checked live on 2026-10-14. URLs opened:
 `https://swecris-api.vr.se/v1/projects?page=1&size=1`, `https://swecris-api.vr.se/v1/funders`,
 `https://swecris-api.vr.se/v1/scp/search?searchText=robot&page=1&size=2`,
 `https://swecris-api.vr.se/v1/scp/export?searchText=machine%20learning&page=1&size=2000&token=…`,
-`https://www.vr.se/english/swecris.html#/project/2024-05867_VR` (rendered).
+`https://www.vr.se/english/swecris.html#/project/2024-05867_VR` (rendered);
+`https://raw.githubusercontent.com/Forskningsradet/open-data/main/datasets/soknader2/dataset.csv`, its `fields.csv` and
+`README.md`, `git ls-remote https://github.com/Forskningsradet/open-data refs/heads/main`,
+`https://www.forskningsradet.no/tall-analyse/statistikk/offentlige-data/`, `https://prosjektbanken.forskningsradet.no/`,
+`https://prosjektbanken.forskningsradet.no/project/FORISS/338694`,
+`https://prosjektbanken.forskningsradet.no/project/FORISS/354071`.
 
 ## Keys
 
@@ -35,6 +40,7 @@ Briefs, notes and coverage name the path, never the value. Read it at call time:
 |---|---|---|---|---|
 | FWF | `fwf.key` | the whole body of `https://openapi.fwf.ac.at/fwfkey` (one 64-character hex string) | none | not stated |
 | Swecris | `swecris.key` | the public token printed on `https://www.vr.se/english/swecris/swecris-api.html` (on 2026-10-14: valid from 2026-04-09; VR changes it "on a regular basis") | optional: a personal token from the form at `https://www.vr.se/english/swecris/swecris-api/request-for-api-token.html` (first name, surname, e-mail; organisation optional), sent by e-mail within a week | not stated |
+| RCN | none | a public CSV on GitHub | none | — |
 
 When FWF answers 403 `invalid_api_key`, fetch the key page again: the page always serves the current key. When the
 Swecris export answers 401, copy the token from VR's page again.
@@ -194,3 +200,67 @@ Emit one `person` signal per `Principal Investigator`:
 
 Co-Investigators go into the PI signal's `note`, like GEPRIS cooperation partners: the record does not say whether
 they work in the PI's group or lead their own elsewhere.
+
+## Research Council of Norway (NO)
+
+The Research Council of Norway (RCN, Forskningsrådet) publishes every application it has received since 2004, granted
+and rejected, as one CSV on GitHub: `https://raw.githubusercontent.com/Forskningsradet/open-data/main/datasets/soknader2/dataset.csv`.
+No key. On 2026-10-14 it was 54 MB with 88,268 rows, last updated 2026-08-27. RCN's page says the data are registered
+in the national data catalogue; neither that page nor the repository states a licence. Not verified: the licence.
+
+Download it once into `RUN_DIR/cache/rcn/`; it is a dataset download, not a page. Pin the version for evidence:
+`git ls-remote https://github.com/Forskningsradet/open-data refs/heads/main` prints the commit (on 2026-10-14
+`e05cc7afff5ea24fe5513a55ababd642e68eaf84`), and
+`https://raw.githubusercontent.com/Forskningsradet/open-data/<commit>/datasets/soknader2/dataset.csv` keeps serving
+that version. The bare git call works where the GitHub REST API is blocked.
+
+The file is comma-separated UTF-8 without a BOM. Titles contain line breaks (3,471 rows), so read it with a CSV
+parser, never line by line. One row per application or project. Columns (`fields.csv` describes each in Norwegian):
+`prosjektnummer`, `prosjekttittel`, `soknadsfrist`, `soknadsdato`, `utlysnings_id`, `utlysningsaktivitet`,
+`utlysningtittel`, `prosjekttype`, `soknadstype`, `soknadstypevariant`, `sokstart`, `sokslutt`, `prosjektfase`,
+`prosjektstart`, `prosjektslutt`, `prosjektleder_kjonn`, `prosjektansvarlig_type`, `prosjektansvarlig_navn`,
+`kortnavn`, `organisasjonsnummer`, `kp1`, `kp2`, `sektor`, `kategori`, `kommune`, `kommunenummer`, `fylke`,
+`fylkenummer`, `landsdel`, `virkemiddel_sekvens`, `virkemiddel`, `hovedaktivitet_sekvens`, `hovedaktivitet`,
+`aktivitet`, `aktivitet_kode`, `fagomraade`, `fag`, `fagdisiplin`, `dr_stip_aarsverk`, `postdok_aarsverk`,
+`sokt_belop`, `tildelt_belop`, `prosjektleder`.
+
+**Granted rows only.** Rejected applications name their project leader too. Keep a row when `prosjektfase` is
+`Bevilgning` (granted, running) or `Avsluttet` (granted, finished) and `tildelt_belop` is above 0. The amount alone is
+not enough: 150 rows still in `Vurderes` (under assessment) already carry an amount. The other phases are `Avslag`
+(rejected) and `Mottatt` (received).
+
+**2026.** The CSV holds 1,466 granted projects starting in 2026 and calls with deadlines up to 2026-06-03. Its README
+warns that it holds no data from RCN's new case system, Tibi, and the Prosjektbanken front page says 2026 data are not
+shown for a period after the system change. So 2026 is partial: grants handled in the old system are in, grants
+handled in Tibi are not. Say so in coverage.
+
+| `soknadstype` (`soknadstypevariant`) | signal_type | strength |
+|---|---|---|
+| Forskerprosjekt (Fornyelse, Unge forskertalenter, Stort, tverrfaglig forskerprosjekt, Radikal nyskapende forskning), Kompetanse- og samarbeidsprosjekt, Innovasjonsprosjekt, Internasjonale utlysninger, Forskningssenter | `rcn_project` | medium |
+| Forskerprosjekt (Internasjonalt mobilitetsstipend) | `national_fellowship`, `role: pi` (personal mobility grant, no funding-role inference) | medium |
+| Koordinerings- og støtteaktivitet, Forskningsinfrastruktur, institutional support types, Støtte fra andre enn Forskningsrådet, Ingen søknadstype | none: networks, events, proposal support, equipment, core funding | — |
+| Kommersialiseringsprosjekt | none here; a domain-relevant one is a lead for `startups.md` | — |
+
+Emit one `person` signal per kept row:
+
+- `name_raw`: `prosjektleder`. `role: pi`. The CSV carries no ORCID or person id, so these signals merge on name plus
+  institution until stage 4 finds an identifier.
+- `affiliation_raw`: `prosjektansvarlig_navn` as printed. RCN files the grant at the lowest unit, so it is often a
+  department or faculty ("Økonomisk institutt"); `kortnavn` names the parent (UIO, NTNU) and is filled mostly for
+  universities and institutes. Put `kortnavn` and `organisasjonsnummer` (0 for sub-units) in `note`.
+  `sektor: Næringsliv` means a company holds the grant; stage 4 reads the company name.
+- `country: NO`, except `sektor: Utlandet`, where it stays empty.
+- `date`: `prosjektstart`, a year; say "project start year" in `note`. The CSV has no decision date, and
+  `soknadsfrist` / `soknadsdato` are the call deadline and the submission, both before the decision.
+- `evidence_url`: `https://prosjektbanken.forskningsradet.no/project/FORISS/<prosjektnummer>`. The page is plain HTML
+  and prints the leader with a title ("Prosjektleder: Professor Konstantinos Alexis"), the period and the amount.
+  Projects that started in 2026 are not there yet (`354071`: "ble ikke funnet"); for those, use the pinned CSV URL
+  and put `prosjektnummer` in `snippet`.
+- `role_title`: the title the Prosjektbanken page prints between "Prosjektleder:" and the name, when that page is read
+  ("Professor"). The CSV has none; leave it empty then.
+- `snippet`: `soknadstype` / `soknadstypevariant`, `aktivitet`, the title, "prosjektleder".
+- `topics`: 1–3 phrases cut verbatim from `prosjekttittel`, line breaks collapsed. Titles come in English or
+  Norwegian as submitted; do not translate.
+
+Drop `prosjektleder_kjonn`. `dr_stip_aarsverk` and `postdok_aarsverk` say a project pays doctoral or postdoc years,
+not who holds them: look for those people on the leader's team page under the shared `lab_member` rules.
