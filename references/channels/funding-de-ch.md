@@ -25,7 +25,10 @@ curl -s -X POST 'https://gepris.dfg.de/backend/project/search' -H 'Content-Type:
 ```
 
 - `query_string`: full text over German and English titles, abstracts and listed publications, with stemming. Run the
-  English and the German keyword (`robot learning`, `Robotik`).
+  English and the German keyword (`robot learning`, `Robotik`). The full text reaches into listed publications, so
+  most hits are noise (a multimodal-AI run saw 888 of 1,069 hits without the domain words in title or abstract):
+  keep a project only when `prj_titel_en` / `PRJ_ABSTRACT_EN` matches the domain map, and count the rest in
+  Coverage as rejected.
 - `dfg_verfahren_1`: programme key (table below). Omit it to get all programmes.
 - `fachkolleg`: DFG review board such as `4.41` (systems engineering, robotics) or `4.43` (computer science). The codes
   are in each hit's `fkl_bezeichnung_en` and in `aggregations.fachkolleg` of an unfiltered search. Stage 1 records the
@@ -42,7 +45,8 @@ curl -s -X POST 'https://gepris.dfg.de/backend/project/search' -H 'Content-Type:
 **Project** — `GET https://gepris.dfg.de/backend/project/get?id=<prj_id>&ranking=0`:
 `data.PRJ_TITEL_EN`, `PRJ_VERFAHREN_KEY`, `PRJ_VERFAHREN_EN`, `PRJ_FOERDERZEITRAUM_EN`, `FKL_BEZEICHNUNG_EN`,
 `PRJ_ABSTRACT_EN`, `PRJ_WEBSEITE` (an `<a href>` to the project's own site); `per.<role key>[]` with `id` (the person
-id), `data.label_EN` (seen: "Applicant", "Spokesperson", "Persons responsible for project") and
+id), `data.label_EN` (seen: "Applicant", "Spokesperson", "Persons responsible for project"; "Project Heads", key `PLE`,
+on CRC/TRR subprojects) and
 `data.beteiligungen_en` (the person's institution and chair as printed); `ins` (applicant institution).
 
 **Person** — `GET https://gepris.dfg.de/backend/person/get?id=<person id>&ranking=0`: `data.PER_ORCID_ID` (often
@@ -63,8 +67,8 @@ through `backend/project/get`, which is a plain GET.
 | `WBP` Walter Benjamin-Programme | Position, Fellowship, Return Grant (`STELL`, `STIP`, `RUEW`) | `dfg_walter_benjamin` | personal postdoc funding: stage 4 classes the holder as researcher, not professor |
 | every other programme (`SBH` Research Grants, `SFB` CRCs, `SPP`, `FOR`, `EXC`, …) | as printed | `dfg_project` | the applicant or spokesperson leads the project or subproject |
 
-Emit one `person` signal per person whose label is Applicant, Spokesperson, Persons responsible for project, or
-another label that says the person leads the project or a subproject: `role: pi`, `channel: funding-de-ch`,
+Emit one `person` signal per person whose label is Applicant, Spokesperson, Persons responsible for project, Project
+Heads, or another label that says the person leads the project or a subproject: `role: pi`, `channel: funding-de-ch`,
 strength high for `dfg_emmy_noether` and `dfg_heisenberg`, medium for `dfg_project`. Copy `prj_verfahren_en` and the
 project title into `snippet`. Other labels (cooperation partners, participating researchers) go into `note`.
 
@@ -100,6 +104,7 @@ are deleted with the run. Evidence URL: `https://data.snf.ch/grants/grant/<Grant
 | Doc.CH | `snsf_doc_ch` | personal doctoral funding: stage 4 classes the holder as phd_student |
 | Doc.Mobility | `snsf_doc_mobility` | doctoral mobility fellowship: phd_student |
 | Postdoc.Mobility | `snsf_postdoc_mobility` | personal postdoc fellowship: researcher |
+| SNSF Swiss Postdoctoral Fellowships | `snsf_swiss_postdoc` | the MSCA-replacement fellowship for postdocs coming to Switzerland: researcher; the host institute is the person's affiliation |
 
 Signals: `role: pi`, `channel: funding-de-ch`, strength high for Starting Grant, Ambizione and Professorship, medium
 for `snsf_project`. `date`: `EffectiveGrantStartDate` when it is on or before the run date; otherwise (approved, start
@@ -134,7 +139,7 @@ English title into `snippet`.
 ## Traps
 
 - A `dfg_*` or `snsf_*` PI signal makes the person a professor in stage 4 unless its type is a personal grant
-  (`dfg_walter_benjamin`, `snsf_ambizione`, `snsf_postdoc_mobility` → researcher; `snsf_doc_ch`, `snsf_doc_mobility`
+  (`dfg_walter_benjamin`, `snsf_ambizione`, `snsf_postdoc_mobility`, `snsf_swiss_postdoc` → researcher; `snsf_doc_ch`, `snsf_doc_mobility`
   → phd_student). DFG Research Grants also fund applicants' own positions ("Eigene Stelle"): when the name field
   carries no professorial title, put `role_title` as printed and say "Eigene Stelle" in `note`, so an explicit title
   (rule 1) can override the funding rule.

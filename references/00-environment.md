@@ -21,6 +21,13 @@ only when the maintainer confirms by hand.
    `openalex: keyed|keyless`. A key given as a file path is read with `OPENALEX_API_KEY=$(cat <path>)` before each
    script call; never copy the key into any run file. If only a search tool exists,
    mark `web: search_only`; if nothing loads, `web: none`.
+   **OpenAlex credit plan.** A free key buys 10,000 credits a day (a `search=` call costs 10, a filtered list 1, a
+   single-record GET 0), shared by every agent of the run and reset at 00:00 UTC. Six parallel stage-2 channels
+   spent a day's credits by 21:20 UTC and left stage 4 waiting for the reset. Write the plan into `run.meta.json`
+   (`openalex_credits: {"per_channel": N, "stage_4_reserve": M}`) and into each channel brief: a channel stops at
+   its cap and lists the skipped lookups in its coverage note, nobody falls back to keyless calls or retries a 429,
+   and the reserve (two to three list calls per person expected in the roster) stays untouched until stage 4.
+   Prefer filtered lists (`filter=`) over `search=`; use `search=` once per title, never per author.
    Also probe once each and record the result: `https://api.github.com/repos/huggingface/lerobot` (often 403),
    `https://api.openreview.net/notes?limit=1` (often 403), `https://dblp.org/search/publ/api?q=robot&format=json`
    (may turn into a bot-check page mid-run), `git ls-remote https://github.com/huggingface/lerobot` (bare clones
@@ -41,8 +48,9 @@ the stage-1 summary, so the user can change them there.
 - Domain phrase [required, no default] and 0–5 seed names / labs / venues the user already knows [none].
 - Region, two layers (codes in `assets/countries.yaml`):
   - `region_core` [DE+CH]: professors and research groups here come first in the table;
-  - `region_extended` [EU27+UK+CH+NO]: everyone with a qualifying signal here gets a row; doctoral students in the
-    extended region rank right after the core-region rows. The tiers are in `references/50-output.md`.
+  - `region_extended` [EU27+UK+CH+NO]: everyone with a qualifying signal here gets a row; professors and group
+    leaders in the extended region rank right after the core-region ones and before core-region researchers and
+    doctoral students. The tiers are in `references/50-output.md`.
   "Based in region" means the person's **current or most recent affiliation** is in the region, regardless of
   nationality. People outside `region_extended` get no person signal.
 - Time window [the 36 months ending on the run date, for all channels including funding]. For a run on 2026-10-12
@@ -68,6 +76,7 @@ Write it to `RUN_DIR/run.meta.json`:
  "window_months": 36, "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 20,
  "channels": ["awards-papers","funding-eu","funding-de-ch","national-prizes","competitions","startups","industry","open-source"],
  "page_budget_per_channel": 40, "target_rows": 0,
+ "openalex_credits": {"per_channel": 900, "stage_4_reserve": 4000},
  "run_dir": "/absolute/path/to/runs/<slug>-YYYY-MM-DD",
  "stage_status": {"0": "done", "1": "", "2": "", "3": "", "4": "", "5": "", "final_pass": ""},
  "env": {"web": "fetch|search_only|none", "interpreter": true, "files": true, "openalex": "keyed|keyless", "github_api": false,

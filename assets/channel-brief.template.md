@@ -28,6 +28,9 @@ Append one JSON object per line to `RUN_DIR/signals/<channel>.jsonl` (schema: `S
 ## Access (fill from run.meta.json env)
 - OpenAlex: <keyless | keyed>. Keyless is fine until a call returns 429; then stop and ask for a key. Strip `?` and
   `*` from titles; arXiv-only records often have empty institutions.
+- OpenAlex credits for this channel: <per_channel> of the run's 10,000 daily credits (`search=` costs 10, a filtered
+  list 1, a single-record GET 0; the budget is shared by all channels and stage 4, reset 00:00 UTC). Count your
+  calls, stop at the cap, list the skipped lookups in coverage; never fall back to keyless calls or retry a 429.
 - GitHub API / OpenReview API / DBLP / GEPRIS backend / SNSF datasets: <reachable or blocked>; fallbacks are in the
   channel file.
 - Web fetch and search for award pages, team pages, company pages.

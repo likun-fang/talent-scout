@@ -80,7 +80,16 @@ Plain HTML detail pages expose `Project coordination`, `Partnership`, `Help of t
 `Beginning and duration of the scientific project`. The coordinator name and institution support project
 responsibility; partnership entries are organisations, not unnamed team members. Month-only starts stay
 `YYYY-MM`. An ANR reference's year or a call label does not supply an exact award date. Follow personal/team
-pages for current titles; native search filters and bulk dataset extraction are not yet validated by this pilot.
+pages for current titles.
+
+The bulk route, validated on 2026-10-15: the DGDS open dataset on data.gouv.fr ("ANR DGDS depuis 2010 — projets
+financés", two CSV files, `…-projets-<date>.csv` and `…-partenaires-<date>.csv`, all projects since 2010, about
+27,000 rows). The partners file names every partner's *Responsable scientifique* with ORCID and a coordinator flag;
+the projects file gives `Projet.T0 scientifique` as a full date. Gate titles and abstracts locally in French and
+English, emit the coordinator and each in-region partner lead as `role: pi` (partner leads with `hop_depth: 1`,
+`parent` = the coordinator, "partner scientific lead" in `note`), cite the partners CSV as evidence URL and
+title-case the family names, which the data print in capitals. Prefer this to the detail pages: it is one download
+instead of one page per project.
 
 ### FRIS records (BE, Flanders): validated extraction rules
 
@@ -102,7 +111,10 @@ Search projects with one POST (`Content-Type: text/xml; charset=utf-8`, `SOAPAct
 ```
 
 - `name` searches titles (`robot`: `totalResults` 466). The WSDL lists the other criteria: `keyword`, `uuids`,
-  `associatedPersons`, `associatedOrganisations`, `fundingCode`, `typeClassification`, `lastModifiedDate`.
+  `associatedPersons`, `associatedOrganisations`, `fundingCode`, `typeClassification`, `lastModifiedDate`. The
+  `keyword` criterion answers a SOAP fault (HTTP 500) with and without a locale, and some title words ("beeld") fault
+  too, so search titles only, one term per call, in English and Dutch; a project whose title avoids the domain words
+  is missed and the coverage note says so.
 - `pageNumber` is echoed back but ignored: pages 0 to 3 returned the same first two projects. Set `pageSize` at or
   above `totalResults` (500 returned all 466 in one 5 MB response) or narrow the query. Cache responses under
   `RUN_DIR/cache/fris/`.
