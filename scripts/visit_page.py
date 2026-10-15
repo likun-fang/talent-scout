@@ -22,6 +22,8 @@ from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -37,6 +39,7 @@ DEFAULT_LADDER = ('http', 'wayback', 'jina', 'browser')
 VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'}
 BLOCK = {'p', 'div', 'section', 'article', 'li', 'h1', 'h2', 'h3', 'h4', 'header', 'footer', 'tr', 'br'}
 STOP_BATCH = {'login_required', 'blocked', 'rate_limited', 'challenge'}
+COOKIE_LINE = r'(?i)cookie|consent|privacy (?:policy|settings)|^\s*(?:accept(?: all)?|deny|allow (?:all|selection)|details|about)\s*$'
 LINKEDIN_SECTIONS = ('Experience', 'Education', 'Publications', 'Projects', 'Licenses & certifications')
 
 
@@ -139,6 +142,13 @@ def http_read(url: str, timeout: float, user_agent: str = BROWSER_UA) -> dict:
     with response:
         content_type = response.headers.get_content_type()
         result = {'final_url': response.geturl(), 'http_status': response.status, 'content_type': content_type}
+        if content_type == 'application/pdf':
+            data = response.read(MAX_BYTES + 1)
+            text = pdf_text(data[:MAX_BYTES])
+            if not text:
+                return {**result, 'status': 'unsupported_content', 'text': '', 'title': '', 'links': [],
+                        'error': 'PDF roster: install poppler (pdftotext) to read it'}
+            return {**result, 'text': text, 'title': '', 'links': [], 'truncated': len(data) > MAX_BYTES}
         if content_type not in {'text/html', 'application/xhtml+xml', 'text/plain'}:
             return {**result, 'status': 'unsupported_content', 'text': '', 'title': '', 'links': []}
         data = response.read(MAX_BYTES + 1)
@@ -155,6 +165,18 @@ def http_read(url: str, timeout: float, user_agent: str = BROWSER_UA) -> dict:
             parser.feed(html)
             parsed = parser.result()
         return {**result, **parsed, 'truncated': truncated}
+
+
+def pdf_text(data: bytes) -> str:
+    """Text of a PDF through poppler's pdftotext when it is installed; '' otherwise (the record says so)."""
+    if not shutil.which('pdftotext'):
+        return ''
+    try:
+        run = subprocess.run(['pdftotext', '-layout', '-', '-'], input=data, capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return ''
+    text = run.stdout.decode('utf-8', errors='replace') if run.returncode == 0 else ''
+    return '\n'.join(line for line in (' '.join(l.split()) for l in text.splitlines()) if line)
 
 
 def launch(runtime, channel: str | None):
@@ -244,7 +266,10 @@ def climb(url: str, timeout: float, ladder: tuple, channel: str | None, wait_ms:
              'jina': lambda: jina_read(url, timeout),
              'browser': lambda: browser_read(url, timeout, channel, max(wait_ms, RENDER_WAIT_MS))}
     if render:
-        ladder = tuple(step for step in ladder if step in {'http', 'browser'}) or ('http', 'browser')
+        # `--render` means "the browser is where the roster is": keep it even when the ladder left it out.
+        ladder = tuple(step for step in ladder if step in {'http', 'browser'})
+        if 'browser' not in ladder:
+            ladder += ('browser',)
     attempts, best, best_via, queue = [], None, None, list(ladder)
     while queue:
         step = queue.pop(0)
@@ -281,9 +306,14 @@ def classify(result: dict) -> str:
     text = result.get('text', '').lower()
     if code == 429:
         return 'rate_limited'
-    if any(word in title for word in ('captcha', 'security verification', 'just a moment')) or any(
+    # Interstitials seen on real pages: Cloudflare, Anubis, BunkerWeb (is.mpg.de), RISE, OpenReview.
+    if any(word in title for word in ('captcha', 'security verification', 'just a moment', 'bot detection',
+                                      'verifying your browser')) or any(
             word in text for word in ('verify you are human', 'verify you’re human', 'complete the captcha',
-                                      "making sure you're not a bot", 'anubis to protect', 'checking your browser')):
+                                      "making sure you're not a bot", 'anubis to protect', 'checking your browser',
+                                      'check if you are a human', 'protected with bunkerweb', 'verifying your browser',
+                                      "verify you're not a robot", 'verify you’re not a robot',
+                                      'complete the check below to continue')):
         return 'challenge'
     if code == 401 or result.get('password_form') or any(
             segment in path.split('/') for segment in ('login', 'authwall', 'checkpoint', 'signin', 'uas')):
@@ -296,6 +326,11 @@ def classify(result: dict) -> str:
     if code and code >= 400:
         return 'http_error'
     if not text.strip():
+        return 'empty'
+    # A consent wall served as the page (Jina Reader on ri.se): when the cookie lines are most of the text and
+    # what is left would not pass as content, there is no page. Short genuine pages stay readable.
+    content = '\n'.join(line for line in text.splitlines() if not re.search(COOKIE_LINE, line)).strip()
+    if len(content) < MIN_TEXT // 2 and len(text.strip()) >= 2 * max(len(content), 1):
         return 'empty'
     return 'readable'
 
@@ -412,13 +447,14 @@ def main():
     parser.add_argument('--out-dir', help='Directory for batch records (default: pages/)', default='pages')
     parser.add_argument('--delay', type=float, default=5.0, help='Seconds between batch requests (default 5)')
     parser.add_argument('--browser', action='store_true', help='Render JavaScript with an isolated Playwright browser (not for LinkedIn)')
-    parser.add_argument('--channel', choices=['chrome', 'msedge'], help='Use installed Chrome/Edge instead of Playwright Chromium')
+    parser.add_argument('--channel', choices=['chrome', 'msedge'],
+                        help='Use installed Chrome/Edge instead of Playwright Chromium for --browser, --render and the browser ladder step')
     parser.add_argument('--timeout', type=float, default=30)
     parser.add_argument('--wait-ms', type=int, default=1500, help='Browser settling time after DOM load, maximum 10000')
     parser.add_argument('--max-chars', type=int, default=60000)
     parser.add_argument('--full-text', action='store_true', help='Keep full page text for LinkedIn records too')
     parser.add_argument('--render', action='store_true',
-                        help='People/roster page built client-side: read it with the local browser after the plain fetch')
+                        help='People/roster page built client-side: read it with the local browser after the plain fetch, whatever --ladder says')
     parser.add_argument('--min-chars', type=int, default=MIN_TEXT,
                         help=f'Readable text shorter than this climbs the ladder (default {MIN_TEXT})')
     parser.add_argument('--ladder', default=','.join(DEFAULT_LADDER),
@@ -428,8 +464,6 @@ def main():
         parser.error('Give exactly one of URL or --batch FILE')
     if args.timeout <= 0 or args.max_chars <= 0 or not 0 <= args.wait_ms <= 10000 or args.delay < 0:
         parser.error('Positive timeout/max-chars, wait-ms between 0 and 10000, non-negative delay required')
-    if args.channel and not args.browser:
-        parser.error('--channel requires --browser')
     ladder = tuple(step.strip() for step in args.ladder.split(',') if step.strip())
     if not ladder or ladder[0] != 'http' or set(ladder) - set(DEFAULT_LADDER):
         parser.error('--ladder must start with http and use only: ' + ','.join(DEFAULT_LADDER))

@@ -105,7 +105,7 @@ class FinalPassTests(unittest.TestCase):
         args = Namespace(date=datetime.date(2026, 10, 12), window_months=36, region='EU27+UK+CH+NO',
                          region_core='DE+CH', max_rows=0, domain='')
         selected = te.select_persons([p], args)[0][0]
-        self.assertEqual((selected['country'], selected['tier'], selected['role_class']), ('FR', 4, 'industry'))
+        self.assertEqual((selected['country'], selected['tier'], selected['role_class']), ('FR', 5, 'industry'))
         row = te.row_for(selected, '', '2026-10-12')
         self.assertEqual((row['role'], row['latest_role']), ('first_author', 'first_author'))
         self.assertEqual(p, original)

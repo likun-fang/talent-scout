@@ -152,11 +152,23 @@ def inst_tokens(value: str) -> set[str]:
 # Patterns accept plural and German feminine forms, because section headings ("Doctoral students",
 # "Wissenschaftliche Mitarbeiterinnen") are a main source of role_title.
 TITLE_RULES = (
-    ('phd_student', r'\b(?:ph\.?d\.? (?:students?|candidates?|researchers?)|doctoral (?:students?|researchers?|candidates?)|doktorand\w*|dissertation|promovierende\w*)\b'),
-    ('researcher', r'\b(?:postdoc\w*|senior scientists?|senior researchers?|imaging scientists?|clinical scientists?|research scientists?|wissenschaftliche\w* mitarbeiter\w*|research associates?|staff scientists?|oberassistent\w*|research fellows?)\b'),
-    ('professor', r'\b(?:honorarprofessor\w*|honorary professors?|professors?|professorin\w*|prof\.|chair of|chair holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|faculty members?)\b|\bprof\.|^\s*faculty\s*$'),
-    ('group_leader', r'\b(?:research junior group leads?|jrg leaders?|junior research group leaders?|site leads?|group leaders?|heads? of (?:the )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department)|heads? of [\w][\w\s,-]{0,60}|principal investigators?|nachwuchsgruppenleiter\w*|team leaders?|lab directors?)\b|^\s*pi\s*$'),
+    ('phd_student', r'\b(?:ph\.?d\.?[ -](?:students?|candidates?|researchers?|fellows?)|doctoral (?:students?|researchers?|candidates?|assistants?|thes[ei]s)|research students?|(?:industri)?doktorand\w*|dissertation|promovierende\w*)\b'),
+    # Lecturer ranks (Swedish universitetslektor, a lecturer outside GB/IE) prove a staff position, not leadership
+    # of a group; in GB and IE they are faculty ranks (FACULTY_RANKS below).
+    ('researcher', r'\b(?:post[ -]?do[ck]\w*|research and teaching associates?|senior scientists?|senior researchers?|advanced researchers?|researchers?|imaging scientists?|clinical scientists?|physician scientists?|research scientists?|wissenschaftliche\w* mitarbeiter\w*|scientific staff|research associates?|staff scientists?|oberassistent\w*|ober[aä]rzt\w*|research fellows?|(?:senior |associate |assistant |university )?lecturers?|universitetslektor\w*|forskare|ricerca(?:tore|trice|tori|trici) a tempo determinato)\b'),
+    ('professor', r'\b(?:honorarprofessor\w*|honorary professors?|professors?|professorin\w*|prof\.|chair of|chair ?holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|hochschullehrer\W?\w*|faculty members?)\b|\bprof\.|^\s*faculty(?:\s*\(w[123]\))?\s*$'),
+    ('group_leader', r'\b(?:research junior group leads?|jrg leaders?|junior research group leaders?|site leads?|group leaders?|group heads?|principal researchers?|heads? of (?:the )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department)|heads? of [\w][\w\s,-]{0,60}|principal investigators?|nachwuchsgruppenleiter\w*|team lead(?:er)?s?|lab directors?)\b|^\s*(?:pi|heads?)\s*$'),
 )
+# In GB and IE, Lecturer, Senior Lecturer and Reader are the permanent faculty ranks below Professor (the US assistant
+# and associate professor), so there they count as professor. External, guest and visiting lecturers, the teaching-only
+# associate/assistant lecturer and the German Lehrbeauftragte are hired to teach a course, and a research lecturer
+# (Oxford) holds a research-staff post: none of them count.
+FACULTY_RANK_COUNTRIES = {'GB', 'IE'}
+FACULTY_RANKS = r'\b(?:(?:senior |university )?lecturers?|readers?|associate professors?)\b'
+NOT_FACULTY = r'\b(?:external|guest|visiting|associate|assistant|research)\s+lecturers?\b|\blehrbeauftragte'
+# "Scholars" is a doctoral stage only where the page belongs to a doctoral school (IMPRS-IS calls its doctoral
+# researchers scholars); elsewhere it is a visitor or fellowship label.
+DOCTORAL_SCHOOL = r'\b(?:imprs\w*|max planck research school|graduate school|doctoral (?:school|program\w*))\b'
 # Add country-specific titles without widening the existing English/German rules.
 # These are appointments/stages, not degree names (doctorat/doctorado/Dr.). French
 # maître de conférences and directeur de recherche do not prove a full professorship
@@ -164,7 +176,7 @@ TITLE_RULES = (
 LOCAL_TITLE_RULES = (
     ('phd_student', r'\b(?:doctorant(?:e)?s?|doctorand[oa]s?|promovend(?:us|a|i|ae))\b'),
     ('researcher', r'\b(?:ma[iî]tre(?:sse)?s? de conf[eé]rences|charg[eé](?:e)?s? de recherche|direct(?:eur|rice)s? de recherche|investigador(?:a)?(?:es|as)? postdoctoral(?:es)?|onderzoekers?)\b'),
-    ('professor', r'\b(?:professeur(?:e)?s? des universit[eé]s|catedr[aá]tic[oa]s? de universidad|profesor(?:a)?(?:es|as)? titular(?:es)? de universidad|hoogleraren|hoogleraar)\b'),
+    ('professor', r'\b(?:professeur(?:e)?s? des universit[eé]s|catedr[aá]tic[oa]s? de universidad|(?:profesor(?:a)?(?:es|as)? )?titular(?:es)? de universidad|profesor(?:a)?(?:es|as)? agregad[oa]s?|hoogleraren|hoogleraar)\b'),
     ('group_leader', r"\b(?:responsables? d['’][eé]quipe|chef(?:fe)?s? d['’][eé]quipe|jef[ea]s? de grupo|groepsleiders?)\b"),
 )
 LOCAL_PAST_TITLE = r'\b(?:former|previous|ancien(?:ne)?s?|ex|voormalig(?:e)?|antigu[oa]s?)\b'
@@ -179,25 +191,35 @@ COMPANY = (r'\b(?:gmbh|ag|ltd|inc|sas|b\.v\.|research europe)(?:\b|(?<=\.))'
 COMPANY_NAMES = r'\b(?:naver|deepmind|google|facebook|sony|bosch|mistral|aleph alpha|microsoft|nvidia|hugging face)\b'
 COMPANY_SUFFIX = r'\b(?:gmbh|ag|inc|ltd)\b'
 ACADEMIC_EMPLOYER = r'\b(?:hospital|klinik|clinic|university|universität|université|universiteit|institute of technology|hochschule|school|college)\b'
+RESEARCH_GMBH = r'\b(?:dfki|forschungszentrum|forschungsgesellschaft|fraunhofer|helmholtz|max.planck|leibniz)\b'
+# A founder or C-level title is an industry role; a professorial title next to it still wins (precedence above).
+FOUNDER = r'\b(?:co-?founders?|founders?|chief (?:executive|technology|operating|scientific) officer|ceo|cto|coo|cso)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_', 'fwf_', 'swecris_', 'rcn_', 'dff_', 'fris_', 'aei_')
 # Personal grants name the holder's own career stage; every other funding PI leads a project.
 FUNDING_ROLE = {'snsf_ambizione': 'researcher', 'dfg_walter_benjamin': 'researcher', 'snsf_postdoc_mobility': 'researcher',
+                'snsf_swiss_postdoc': 'researcher',
                 'snsf_doc_ch': 'phd_student', 'snsf_doc_mobility': 'phd_student',
                 'fwf_esprit': 'researcher', 'fwf_start': 'group_leader',
                 **dict.fromkeys(('fwf_project', 'swecris_project', 'rcn_project', 'dff_project',
                                  'fris_project', 'aei_project'), 'group_leader')}
 
 
-def title_class(title: str, institution_type: str = '', affiliation: str = '') -> str:
+def title_class(title: str, institution_type: str = '', affiliation: str = '', country: str = '') -> str:
     """Class named by a verbatim title. The person's own role is read before a supervisor mention.
     A heading that joins a doctoral stage with another stage or with staff words ("PhD Students and
     Scientific Assistants", "Staff / PhD Students") returns 'mixed': it proves membership, not the stage.
-    One person's joined titles ("Professor and Head of Lab") keep the highest-precedence class."""
+    One person's joined titles ("Professor and Head of Lab") keep the highest-precedence class.
+    `country` (ISO-2 of the person's current country) decides whether a lecturer rank is faculty."""
     own = re.sub(SUPERVISOR, '', title, flags=re.I)
     matches = [role_class for role_class, pattern in TITLE_RULES if re.search(pattern, own, re.I)]
+    if ((country or '').upper() in FACULTY_RANK_COUNTRIES and re.search(FACULTY_RANKS, own, re.I)
+            and not re.search(NOT_FACULTY, own, re.I)):
+        matches.append('professor')
     local_matches = [] if re.search(LOCAL_PAST_TITLE, own, re.I) else [
         role_class for role_class, pattern in LOCAL_TITLE_RULES if re.search(pattern, own, re.I)]
     matches = list(dict.fromkeys(matches + local_matches))
+    if not matches and re.search(r'^\s*scholars?\s*$', own, re.I) and re.search(DOCTORAL_SCHOOL, title + ' ' + affiliation, re.I):
+        matches = ['phd_student']
     joined = re.search(MIXED, own, re.I)
     if local_matches:
         joined = joined or re.search(LOCAL_MIXED, own, re.I)
@@ -208,16 +230,16 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '') -
         if role_class in matches:
             return role_class
     if re.search(r'\b(?:direktor|director)\b', title, re.I) and (
-            institution_type == 'research' or re.search(r'\b(?:institute|institut|research institute)\b', title + ' ' + affiliation, re.I)):
+            institution_type == 'research' or re.search(r'\b(?:institute|institut|research institute|mpi)\b', title + ' ' + affiliation, re.I)):
         return 'professor'
-    if re.search(r'\b(?:gmbh|ag|ltd|inc)\b', title, re.I) or (
+    if re.search(r'\b(?:gmbh|ag|ltd|inc)\b', title, re.I) or re.search(FOUNDER, own, re.I) or (
             institution_type == 'company' and re.search(r'\b(?:engineer|software)\b', title, re.I)):
         return 'industry'
     return ''
 
 
 def role_result(role_class: str, confidence: str, rule: int, source: str, excerpt: str, url: str) -> dict:
-    caveat = ' (DE: may be PhD student)' if re.search(r'wissenschaftlicher mitarbeiter', excerpt, re.I) else ''
+    caveat = ' (DE: may be PhD student)' if re.search(r'wissenschaftlicher mitarbeiter|scientific staff|research and teaching associate', excerpt, re.I) else ''
     if re.search(r'\b(?:honorarprofessor\w*|honorary professor)\b', excerpt, re.I):
         caveat += ' (honorary)'
     return {'role_class': role_class, 'role_confidence': confidence,
@@ -233,8 +255,10 @@ def title_evidence(person: dict, employment: tuple | None, institution: tuple | 
         entries.append(('ORCID employment role-title', employment[3], employment[4], inst_type, employment[1]))
     for signal in sorted(person.get('signals', []), key=lambda s: date_value(s.get('date')), reverse=True):
         if signal.get('role_title'):
+            # The parent names the page the heading sits on ("Scholars" under the IMPRS-IS roster).
+            context = ' / '.join(filter(None, [signal.get('affiliation_raw'), signal.get('parent')]))
             entries.append(('signal role_title', signal['role_title'], signal.get('evidence_url', ''),
-                            signal.get('institution_type') or inst_type, signal.get('affiliation_raw', '')))
+                            signal.get('institution_type') or inst_type, context))
     return entries
 
 
@@ -292,6 +316,8 @@ def company_evidence(person: dict, institution: tuple | None) -> tuple | None:
     url = person.get('final_pass_url', '') if final else newest.get('evidence_url', '')
     if re.search(ACADEMIC_EMPLOYER, affiliation, re.I) and not re.search(COMPANY_SUFFIX, affiliation, re.I):
         return None
+    if re.search(RESEARCH_GMBH, affiliation, re.I):
+        return None  # DFKI, Forschungszentrum Jülich and the like are research institutes in a GmbH shell
     if re.search(COMPANY, affiliation, re.I) or re.search(COMPANY_NAMES, affiliation, re.I):
         return ('high' if final and person.get('last_verified') else 'medium',
                 f"final pass {person.get('last_verified', '')}" if final else 'current employer', affiliation, url)
@@ -314,10 +340,11 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
     verified = final_pass_title(person)
     company = company_evidence(person, institution)
     entries = title_evidence(person, employment, institution)
+    country = person.get('final_pass_country') or person.get('country') or ''
     if company:
         title = verified[0] if verified else next((entry[1] for entry in entries), '')
         url = verified[1] if verified else next((entry[2] for entry in entries), company[3])
-        own_class = title_class(title)
+        own_class = title_class(title, country=country)
         if own_class == 'professor':
             return role_result('professor', 'high', 0 if verified else 1, 'professorial title', title, url)
         if own_class == 'mixed':
@@ -325,14 +352,15 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
         return role_result('industry', company[0], 3, f'{company[1]} ({company[2]})',
                            f'industry | {title}', company[3] or url)
     if verified:
-        role_class = title_class(verified[0], person.get('institution_type', ''), person.get('current_affiliation', ''))
+        role_class = title_class(verified[0], person.get('institution_type', ''),
+                                 person.get('final_pass_affiliation') or person.get('current_affiliation', ''), country)
         if role_class == 'mixed':
             return role_result('unknown', 'low', 0, 'final pass: mixed heading proves membership only', verified[0], verified[1])
         if role_class:
             return role_result(role_class, 'high', 0, f"final pass {person.get('last_verified')}", verified[0], verified[1])
     mixed = None
     for source, title, url, inst_type, affiliation in entries:
-        role_class = title_class(title, inst_type, affiliation)
+        role_class = title_class(title, inst_type, affiliation, country)
         if role_class == 'mixed':
             mixed = mixed or (source, title, url)
             continue
@@ -363,8 +391,11 @@ def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
     oc = orcid_current(ids["orcid"], cache) if ids.get("orcid") else None
     oa = openalex_current(ids["openalex"], cache) if ids.get("openalex") else None
     first_year = first_publication_year(ids["openalex"], cache) if ids.get("openalex") else None
+    # An open ORCID employment that the newest evidence still names is current, even when that evidence lists a
+    # second institution in another country (a Copenhagen professor on an ETH paper stays in Copenhagen).
+    named_by_evidence = bool(oc and oc[1] and ev[0] and inst_tokens(oc[1]) & inst_tokens(ev[0]))
     stale_orcid = (oc and oc[1] and ev_year and ev[0] and ev[1] and
-                   (not oc[0] or oc[0] < ev_year) and oc[2] != ev[1])
+                   (not oc[0] or oc[0] < ev_year) and oc[2] != ev[1] and not named_by_evidence)
     stale_openalex = (oa and oa[0] and ev[0] and date_value(oa[2]) != datetime.date.min and
                       ev_date > date_value(oa[2]) and not (inst_tokens(oa[0]) & inst_tokens(ev[0])) and
                       oa[0].strip().casefold() != ev[0].strip().casefold())
@@ -373,6 +404,12 @@ def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
         cur = (ev[0], ev[1], f"evidence {ev[2]}")
     elif oc and oc[1]:
         cur = (oc[1], oc[2], f"orcid employment since {oc[0] or '?'}")
+        # ORCID addresses carry typos ("Lisbon, ID"): when one piece of evidence names the same employer alone,
+        # with another country, the evidence country wins; a country on an affiliation list proves nothing.
+        single = not re.search(r';|\s/\s', ev[0] or '')
+        if named_by_evidence and single and ev[1] and ev[1] != oc[2]:
+            cur = (oc[1], ev[1], f"orcid employment since {oc[0] or '?'}; country from evidence {ev[2]}")
+            notes.append(f"ORCID address says {oc[2]}, evidence {ev[2]} places {oc[1]} in {ev[1]}; evidence country used")
     elif oa and oa[1] in codes and not stale_openalex:
         cur = (oa[0], oa[1], f"openalex last_known {oa[2]}")
     else:

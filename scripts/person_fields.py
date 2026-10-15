@@ -12,6 +12,46 @@ def topics_for(signals: list[dict]) -> list[str]:
     return list(dict.fromkeys(topic for signal in signals for topic in signal.get('topics', []) if topic))[:5]
 
 
+def facet_texts(person: dict) -> tuple[list[str], list[str]]:
+    """The verbatim phrases a person's record carries: (person and signal topics, signal snippets and
+    project / paper parents)."""
+    topics = list(person.get('topics', []))
+    texts = []
+    for signal in person.get('signals', []):
+        topics += signal.get('topics') or []
+        texts += [signal.get(key) or '' for key in ('snippet', 'parent')]
+    return [t for t in topics if t], [t for t in texts if t]
+
+
+def _keyword_text(value: str) -> str:
+    return ' '.join(normalized(value).replace('-', ' ').replace('_', ' ').split())
+
+
+def _tag_pattern(keywords: list[str]) -> 're.Pattern':
+    words = sorted({_keyword_text(k) for k in keywords if k}, key=len, reverse=True)
+    alternatives = '|'.join(re.escape(w).replace(r'\ ', r'\s+') for w in words)
+    return re.compile(rf'(?<![a-z0-9])(?:{alternatives})(?![a-z0-9])')
+
+
+def tags_for(topics: list[str], texts: list[str], facets: list[dict]) -> list[str]:
+    """Tag ids with enough evidence: a keyword in one of the topics, or two distinct keywords across the
+    snippets and parents (one word in a snippet is often incidental: "robust", "bias"). Keywords match as whole
+    words; hyphens and underscores count as spaces, so "vision-language", "vision language" and
+    "Vision_Language" are one keyword. Order follows the facets file."""
+    # The separator keeps a multi-word keyword from spanning two phrases.
+    topic_text = ' | '.join(_keyword_text(t) for t in topics)
+    other_text = ' | '.join(_keyword_text(t) for t in texts)
+    found = []
+    for facet in facets:
+        for tag in facet.get('tags', []):
+            if not tag.get('keywords'):
+                continue
+            pattern = _tag_pattern(tag['keywords'])
+            if pattern.search(topic_text) or len({' '.join(m.split()) for m in pattern.findall(other_text)}) >= 2:
+                found.append(tag['id'])
+    return found
+
+
 def affiliation_for(person: dict) -> str:
     if person.get('final_pass_affiliation'):
         return person['final_pass_affiliation']
@@ -29,8 +69,10 @@ def normalized(value: str) -> str:
 
 
 def institution_name(value: str) -> str:
+    """Comparison key: the words that stay once "University of" and its translations are gone, so that
+    "Utrecht University", "Universiteit Utrecht" and "University of Utrecht" compare equal."""
     value = normalized(value.split('||', 1)[0])
-    value = re.sub(r'\b(?:the|university of|universitat|universite|universiteit van)\b', ' ', value)
+    value = re.sub(r'\b(?:the|university|universit(?:a|at|e|eit|ad|ade)|degli studi|of|di|de|van)\b', ' ', value)
     return ' '.join(value.split())
 
 
@@ -43,9 +85,51 @@ def institution_aliases() -> dict[str, str]:
             for canonical, variants in aliases.items() for alias in [canonical, *variants]}
 
 
+INSTITUTION_WORDS = (r'universit|hochschule|institut|school|college|cent(?:er|re)|laborator|polytech|academ|akademie|'
+                     r'\beth\b|\bepfl\b|\bmpi\b|max.planck|inria|gmbh|\bag\b|\binc\b|\bltd\b|\blabs?\b|research|'
+                     r'hospital|klinik|clinic|charit|foundation|stiftung')
+# National umbrella bodies (comparison key -> the word their institutes carry). Two units that both belong to one
+# are not one institution; an affiliation naming only the body is compatible with any of its institutes.
+UMBRELLA = {'cnrs': 'cnrs', 'centre national recherche scientifique': 'cnrs', 'inserm': 'inserm', 'cea': 'cea',
+            'fraunhofer': 'fraunhofer', 'fraunhofer gesellschaft': 'fraunhofer', 'helmholtz': 'helmholtz',
+            'helmholtz association': 'helmholtz', 'leibniz association': 'leibniz', 'max planck society': 'max planck',
+            'max planck gesellschaft': 'max planck'}
+
+
+def institution_names(value: str) -> tuple[set[str], set[str]]:
+    """(institutions, umbrella words) a printed affiliation names, folded through the alias registry: the items
+    of a list ("A; B", "A / B") and, for "Unit, Institution" or "Institution, City", the comma segment that reads
+    as an institution (a city, country or unit name does not count)."""
+    aliases = institution_aliases()
+    names, umbrellas = set(), set()
+    for part in re.split(r';|\s/\s', (value or '').split('||', 1)[0]):
+        candidates = [part]
+        if ',' in part:
+            head, tail = part.rsplit(',', 1)
+            candidates += [segment for segment in (head, tail) if re.search(INSTITUTION_WORDS, normalized(segment))]
+        for candidate in candidates:
+            name = institution_name(candidate)
+            if name in UMBRELLA:
+                umbrellas.add(UMBRELLA[name])
+            elif name:
+                names.add(aliases.get(name, name))
+    return names, umbrellas
+
+
+def same_institution_name(left: str, right: str) -> bool:
+    (a, ua), (b, ub) = institution_names(left), institution_names(right)
+    if a & b:
+        return True
+    return any(word in name for word in ua for name in b) or any(word in name for word in ub for name in a)
+
+
 def institution_ids(record: dict) -> set[str]:
     ids = record.get('ids') or {}
     institution = record.get('institution') or {}
+    # Provider ids describe the provider's institution: after a final-pass move they no longer place the person.
+    final = record.get('final_pass_affiliation')
+    if final and not same_institution_name(final, record.get('institution_name', '')):
+        return set()
     values = [('openalex', record.get('institution_id') or ids.get('openalex_institution') or institution.get('id')),
               ('ror', record.get('ror') or ids.get('ror') or institution.get('ror'))]
     return {f"{kind}:{value.rstrip('/').rsplit('/', 1)[-1].casefold()}" for kind, value in values if value}
@@ -57,23 +141,51 @@ def same_institution(left: str | dict, right: str | dict) -> bool:
             return True
     left = affiliation_for(left) if isinstance(left, dict) else left
     right = affiliation_for(right) if isinstance(right, dict) else right
-    aliases = institution_aliases()
-    a, b = institution_name(left), institution_name(right)
-    return bool(a and b and aliases.get(a, a) == aliases.get(b, b))
+    return same_institution_name(left, right)
 
 
-def related(member: dict, leader: dict) -> bool:
+AUTHORSHIP = {'first_author', 'coauthor', 'last_author'}
+# How a member is linked to its leader, strongest first. team: listed on the leader's team, company or school page;
+# project: works on a grant or project the leader holds; coauthor: shares only a paper or another output.
+LINKS = ('team', 'project', 'coauthor')
+TEAM_SIGNALS = {'lab_member', 'team_member', 'company_team', 'company_member', 'graduiertenkolleg_member', 'imprs_member'}
+COAUTHOR_SIGNALS = {'pi_coauthor_publication', 'lab_publication'}
+
+
+def link_kind(signal: dict, key: str, project_parents: set[str]) -> str:
+    kind = signal.get('signal_type', '')
+    if kind in TEAM_SIGNALS:
+        return 'team'
+    if kind in COAUTHOR_SIGNALS:
+        return 'coauthor'
+    if kind == 'grant_publication' or key in project_parents or (signal.get('channel') or '').startswith('funding'):
+        return 'project'
+    return 'coauthor'
+
+
+def strongest(kinds) -> str:
+    kinds = set(kinds)
+    return next((kind for kind in LINKS if kind in kinds), '')
+
+
+def project_parents(leader: dict) -> set[str]:
+    return {parent_name(s['parent']) for s in leader.get('signals', []) if s.get('role') == 'pi' and s.get('parent')}
+
+
+def related(member: dict, leader: dict) -> str:
+    """The strongest link kind through a shared parent or paper at matching signal institutions, or ''."""
+    kinds = []
     for a in member.get('signals', []):
         for b in leader.get('signals', []):
             if not same_institution(a, b):
                 continue
-            shared_parent = (leader.get('role_class') in {'professor', 'group_leader'}
-                             and a.get('parent') and a.get('parent') == b.get('parent'))
-            same_paper = (b.get('role') == 'last_author' and a.get('role') in {'first_author', 'coauthor'}
-                          and a.get('evidence_url') and a.get('evidence_url') == b.get('evidence_url'))
-            if shared_parent or same_paper:
-                return True
-    return False
+            if (leader.get('role_class') in {'professor', 'group_leader'}
+                    and a.get('parent') and a.get('parent') == b.get('parent')):
+                kinds.append('project' if b.get('role') == 'pi' else link_kind(a, parent_name(a['parent']), set()))
+            if (b.get('role') == 'last_author' and a.get('role') in {'first_author', 'coauthor'}
+                    and a.get('evidence_url') and a.get('evidence_url') == b.get('evidence_url')):
+                kinds.append('coauthor')
+    return strongest(kinds)
 
 
 def parent_name(value: str) -> str:
@@ -95,41 +207,75 @@ def shared_parent_link(member: dict, leader: dict) -> bool:
     return any(parent_name(s['parent']) in targets for s in member.get('signals', []) if s.get('parent'))
 
 
-def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, str]:
+def name_variant(key: str, names: set[str]) -> bool:
+    """A person-name parent spelled differently from the leader's name: same surname (last token) and the same
+    first initial ("George Drettakis" for "Georges Drettakis", "G. Drettakis")."""
+    tokens = key.split()
+    if not 2 <= len(tokens) <= 4:
+        return False
+    for name in names:
+        other = name.split()
+        if len(other) >= 2 and other[-1] == tokens[-1] and other[0][0] == tokens[0][0]:
+            return True
+    return False
+
+
+def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, str, str]:
+    """(evidence, rejection, link kind) for the strongest parent link from member to leader."""
     names = [leader.get('name', ''), leader.get('name_raw', '')]
     names += [s.get('name_raw', '') for s in leader.get('signals', [])]
-    direct = {parent_name(v) for v in homepages(leader) + names if v}
-    shared = {parent_name(s[key]) for s in leader.get('signals', [])
-              for key in ('parent', 'affiliation_raw') if s.get(key)}
-    rejected = ''
+    person_names = {parent_name(v) for v in names if v}
+    direct = {parent_name(v) for v in homepages(leader)} | person_names
+    # A leader's own authorship on a grant's or another PI's paper does not make that parent the leader's team:
+    # the grant parent belongs to its PI (role pi), a team-page parent to the person listed on it.
+    shared = {parent_name(s['parent']) for s in leader.get('signals', [])
+              if s.get('parent') and s.get('role') not in AUTHORSHIP}
+    # The leader's institution as a parent ("UNIVERSITAT POLITÈCNICA DE VALÈNCIA" on a grant record) names the
+    # employer, not the team: it links a member only through a roster signal.
+    institution = {parent_name(s['affiliation_raw']) for s in leader.get('signals', []) if s.get('affiliation_raw')}
+    projects = project_parents(leader)
+    rejected, links = '', []
     for signal in member.get('signals', []):
         parent = signal.get('parent')
         key = parent_name(parent) if parent else ''
-        if not key or not (key in direct or key in shared and leader.get('role_class') in {'professor', 'group_leader'}):
+        anchor = leader.get('role_class') in {'professor', 'group_leader'}
+        exact = key in direct or anchor and (key in shared or key in institution and signal.get('signal_type') in TEAM_SIGNALS)
+        # A spelling variant is only trusted where the institution confirms it.
+        variant = not exact and key and name_variant(key, person_names) and same_institution(member, leader)
+        if not key or not (exact or variant):
             continue
         url = signal.get('evidence_url') or evidence_url(leader)
+        # An undated roster still listing someone whom the final pass found at another institution is stale.
+        if (signal.get('signal_type') in TEAM_SIGNALS and not signal.get('date') and member.get('final_pass_affiliation')
+                and not same_institution(member, leader)):
+            rejected = f"moved since the roster: {parent} -> {leader['name']}, now {member['final_pass_affiliation']} | {url}"
+            continue
         paper = signal.get('channel') in {'awards-papers', 'industry', 'competitions'} or key not in lab_parents
         if paper and not same_institution(member, leader):
             rejected = f"coauthor only, different institution: {parent} -> {leader['name']} | {url}"
             continue
-        return f"parent {parent} -> {leader['name']} | {url}", ''
-    return '', rejected
+        note = ' (name variant)' if variant else ''
+        links.append((link_kind(signal, key, projects), f"parent {parent} -> {leader['name']}{note} | {url}"))
+    if links:
+        kind = strongest(kind for kind, _ in links)
+        return next(evidence for k, evidence in links if k == kind), '', kind
+    return '', rejected, ''
 
 
 def choose(member: dict, candidates: list[tuple], rule: int) -> dict | None:
+    """candidates are (leader, evidence, link kind)."""
     if not candidates:
         return None
     original = candidates
     if len(candidates) > 1:
-        candidates = [(leader, match) for leader, match in candidates
-                      if same_institution(member, leader)]
+        candidates = [candidate for candidate in candidates if same_institution(member, candidate[0])]
     if len(candidates) != 1:
-        names = ', '.join(leader['name'] for leader, _ in (candidates or original))
+        names = ', '.join(leader['name'] for leader, *_ in (candidates or original))
         return {'group': '', 'group_rule': rule,
                 'group_evidence': f'rule {rule}: ambiguous: {names} | {evidence_url(member)}'}
-    leader, match = candidates[0]
+    leader, match, kind = candidates[0]
     return {'_leader': id(leader), 'group': f"{leader['name']} @ {affiliation_for(leader)}", 'group_rule': rule,
-            'group_evidence': f'rule {rule}: {match}'}
+            'group_evidence': f'rule {rule}: {match}', 'group_link': kind}
 
 
 GENERIC_HOSTS = {'sites.google.com', 'github.com', 'www.github.com', 'people.epfl.ch',
@@ -194,35 +340,35 @@ def assign_groups(persons: list[dict]) -> list[dict]:
     for person in persons:
         pi = any(s.get('role') == 'pi' for s in person.get('signals', []))
         own = {'_leader': id(person), 'group': f"{person['name']} @ {affiliation_for(person)}", 'group_rule': 4,
-               'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}"}
+               'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}", 'group_link': 'team'}
         match = own if (pi or person.get('role_class') == 'professor') and affiliation_for(person) else None
         if match is None:
             candidates = [(leader, rule_one(person, leader, lab_parents)) for leader in leaders if leader is not person]
-            match = choose(person, [(leader, link) for leader, (link, _) in candidates if link], 1)
+            match = choose(person, [(leader, link, kind) for leader, (link, _, kind) in candidates if link], 1)
             if match is None:
-                rejected = [reason for _, (_, reason) in candidates if reason]
+                rejected = [reason for _, (_, reason, _) in candidates if reason]
                 if rejected:
                     match = {'group': '', 'group_rule': 1, 'group_evidence': 'rule 1: ' + '; '.join(rejected)}
         for rule, link_for in ((2, domain_link), (3, repository_link)):
             if match is None:
                 candidates = [(leader, link_for(person, leader)) for leader in leaders if leader is not person]
-                match = choose(person, [(leader, link) for leader, link in candidates if link], rule)
+                match = choose(person, [(leader, link, 'team') for leader, link in candidates if link], rule)
         if match is None:
-            candidates = [(leader, f"same institution and parent/paper -> {leader['name']} | {evidence_url(person)}")
-                          for leader in leaders if leader is not person
-                          and same_institution(person, leader) and related(person, leader)]
+            candidates = [(leader, f"same institution and parent/paper -> {leader['name']} | {evidence_url(person)}", kind)
+                          for leader in leaders if leader is not person and same_institution(person, leader)
+                          for kind in [related(person, leader)] if kind]
             match = choose(person, candidates, 4)
         if match is None and affiliation_for(person) and (person.get('role_class') in {'professor', 'group_leader'} or
                 any(s.get('role') == 'last_author' for s in person.get('signals', [])) and
                 any(other is not person and related(other, person) for other in persons)):
             match = own
-        results.append({**person, 'group_rule': None, **(match or {'group': '', 'group_evidence': 'unattached'})})
+        results.append({**person, 'group_rule': None, 'group_link': '', **(match or {'group': '', 'group_evidence': 'unattached'})})
     by_id = {id(person): index for index, person in enumerate(persons)}
     incoming = {p.get('_leader') for p in results if p.get('_leader')}
     for original, result in zip(persons, results):
         if id(original) in incoming and result['group_evidence'] == 'unattached':
-            result.update(_leader=id(original), group=f"{original['name']} @ {affiliation_for(original)}",
-                          group_rule=4, group_evidence=f"rule 4: linked leader self {original['name']} | {evidence_url(original)}")
+            result.update(_leader=id(original), group=f"{original['name']} @ {affiliation_for(original)}", group_rule=4,
+                          group_evidence=f"rule 4: linked leader self {original['name']} | {evidence_url(original)}", group_link='team')
     resolved = []
     for index, result in enumerate(results):
         path, current = [], index
@@ -238,7 +384,7 @@ def assign_groups(persons: list[dict]) -> list[dict]:
         if len(path) > 1:
             if current is None or not results[current]['group']:
                 names = ', '.join(results[i]['name'] for i in path)
-                updated.update(group='', group_evidence=f"rule {result['group_rule']}: ambiguous: {names} (leader chain unresolved) | {evidence_url(persons[index])}")
+                updated.update(group='', group_link='', group_evidence=f"rule {result['group_rule']}: ambiguous: {names} (leader chain unresolved) | {evidence_url(persons[index])}")
             elif result['group'] != results[current]['group']:
                 via = '; '.join(f"via {results[i]['name']}: {results[i]['group_evidence']}" for i in path[1:])
                 updated.update(group=results[current]['group'], group_evidence=f"{result['group_evidence']} | {via}")

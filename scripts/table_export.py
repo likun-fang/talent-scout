@@ -52,15 +52,31 @@ def in_window(signal: dict, start: datetime.date, end: datetime.date) -> bool:
         return start.year <= date.year <= end.year
     return start <= date <= end
 
+ROSTER_SIGNALS = {"lab_member", "team_member", "company_team", "company_member", "graduiertenkolleg_member", "imprs_member"}
+
+
+def verified_in_window(person: dict, start: datetime.date, end: datetime.date) -> bool:
+    """A final-pass read on or after the window start dates the person's undated roster signals: the page was read
+    then and still listed them, which is the strongest evidence of a current role a roster can give. The pass runs
+    after the run date, so the read is not bounded by the window end."""
+    verified = (person.get("last_verified") or "").strip()[:10]
+    try:
+        return start <= datetime.date.fromisoformat(verified)
+    except ValueError:
+        return False
+
+
 def filter_window(persons: list[dict], start: datetime.date, end: datetime.date) -> tuple:
     """Split each person's signals into qualifying (in window) and background. A person without a
     qualifying signal is dropped; the others keep every signal as evidence but rank on qualifying ones."""
     kept, rejected = [], []
     for person in persons:
         qualifying = []
+        verified = verified_in_window(person, start, end)
         for signal in person.get("signals", []):
             date = signal_date(signal)
-            if in_window(signal, start, end):
+            undated_roster = date == datetime.date.min and signal.get("signal_type") in ROSTER_SIGNALS
+            if in_window(signal, start, end) or (verified and undated_roster):
                 qualifying.append(signal)
             else:
                 reason = "missing_or_invalid_date" if date == datetime.date.min else "outside_window"
@@ -101,7 +117,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
         "ranked_channels": ranked_channels(p),
         "role_class": p.get("role_class", "unknown"),
         "role_confidence": p.get("role_confidence", "low"),
-        "tier": p.get("tier", 4),
+        "tier": p.get("tier", 5),
         "topics": ";".join(topics_for(sigs)),
         "group": p.get("group", ""),
         "role_evidence": p.get("role_evidence", ""),
@@ -111,7 +127,7 @@ def sort_key(p: dict) -> tuple:
     sigs = p.get("qualifying", p.get("signals", []))
     strongest = max((STRENGTH.get(s.get("strength"), 0) for s in sigs), default=0)
     newest = max((signal_date(s) for s in sigs), default=datetime.date.min)
-    return (p.get("tier", 4), -ranked_channels(p), -strongest, -newest.toordinal(), p.get("name", ""))
+    return (p.get("tier", 5), -ranked_channels(p), -strongest, -newest.toordinal(), p.get("name", ""))
 
 def flat(value) -> str:
     return ' '.join(str(value).split())
@@ -141,17 +157,20 @@ def country_for(person: dict) -> str:
 
 
 def tier_for(person: dict, core: set[str], extended: set[str] | None = None) -> int:
+    """1 core professor/group leader, 2 extended professor/group leader, 3 core researcher/PhD student,
+    4 extended PhD student, 5 everyone else in the region. Extended means extended minus core."""
     country = country_for(person)
     if country not in (extended if extended is not None else region_codes('EU27+UK+CH+NO')):
-        return 4  # Export removes these records before ranking.
+        return 5  # Export removes these records before ranking.
     role = person.get('role_class', 'unknown')
-    if country in core and role in {'professor', 'group_leader'}:
-        return 1
-    if country in core and role in {'researcher', 'phd_student'}:
-        return 2
-    if country not in core and role == 'phd_student':
+    in_core = country in core
+    if role in {'professor', 'group_leader'}:
+        return 1 if in_core else 2
+    if in_core and role in {'researcher', 'phd_student'}:
         return 3
-    return 4
+    if role == 'phd_student':
+        return 4
+    return 5
 
 
 def evidence_appendix(persons: list[dict]) -> str:

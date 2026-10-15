@@ -28,9 +28,9 @@ def person(name='A', **changes):
 class TierTests(unittest.TestCase):
     def test_all_country_role_tiers(self):
         roles = ['professor', 'researcher', 'phd_student', 'industry', 'unknown']
-        for country, expected in [('DE', [1, 2, 2, 4, 4]), ('CH', [1, 2, 2, 4, 4]),
-                                  ('FR', [4, 4, 3, 4, 4]), ('GB', [4, 4, 3, 4, 4]),
-                                  ('US', [4, 4, 4, 4, 4]), ('', [4, 4, 4, 4, 4])]:
+        for country, expected in [('DE', [1, 3, 3, 5, 5]), ('CH', [1, 3, 3, 5, 5]),
+                                  ('FR', [2, 5, 4, 5, 5]), ('GB', [2, 5, 4, 5, 5]),
+                                  ('US', [5, 5, 5, 5, 5]), ('', [5, 5, 5, 5, 5])]:
             for role, tier in zip(roles, expected):
                 with self.subTest(country=country, role=role):
                     p = person(country=country, role_class=role, signals=[signal(country=country)])
@@ -39,7 +39,7 @@ class TierTests(unittest.TestCase):
     def test_country_specs_accept_literal_codes(self):
         self.assertEqual(region_codes('DE+CH'), {'DE', 'CH'})
         self.assertIn('GB', region_codes('EU27+UK+CH'))
-        self.assertEqual(te.tier_for(person(country='US', role_class='phd_student'), {'DE'}, {'US', 'DE'}), 3)
+        self.assertEqual(te.tier_for(person(country='US', role_class='phd_student'), {'DE'}, {'US', 'DE'}), 4)
 
     def test_sort_order_each_tiebreaker(self):
         a = person('A', tier=1, signals=[signal(strength='low', date='2024')])
@@ -309,4 +309,11 @@ class PrecisionTests(unittest.TestCase):
     def test_group_leader_is_tier_one_in_core(self):
         from table_export import tier_for
         self.assertEqual(tier_for({'country': 'DE', 'role_class': 'group_leader'}, {'DE', 'CH'}), 1)
-        self.assertEqual(tier_for({'country': 'FR', 'role_class': 'group_leader'}, {'DE', 'CH'}), 4)
+        self.assertEqual(tier_for({'country': 'FR', 'role_class': 'group_leader'}, {'DE', 'CH'}), 2)
+
+    def test_extended_region_leaders_rank_above_core_region_students(self):
+        from table_export import sort_key, tier_for
+        leader = person('Leader', country='BE', role_class='professor', signals=[signal(country='BE', strength='low')])
+        student = person('Student', country='DE', role_class='phd_student', signals=[signal(), signal(channel='funding-eu')])
+        leader['tier'], student['tier'] = tier_for(leader, {'DE', 'CH'}), tier_for(student, {'DE', 'CH'})
+        self.assertEqual([p['name'] for p in sorted([student, leader], key=sort_key)], ['Leader', 'Student'])

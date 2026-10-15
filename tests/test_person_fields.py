@@ -153,7 +153,7 @@ class RoleTests(unittest.TestCase):
                 ca.main()
             results = [json.loads(line) for line in output.getvalue().splitlines()]
         self.assertEqual([p['name'] for p in results], ['Student', 'PI'])
-        self.assertEqual([p['tier'] for p in results], [2, 1])
+        self.assertEqual([p['tier'] for p in results], [3, 1])
         self.assertEqual([p['role_class'] for p in results], ['phd_student', 'professor'])
         self.assertEqual([p['group'] for p in results], ['PI @ Example Institute'] * 2)
         self.assertEqual([p['last_verified'] for p in results], ['', '2026-10-01'])
@@ -217,7 +217,7 @@ class PersonFieldsTests(unittest.TestCase):
             self.assertTrue({'role_class', 'role_evidence', 'role_confidence', 'tier', 'topics', 'group', 'last_verified'} <= person.keys())
             self.assertEqual(person['last_verified'], '')
         self.assertEqual(persons[0]['tier'], 1)
-        self.assertEqual(persons[1]['tier'], 2)
+        self.assertEqual(persons[1]['tier'], 3)
         self.assertEqual(len(mp.cluster([signal(affiliation_raw='Alpha'), signal(affiliation_raw='Beta')])), 2)
 
     def test_schema_and_column_contract(self):

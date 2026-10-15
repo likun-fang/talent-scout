@@ -5,7 +5,13 @@
 2. OpenAlex author id, DBLP pid, OpenReview id, GEPRIS person id (`ids.gepris`), SNSF person number (`ids.snsf`).
 3. GitHub login (engineering spine).
 4. Weak key: normalised name + a shared institution token ("Hugging Face, Paris" and "Hugging Face / Sorbonne" match;
-   exact-string matching missed six such pairs in the first run).
+   exact-string matching missed six such pairs in the first run). Tokens are words: an affiliation list joined by `;`
+   or a bracketed name yields the same tokens as the bare name ("TUM Klinikum; Technical University of Munich" shares
+   `klinikum` with "TUM Klinikum Rechts der Isar"). A short name and its long form ("EPFL", "École Polytechnique
+   Fédérale de Lausanne") share no token; the institution comparison of stage 4 (aliases, lists, umbrella bodies,
+   below) decides those. Two records the final pass recognises as one person (the same name on one team page, or a
+   page that names the other record's institution as the previous post) are merged by the apply step: the result line
+   says `duplicate_of: <name as in persons.jsonl>`, signals and ids are joined and the verified record's fields win.
 
 ## Procedure
 - Group signals sharing any strong key → one person.
@@ -14,7 +20,10 @@
 - Confidence: `high` (strong key), `medium` (weak key + same domain + plausible timeline),
   `low` (name match only: two rows, each marked `ambiguous`, joined later only by a strong key or a shared institution).
 - Current affiliation: ORCID employment with no end date, **unless** it started before the newest evidence and names
-  another country (people leave old records open; one run would have sent a professor back to a 1996 post). Then
+  another country (people leave old records open; one run would have sent a professor back to a 1996 post); an
+  open employment that the newest evidence still names is current even then (a Copenhagen professor on a paper
+  whose affiliation list also carries ETH Zurich stays in Copenhagen); and when that evidence names the employer
+  alone with another country, the evidence country wins over the ORCID address ("Lisbon, ID" is a typo). Then
   OpenAlex `last_known_institutions` when in region, then the newest evidence page. Record which source won and its
   date. When the newest evidence is dated after the OpenAlex record and names another institution, the evidence
   wins too (an arXiv parsing error filed a whole Hugging Face team under Oxford). `scripts/current_affiliation.py`
@@ -43,15 +52,15 @@ stop at the first match. It uses only the standard library.
 
 | priority | evidence | role_class | role_confidence |
 |----------|----------|------------|-----------------|
-| 1 | Verbatim title: phd student, doctoral student/researcher/candidate, doktorand, dissertation, ph.d. candidate | phd_student | high |
-| 1 | Verbatim title: postdoc, postdoctoral, senior scientist, research scientist, senior researcher and lecturer, imaging scientist, clinical scientist, wissenschaftlicher mitarbeiter, research associate, staff scientist, oberassistent | researcher | high |
+| 1 | Verbatim title: phd student, doctoral student/researcher/candidate, PhD fellow, doktorand, industridoktorand, dissertation, ph.d. candidate; "Scholars" when the title, affiliation or the signal's `parent` names a doctoral school (IMPRS) | phd_student | high |
+| 1 | Verbatim title: postdoc, postdoctoral, postdoktor(and), senior scientist, research scientist, senior researcher, lecturer outside GB/IE, imaging scientist, clinical scientist, wissenschaftlicher mitarbeiter, research associate, research and teaching associate, staff scientist, oberassistent | researcher | high |
 | 0 | `final_pass_title` read from the person's own or institutional page, with `final_pass_url` and `last_verified` | by title, as rule 1 | high |
-| 1 | Verbatim title: professor, prof., Honorarprofessor / Honorary Professor (evidence annotates `honorary`), chair of / chair holder / professor and chair, lehrstuhl, juniorprofessor, assistant/associate professor, faculty member or a bare "Faculty" heading; direktor/director with research-institute context. A bare "Chair" (board, session) is not a professorship | professor | high |
-| 1 | Verbatim title: group leader, Research Junior Group Lead, JRG Leader, Junior Research Group Leader, Site Lead, Head of any named area (including Digital Humanities), principal investigator / PI, Nachwuchsgruppenleiter, team leader, lab director | group_leader | high |
+| 1 | Verbatim title: professor, prof., Honorarprofessor / Honorary Professor (evidence annotates `honorary`), chair of / chair holder / professor and chair, lehrstuhl, juniorprofessor, assistant/associate professor, faculty member or a bare "Faculty" heading, also with a German grade ("Faculty (W2)"); titular de universidad, profesor agregado; direktor/director with research-institute context (institute, institut, MPI). A bare "Chair" (board, session) is not a professorship. In GB and IE (the person's `final_pass_country`, else `country`) Lecturer, Senior Lecturer, University Lecturer and Reader are the faculty ranks below Professor and count as professor; external, guest, visiting, associate, assistant and research lecturers and Lehrbeauftragte never do | professor | high |
+| 1 | Verbatim title: group leader, Research Junior Group Lead, JRG Leader, Junior Research Group Leader, Site Lead, Head of any named area (including Digital Humanities), principal investigator / PI, Nachwuchsgruppenleiter, team leader / team lead, lab director | group_leader | high |
 | 1 | A heading that joins a doctoral stage with another stage or with staff words ("PhD Students and Scientific Assistants", "Staff / PhD Students") | unknown, evidence says "mixed heading proves membership only" | low |
 | 1 | engineer, software, research engineer with institution type company; or a title containing GmbH/AG/Ltd/Inc | industry | high |
-| 2 | `erc_*`, `dfg_*`, `snsf_*`, `fwf_*`, `swecris_*`, `rcn_*`, `dff_*`, `fris_*`, `aei_*` signal with `role: pi` and no title seen. A grant proves the person leads a project, not an appointment. Personal grants name the holder's own stage: `snsf_ambizione`, `dfg_walter_benjamin`, `snsf_postdoc_mobility`, `fwf_esprit` → researcher; `snsf_doc_ch`, `snsf_doc_mobility` → phd_student | group_leader, or the personal-grant stage | medium |
-| before titles (rule 3) | Current company employer; a literal professorial title remains professor and mixed headings remain unknown | industry | high for a dated final-pass page; medium for provider/name evidence |
+| 2 | `erc_*`, `dfg_*`, `snsf_*`, `fwf_*`, `swecris_*`, `rcn_*`, `dff_*`, `fris_*`, `aei_*` signal with `role: pi` and no title seen. A grant proves the person leads a project, not an appointment. Personal grants name the holder's own stage: `snsf_ambizione`, `dfg_walter_benjamin`, `snsf_postdoc_mobility`, `snsf_swiss_postdoc`, `fwf_esprit` → researcher; `snsf_doc_ch`, `snsf_doc_mobility` → phd_student | group_leader, or the personal-grant stage | medium |
+| before titles (rule 3) | Current company employer; a literal professorial title remains professor and mixed headings remain unknown. Research institutes organised as a GmbH (DFKI, Forschungszentrum Jülich, Fraunhofer, Helmholtz, Max Planck, Leibniz) are not companies. A founder or C-level title (Founder, Co-Founder, CEO, CTO, COO, CSO) is industry on its own; a professorial title next to it still wins | industry | high for a dated final-pass page; medium for provider/name evidence |
 | 4 | Run year minus `first_pub_year` is 0–5 and strictly more than half of all signals have `role: first_author` | phd_student | low |
 | 4 | Run year minus `first_pub_year` is at least 10 and strictly more than half of all signals have `role: last_author` or `pi` | group_leader | low |
 | 4 | All other cases, including a missing/invalid publication year or no majority | unknown | low |
@@ -82,7 +91,7 @@ institution. A generic director title without institute context does not imply p
 Every classification writes `role_evidence` as `<source> | <verbatim excerpt> | <URL>`; the source
 includes `rule 1`, `rule 2`, `rule 3` or `rule 4`. Inference records the publication year, run year and
 participation roles instead of inventing a quoted title. For `Wissenschaftlicher Mitarbeiter`, the source
-also includes `DE: may be PhD student`. Rule 4 without any source URL keeps that component empty.
+also includes `DE: may be PhD student`, and so does its English rendering `Research and Teaching Associate`. Rule 4 without any source URL keeps that component empty.
 
 Signal `topics` contains 1–3 phrases copied verbatim from a paper title, project name or repository name;
 `role_title` is also verbatim. The schema retains an open signal-type vocabulary, including
@@ -98,14 +107,23 @@ another leader. A group_leader without a PI signal can belong to another leader'
 
 | group rule | link evidence |
 |------------|---------------|
-| 1 | A signal `parent` equals a leader's name/name_raw/homepage, or the signal parent/affiliation_raw of a professor/group_leader. PI/last_author alone cannot anchor the shared-team branch. Compare after casefold, accent removal and stripping academic titles |
+| 1 | A signal `parent` equals a leader's name/name_raw/homepage, or the signal parent of a professor/group_leader, or the affiliation_raw of a professor/group_leader when the member's signal is a roster signal (a grant record whose parent is the university names an employer, not a team). PI/last_author alone cannot anchor the shared-team branch. A leader's own authorship signal (first/last author, coauthor) does not make its parent the leader's team: a grant's publication parent belongs to the grant's PI (`role: pi`), a PI-name parent to that PI, a team page to the people listed on it. Compare after casefold, accent removal and stripping academic titles. A person-name parent spelled differently (same surname, same first initial: "George Drettakis" for "Georges Drettakis") matches only when member and leader are at the same institution, and the evidence says `name variant` |
 | 2 | Member and leader homepages share a non-generic host. Personal github.io subdomains and lab domains count; sites.google.com, github.com, personnel directories and institution roots do not. A www-prefixed lab subdomain can count; a shared team page cannot bypass the professor/group_leader requirement through its host |
 | 3 | An open-source member repository's GitHub organization matches any leader evidence URL/homepage organization |
 | 4 | Same current institution and shared parent (professor/group_leader anchor) or a shared-paper last author, with matching signal institutions; leader self anchors also record rule 4 |
 | none | Empty group and `group_evidence: unattached` |
 
+Each grouped person also gets `group_link`, the kind of link the rule found: `team` (a lab_member, team_member,
+company or doctoral-school roster parent, a homepage host, a repository organization, leader self), `project` (a
+grant_publication or funding signal, or a parent the leader holds as PI, at the same institution) or `coauthor`
+(pi_coauthor_publication, lab_publication, other paper parents and the same-paper branch of rule 4). When several
+signals link one member to the same leader, the strongest kind counts, in the order team, project, coauthor.
+`group_link` does not change `group`; unattached and ambiguous people carry an empty `group_link`.
+
 For multiple candidates, retain those at the member's institution; if there is still not exactly one, leave
-`group` empty and record `ambiguous: A, B`. A rule-1 parent from awards-papers / industry / competitions,
+`group` empty and record `ambiguous: A, B`. An undated roster that still lists a person whom the final pass placed at
+another institution is stale: the link is rejected as `moved since the roster` and later fallbacks do not override
+it. A rule-1 parent from awards-papers / industry / competitions,
 or a parent that is not used by any pool signal of type lab_member, is treated as paper evidence: require
 `same_institution` even for a unique leader. Otherwise record `coauthor only, different institution` and leave
 it unattached; later fallbacks do not override that rejection. Other unique team links, homepage-host and
@@ -113,19 +131,26 @@ repository-organization links may cross institutions. Preserve that distinction 
 leader's own membership to its final PI and record the chain; cyclic or unresolved leader chains remain
 ambiguous. An isolated last-author signal without a linked member does not invent a team.
 
-Compare institution names using only the first `||` segment, casefold, accent removal and removal of generic
-articles/prefixes (`the`, `university of`, `Universität`, `Université`, `Universiteit van`). Matching institutional
-OpenAlex IDs (`institution_id`, `ids.openalex_institution`, `institution.id`) or RORs (`ror`, `ids.ror`,
-`institution.ror`) also count; an OpenAlex **author** ID does not. `assets/institution-aliases.yaml` supplies
+Compare institution names using only the first `||` segment, casefold, accent removal and removal of "university
+of" in its translations (`University`, `Universität`, `Università di`, `Universidad de`, `Universiteit`, `the`, `of`,
+`de`, `di`, `van`), so "Utrecht University", "Universiteit Utrecht" and "University of Utrecht" are one name. A
+printed affiliation can name several institutions: the items of a list (`A; B`, `A / B`) and, around a comma, the
+segment that reads as an institution ("Chair of X, University of Freiburg" names Freiburg; "ETH Zurich, Switzerland"
+does not name Switzerland). Two people are at the same institution when any name matches. A national umbrella body
+(CNRS, Inserm, CEA, Fraunhofer, Helmholtz, Leibniz, Max Planck Society) is not an institution: two of its units do not
+match through it, but an affiliation that names only the body is compatible with any of its institutes. Matching
+institutional OpenAlex IDs (`institution_id`, `ids.openalex_institution`, `institution.id`) or RORs (`ror`, `ids.ror`,
+`institution.ror`) also count; an OpenAlex **author** ID does not, and a person's provider ids stop counting once
+`final_pass_affiliation` names another institution than the provider did. `assets/institution-aliases.yaml` supplies
 aliases such as EPFL / École Polytechnique Fédérale de Lausanne. It uses the JSON subset of YAML so the loader
 needs only the standard library. This normalization is for comparison; displayed affiliations stay verbatim.
 
 Every assigned group has `group_evidence: rule N: <match> | <URL>` and `group_rule` (integer; null if
 unattached). The evidence appendix includes it; the fixed person table does not add a column.
 
-Stage 4 emits `role_class`, `role_evidence`, `role_confidence`, `topics`, `group`, `group_evidence`, `group_rule`, `tier` and `last_verified`.
+Stage 4 emits `role_class`, `role_evidence`, `role_confidence`, `topics`, `group`, `group_evidence`, `group_rule`, `group_link`, `tier` and `last_verified`.
 The tier helper lives in `table_export.py` (see `50-output.md`) and is reused by both stage-4 CLIs.
-Export recomputes tiers using the requested regions. Out-of-region persons carry a placeholder tier 4
+Export recomputes tiers using the requested regions. Out-of-region persons carry a placeholder tier 5
 in stage 4 and are excluded from the roster.
 
 `last_verified` starts as `""`. Only the final pass that actually reads a person's page may fill it with

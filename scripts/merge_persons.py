@@ -10,9 +10,9 @@ Name-only matches are NEVER merged; they stay separate with merge_confidence=amb
 Standard library only; no mutation of input records.
 """
 from __future__ import annotations
-import argparse, datetime, json, sys, unicodedata
+import argparse, datetime, json, re, sys, unicodedata
 from current_affiliation import classify_role, region_codes
-from person_fields import assign_groups, topics_for
+from person_fields import assign_groups, same_institution, topics_for
 from collections import defaultdict
 
 STRONG = ("orcid", "openalex", "dblp", "openreview", "github", "gepris", "snsf")
@@ -23,7 +23,8 @@ def norm(s: str) -> str:
     return s.replace("-", " ").replace(".", "").strip()
 
 def inst_tokens(s: str) -> set[str]:
-    return {w for w in norm(s).replace(",", " ").replace("/", " ").split() if len(w) > 4}
+    # Affiliation lists arrive joined by ";" or in brackets; a token must not keep the punctuation.
+    return {w for w in re.findall(r"\w+", norm(s)) if len(w) > 4}
 
 def strong_keys(sig: dict) -> list[str]:
     ids = sig.get("ids") or {}
@@ -32,7 +33,9 @@ def strong_keys(sig: dict) -> list[str]:
 def weak_match(a: dict, b: dict) -> bool:
     if norm(a.get("name_raw", "")) != norm(b.get("name_raw", "")):
         return False
-    return bool(inst_tokens(a.get("affiliation_raw", "")) & inst_tokens(b.get("affiliation_raw", "")))
+    left, right = a.get("affiliation_raw", ""), b.get("affiliation_raw", "")
+    # Short names ("EPFL", "ETH") carry no token: the alias registry pairs them with the long form.
+    return bool(inst_tokens(left) & inst_tokens(right)) or same_institution(left, right)
 
 def cluster(signals: list[dict]) -> list[list[dict]]:
     parent: dict[int, int] = {}

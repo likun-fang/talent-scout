@@ -28,7 +28,7 @@ otherwise guesses a local code page and turns ä, ł, ś into mojibake; Mac read
 | ranked_channels | channels counted for sorting: those with a hop-0 signal or a high/medium signal |
 | role_class | professor / group_leader / researcher / phd_student / industry / unknown, from stage 4. `professor` is a literal professorial title seen on a page or register; `group_leader` leads a group or project without such a title seen (Emmy Noether, ERC PI, head of lab) |
 | role_confidence | high / medium / low |
-| tier | 1 / 2 / 3 / 4, recomputed from role and current country |
+| tier | 1 to 5, recomputed from role and current country |
 | topics | at most five deduplicated verbatim signal topics, joined with `;` |
 | group | `<PI name> @ <institution>`, or empty if inference was inconclusive |
 | role_evidence | `rule N: <source> | <verbatim excerpt> | <URL>`, the line that lets a reader check the role column |
@@ -39,7 +39,11 @@ those. Signals outside the window, undated or future-dated stay in the row's `si
 as evidence and are listed in `roster.excluded-signals.json`. This audit file includes window-excluded
 signals from both retained and omitted people; its length is not the retained-evidence count. `first_pub_year` is a
 lifetime fact, not an activity filter. Month-only dates use the first day of the month. A year-only date (GEPRIS gives
-start years) qualifies when that year overlaps the window at all, so a project begun in the window's start year counts. Pass `--date`
+start years) qualifies when that year overlaps the window at all, so a project begun in the window's start year counts. An
+undated roster signal (`lab_member`, `team_member`, `company_team`, `company_member`, `graduiertenkolleg_member`,
+`imprs_member`) qualifies when the person's `last_verified` is on or after the window start (the pass runs after the
+run date, so no upper bound): the final pass read the page on that date and it still listed the person, which is the
+strongest current-role evidence a roster can give. Pass `--date`
 from `run.meta.json` for reproducibility and `--window-months` only when the user asked for another window.
 
 Assign tiers before sorting:
@@ -47,9 +51,10 @@ Assign tiers before sorting:
 | tier | current country and role_class |
 |------|--------------------------------|
 | 1 | in core (default DE+CH), professor or group_leader |
-| 2 | in core, researcher or phd_student |
-| 3 | in extended minus core (default EU27+UK+CH+NO minus DE+CH), phd_student |
-| 4 | all other people in extended, including industry and unknown roles |
+| 2 | in extended minus core (default EU27+UK+CH+NO minus DE+CH), professor or group_leader |
+| 3 | in core, researcher or phd_student |
+| 4 | in extended minus core, phd_student |
+| 5 | all other people in extended, including industry and unknown roles |
 
 Countries outside extended go to `roster.out-of-region.json` and do not enter the table.
 Sort by tier ascending, `ranked_channels` descending, strongest qualifying signal descending,
@@ -86,7 +91,9 @@ Columns, in order:
 - `homepage`: the PI's homepage if the PI is present; otherwise empty. `topics`: exact deduplication
   of member signal topics, maximum five, joined with `;`.
 - `members`: `Name(role_class)`, joined with `;`, sorted by tier ascending then name. `member_count`
-  counts included person records.
+  counts included person records. Both include everyone whose `group` names the group, whatever their
+  `group_link` (`40-entity-resolution.md`); the talent map lists coauthor-only people apart and leaves them out
+  of the member count, the intro sentence and the group's tag counts.
 - `recent_outputs`: the strongest three signals inside the run window, ties by newest date and then
   signal type/URL; `signal_type@date: snippet` with at most 80 characters of the snippet. Shared outputs
   are deduplicated by type, date and evidence URL, retaining the strongest instance.
