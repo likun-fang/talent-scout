@@ -71,7 +71,12 @@ top contributors are in region. Record repo URLs; people come later via hops.
 
 Write `RUN_DIR/domain-map.yaml` (template in `SKILL_ROOT/assets/domain-map.template.yaml`) and a copy to
 `RUN_DIR/domain-cache/<slug>.yaml` with `derived_on` and `sources_used`; `SKILL_ROOT/domain-cache/` changes only when
-the maintainer confirms by hand. Show the user a one-screen summary: topics, venues, labs (core region first),
+the maintainer confirms by hand. Next to it write `RUN_DIR/facets.json` (template `SKILL_ROOT/assets/facets.template.json`):
+two to four facets that classify the domain's research directions, each a short list of tags with the words that
+put a record under the tag. Take the facets from how the field itself sorts its work, for example the axes of a
+public leaderboard (RoboDojo sorts robot-manipulation policies by policy type, capability dimension and sim/real
+setting); the keywords come from the topic phrases stage 1 has seen. The talent map matches them against every
+person's topics, snippets and project titles and offers one filter per facet; the tags never enter the roster. Show the user a one-screen summary: topics, venues, labs (core region first),
 competitions, companies, anchors, panels and register filters, plus the stage-0 defaults in use. Then stop and wait
 for the user's reply; do not start stage 2 until the user has answered. One sentence is enough ("go", or the changes
 to make). Apply the changes to both copies of the map, then set `stage_status["1"]` to `"done"`.

@@ -1,0 +1,26 @@
+{
+  "_comment": "Research-direction facets for one domain: copy to RUN_DIR/facets.json at stage 1 and edit. Each tag lists the words that put a person under it; matching is case- and accent-insensitive on whole words; a tag applies when one keyword occurs in the person's or a signal's topics, or two different keywords occur across signal snippets and project, paper or repository titles. A person can carry several tags per facet; a group carries its team and project members' tags. This example follows the RoboDojo leaderboard (robodojo-benchmark.com/leaderboard, 2026-10): policy type, capability dimension and evaluation setting for generalist robot manipulation.",
+  "facets": [
+    {"id": "policy", "label": {"en": "policy type", "zh": "策略类型"}, "tags": [
+      {"id": "vla", "label": {"en": "VLA", "zh": "视觉-语言-动作模型"}, "keywords": ["vision-language-action", "vla", "vlas", "language-conditioned policy"]},
+      {"id": "wam", "label": {"en": "world / world-action model", "zh": "世界模型"}, "keywords": ["world model", "world models", "world-action model", "wam", "video prediction", "action-conditioned video"]},
+      {"id": "vlm", "label": {"en": "VLM planner", "zh": "VLM 规划"}, "keywords": ["vision-language model", "vision language model", "vlm", "vlms", "multimodal llm", "task planning with language"]},
+      {"id": "agent", "label": {"en": "agent", "zh": "智能体"}, "keywords": ["agent", "agents", "agentic", "tool use", "llm planner"]},
+      {"id": "il", "label": {"en": "imitation learning", "zh": "模仿学习"}, "keywords": ["imitation learning", "behavior cloning", "behaviour cloning", "diffusion policy", "learning from demonstration", "teleoperation data"]},
+      {"id": "rl", "label": {"en": "reinforcement learning", "zh": "强化学习"}, "keywords": ["reinforcement learning", "rl", "sim-to-real", "reward", "policy optimization"]}
+    ]},
+    {"id": "capability", "label": {"en": "capability", "zh": "能力维度"}, "tags": [
+      {"id": "generalization", "label": {"en": "generalization", "zh": "泛化"}, "keywords": ["generalization", "generalisation", "generalist", "zero-shot", "unseen objects", "cross-embodiment", "open-vocabulary"]},
+      {"id": "precision", "label": {"en": "precision", "zh": "精细操作"}, "keywords": ["precision", "dexterous", "dexterity", "fine-grained manipulation", "insertion", "assembly", "contact-rich", "in-hand"]},
+      {"id": "long-horizon", "label": {"en": "long horizon", "zh": "长程任务"}, "keywords": ["long-horizon", "long horizon", "multi-step", "multi-stage", "task planning", "hierarchical policy"]},
+      {"id": "memory", "label": {"en": "memory", "zh": "记忆"}, "keywords": ["memory", "partial observability", "partially observable", "history-aware", "recurrent"]},
+      {"id": "open", "label": {"en": "open world", "zh": "开放环境"}, "keywords": ["open-world", "open world", "open-ended", "in-the-wild", "household", "unstructured environments"]}
+    ]},
+    {"id": "setting", "label": {"en": "setting", "zh": "评测场景"}, "tags": [
+      {"id": "sim", "label": {"en": "simulation", "zh": "仿真"}, "keywords": ["simulation", "simulator", "simulated", "sim", "benchmark", "benchmarks", "isaac", "mujoco", "habitat"]},
+      {"id": "real", "label": {"en": "real robot", "zh": "真机"}, "keywords": ["real-world", "real world", "real robot", "real-robot", "deployment", "field", "teleoperation"]},
+      {"id": "humanoid", "label": {"en": "humanoid / legged", "zh": "人形/足式"}, "keywords": ["humanoid", "humanoids", "legged", "quadruped", "biped", "locomotion", "whole-body"]},
+      {"id": "manipulation", "label": {"en": "manipulation", "zh": "操作臂"}, "keywords": ["manipulation", "manipulator", "grasping", "grasp", "bimanual", "dual-arm", "gripper", "dexterous hand", "mobile manipulation"]}
+    ]}
+  ]
+}

@@ -77,10 +77,13 @@ one team page covers a whole group. The optional `scripts/visit_page.py` records
 reading a page does not itself verify a role. Write what the page says into `final_pass_title`,
 `final_pass_affiliation` and `final_pass_country`, then re-export: a corrected country or role changes the tier,
 but the pass adds nobody to the table. Set `stage_status["final_pass"]` when done.
+To read the result as a map, run `scripts/talent_map.py` on the same enriched `persons.jsonl` after the re-export:
+one `talent-map.html` in `RUN_DIR` with every institution, group, person and evidence link, filterable by the
+research-direction tags of `RUN_DIR/facets.json` from stage 1 (`scripts/README.md`).
 
 ## Scripts
 
-`scripts/` holds optional Python 3 standard-library helpers for OpenAlex lookups, merging and table export,
-each with a manual equivalent in its stage file, plus a page reader for the final pass. All run on the standard
+`scripts/` holds optional Python 3 standard-library helpers for OpenAlex lookups, merging, table export and
+the talent map, each with a manual equivalent in its stage file, plus a page reader for the final pass. All run on the standard
 library; the reader's browser mode for JavaScript-only lab pages is the one optional Playwright dependency.
 See `scripts/README.md`.
