@@ -60,5 +60,14 @@ labs:
   - {name: "Max Planck Institute for Intelligent Systems", openalex_institution_id: I4210135521, works: 326}
 companies: []   # filled by startups/industry channel
 open_source_anchors: [huggingface/lerobot, stack-of-tasks/pinocchio, loco-3d/crocoddyl, leggedrobotics/rsl_rl, leggedrobotics/legged_gym, isaac-sim/IsaacLab, google-deepmind/mujoco_playground, leggedrobotics/ocs2]
-keywords: [robot learning, embodied, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, dexterous, imitation learning, reinforcement learning robot]
+# Policy scope clarified 2026-10-15 at user request; cached dates/counts above were NOT refreshed.
+# Robot policy: maps observations/state and optional task instructions to robot actions/action sequences.
+# VLA may implement a policy; imitation learning/RL train policies. VLMs and world/action models
+# may support perception, planning or prediction without being action policies themselves.
+# Accept policy work when the title/abstract/repository demonstrates robot action generation,
+# manipulation or locomotion, in simulation or on real robots. Bare policy, RL, flow matching,
+# video generation or LLM alignment is not sufficient. Tags are overlapping, not admission rules.
+# selection_reason: add explicit robot-action-policy retrieval alongside existing robot-learning terms.
+# References: https://diffusion-policy.cs.columbia.edu/ ; https://www.pi.website/blog/pi0
+keywords: [robot learning, embodied, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, dexterous, imitation learning, reinforcement learning robot, robot policy, robot policies, robotic policy, robotic policies, visuomotor policy, visuomotor policies, diffusion policy, diffusion policies, generalist robot policy, generalist robot policies, robot action generation, flow matching for robot control, flow-based robot policy, flow-based robot policies]
 prizes_filter: engineering

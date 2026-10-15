@@ -91,6 +91,16 @@ python3 "$SKILL_ROOT/scripts/talent_map.py" "$RUN_DIR/persons.enriched.jsonl" --
 `talent_map.py` is for reading the result, not a deliverable column: open the HTML in a browser (Leaflet and the
 map tiles load from the network; the data is inline). Rerun it after the final pass so the corrected affiliations
 and `final_pass_*` fields appear. The page stays under `runs/`, which holds personal data and is not committed.
+The embodied-AI facet example includes `robot-policy`: generating robot actions or action sequences from
+observations/state and optional task instructions. It overlaps with VLA; imitation learning and RL describe
+training methods, while a VLM or world model need not output actions. The facet id `policy` is retained for
+compatibility, with the display label "research approach". Explicit robot-policy phrases (including diffusion
+policy) enable the new tag; bare `policy`, `RL`, `flow matching` and `world model` do not enable it.
+These are lexical discovery tags, not semantic verification: review the robot task and action-generation evidence
+in the title/abstract/repository before accepting a lead. The embodied domain cache adds the same retrieval phrases.
+Existing run-local `facets.json` files are not migrated automatically; copy the updated tag into the run's chosen
+facets and regenerate its map when updating an existing run.
+
 The page is bilingual (English / 中文 toggle, `?lang=zh` in a shared link). Each group and person card opens with
 a sentence built from the record; `--summaries RUN_DIR/summaries.json` replaces it with written summaries,
 `{"groups": {"<PI> @ <institution>": {"en": "...", "zh": "..."}}, "persons": {"<name>": {...}}}`, when a later
