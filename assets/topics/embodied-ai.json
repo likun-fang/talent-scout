@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "include_preprints": true,
+  "topics": [
+    {"id": "vla", "label": "VLA", "facet_ids": ["vla"]},
+    {"id": "vlm", "label": "VLM", "facet_ids": ["vlm"]},
+    {"id": "robot-policy", "label": "Policy", "facet_ids": ["robot-policy"]},
+    {"id": "world-model", "label": "World Model", "facet_ids": ["wam"]},
+    {"id": "wam", "label": "WAM", "facet_ids": ["wam"]}
+  ]
+}

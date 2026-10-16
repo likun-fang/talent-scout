@@ -7,6 +7,11 @@ something that is hopped to people (org, work, team, company). Each channel does
 rosters not public, where the method did not fit reality). Wherever a channel file says "in region", read
 `region_extended`; `region_core` decides the tier later, not who gets a signal.
 
+For planned runs, use assigned task IDs and the helper entry point in `../20-execution-tracing.md`. Record actual
+calls automatically and research handoffs separately. Preserve pending pages, cursors, authors and unknown
+geography as gaps. A failed request is not a zero-result search. Share existing channel budgets across workers.
+Disclose uninstrumented host-tool calls; their evidence remains useful but cannot certify automatic coverage.
+
 ```json
 {"kind": "person|org|work|team|company",
  "name_raw": "...", "affiliation_raw": "...", "country": "DE",

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse, datetime, json, os, sys, urllib.parse, urllib.request
 
 from openalex_auth import auth_headers
+from execution_trace import traced
 
 API = "https://api.openalex.org"
 REGIONS = {
@@ -27,6 +28,11 @@ def region_codes(spec: str) -> list[str]:
         codes = codes + REGIONS.get(part.strip().upper(), [part.strip().upper()] if len(part.strip()) == 2 else [])
     return codes
 
+@traced('openalex.query', inputs=lambda path, params: {'path': path, 'query': params},
+        outputs=lambda result: {'status': 'success',
+                                'result_count': len(result.get('results', result.get('group_by', [result]))),
+                                'next_cursor': (result.get('meta') or {}).get('next_cursor')},
+        metadata={'operation': 'retrieval', 'provider': 'openalex'})
 def get(path: str, params: dict) -> dict:
     url = f"{API}{path}?{urllib.parse.urlencode(params, safe=':,|>')}"
     try:

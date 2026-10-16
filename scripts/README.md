@@ -4,12 +4,19 @@ OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows r
 
 | script | stage | input → output |
 |--------|-------|----------------|
+| `run_step.py` | 2–5 | `init` freezes/version-controls a declared plan; `run` executes a task command with local parent/child traces and artifact checks, preserving its exit code and stdout |
+| `check_execution.py` | 2–5 | `--record` attaches research handoffs; `--run-dir` compares planned tasks with observed attempts and writes execution-check JSON/Markdown; exit 2 for incomplete/invalid/not-checked |
 | `openalex_lookup.py` | 1, 3, 4 | `--topic "<phrase>"` → top 10 topics to choose from; `--topics T1,T2` → venues (repository source types dropped, name blacklist as supplement) / institutions / lead authors in region; `--title "<paper>"` → authors with institutions; `--author <id>` → record with ORCID |
 | `visit_page.py` | final pass | public URL (or `--batch` file) → timestamped page text or LinkedIn excerpts, access status; optional Playwright rendering for JS-only lab pages |
 | `current_affiliation.py` | 4 | `persons.jsonl` → same records with current affiliation from ORCID / OpenAlex / newest evidence, with the stale-ORCID override, role classification, topics, group and tier |
 | `merge_persons.py` | 4 | `signals.jsonl` → `persons.jsonl` using the key ladder; emits role fields, topics, group and tier; never merges on name alone |
 | `table_export.py` | 5 | `persons.jsonl` → region-filtered `roster.csv` + `roster.md` + `groups.csv` + `groups.md` (+ Coverage and evidence, `.out-of-region.json`, `.excluded-signals.json`), sorted by tier before `--max-rows` |
 | `talent_map.py` | 5 | the same `persons.jsonl` → one `talent-map.html`: a map of institutions with every group, person, signal and evidence link inline; same selection, tiers and groups as `table_export.py`; institutions placed from the manual table `assets/geo-overrides.json` (city level, with sources), then through ROR (cached in `cache/geo/`, `--offline` to reuse), country centroid when neither has a match; research-direction tags from `facets.json` (`--facets`) |
+
+Tracing usage, plan/handoff examples, opt-in LangSmith setup and limitations are in
+[`references/20-execution-tracing.md`](../references/20-execution-tracing.md). Local tracing needs only the standard
+library; `requirements-tracing.txt` adds the optional SDK. `execution_trace.py` and `execution_plan.py` are shared
+helpers. Tracing does not change selection, roles, grouping or HTML tags and does not auto-schedule host agents.
 
 Date defaults: `openalex_lookup.py --topics` queries the 36 months ending on `--date` (default today);
 `--since YYYY` widens the start to that January 1. `table_export.py` applies the same 36-month window before
@@ -172,6 +179,13 @@ If you used it, configure your key again with the setup script, then remove the 
 the skill. Git ignore rules do not exclude files from arbitrary directory archives.
 
 ## Final-pass corrections and offline replay
+
+New runs also pass `--topic-policy RUN_DIR/topic-policy.json` to **both** `table_export.py` and
+`talent_map.py`. `research_topics.py` validates short labels and professor eligibility per recent authored
+paper/topic, without rewriting source signals. Both tools also auto-load a policy beside the persons
+input. An explicitly missing or invalid policy fails; historical exports without one are `not_checked`.
+The roster writes `.topic-audit.json` for pending/failed evidence and the HTML lists the qualifying papers.
+See `references/46-topic-qualification.md` for collection fields and conservative partial-date handling.
 
 `final_pass_affiliation` (verbatim) and `final_pass_country` (ISO-2) override provider values before tier calculation.
 `affiliation_source` becomes `final pass <last_verified> <final_pass_url>`; notes keep the prior affiliation/source.

@@ -1,5 +1,11 @@
 # Stage 5 — Output
 
+For new runs, first apply `46-topic-qualification.md` using `--topic-policy RUN_DIR/topic-policy.json` in
+both exporters. This overrides the legacy topic/window rules below: displayed topics are short configured
+labels; professors require an authored recent paper for each topic, and missing evidence goes to
+`roster.topic-audit.json`. The raw evidence stays verbatim. Runs without a policy retain the legacy behavior
+below and report `not_checked`. Never present such a historical export as satisfying the new paper rule.
+
 The person table is written to `roster.csv` and `roster.md`; the Markdown also includes Coverage and evidence.
 A group view is written to `groups.csv` and `groups.md` in the same directory. Write the CSV as UTF-8 **with BOM** (`utf-8-sig`): Windows Excel
 otherwise guesses a local code page and turns ä, ł, ś into mojibake; Mac readers accept either. Columns are fixed

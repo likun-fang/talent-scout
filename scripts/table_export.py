@@ -16,6 +16,7 @@ import argparse, csv, datetime, glob, json, os, sys
 from pathlib import Path
 from current_affiliation import region_codes, apply_final_pass, classify_role, FUNDING_PREFIXES
 from person_fields import topics_for, assign_groups
+from research_topics import policy_for, apply_policy
 
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
            "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes",
@@ -118,7 +119,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
         "role_class": p.get("role_class", "unknown"),
         "role_confidence": p.get("role_confidence", "low"),
         "tier": p.get("tier", 5),
-        "topics": ";".join(topics_for(sigs)),
+        "topics": ";".join(p.get('display_topics', topics_for(sigs))),
         "group": p.get("group", ""),
         "role_evidence": p.get("role_evidence", ""),
     }
@@ -179,6 +180,10 @@ def evidence_appendix(persons: list[dict]) -> str:
         lines.append(f"\n### {person['name']}\n")
         lines.append(flat(person.get('role_evidence', 'Role evidence unavailable')) + '\n')
         lines.append(flat(person.get('group_evidence', 'unattached')) + '\n')
+        for paper in person.get('topic_papers', []):
+            lines.append(flat(f"- Topic qualification [{', '.join(paper['topic_ids'])}]: "
+                              f"{paper['title']} | {paper['date']} | {paper['status']} | {paper['url']} | "
+                              f"authorship: {paper['authorship_evidence_url']}"))
         lines.extend(flat(f"- {s.get('signal_type', '')}@{s.get('date') or ''}: {s.get('snippet', '')} | {s.get('evidence_url', '')}")
                      for s in person.get('signals', []))
     return '\n'.join(lines) + '\n'
@@ -216,7 +221,9 @@ def group_row(group: str, persons: list[dict], start: datetime.date, end: dateti
         'group': group or '(unattached)', 'pi_name': pi_name, 'institution': institution,
         'country': join_unique(country_for(p) for p in members), 'tier': min(p['tier'] for p in members),
         'homepage': pi.get('homepage') or next((s['homepage'] for s in pi.get('signals', []) if s.get('homepage')), ''),
-        'topics': ';'.join(topics_for(signals)),
+        'topics': (join_unique(t for p in members if p.get('group_link') != 'coauthor'
+                              for t in p.get('display_topics', []))
+                   if any('display_topics' in p for p in members) else ';'.join(topics_for(signals))),
         'members': ';'.join(f"{p['name']}({p.get('role_class', 'unknown')})" for p in members),
         'member_count': len(members),
         'recent_outputs': ';'.join(f"{s.get('signal_type')}@{s.get('date') or ''}: {(s.get('snippet') or '')[:80]}" for s in recent[:3]),
@@ -262,6 +269,14 @@ def select_persons(persons: list[dict], args) -> tuple:
         persons = assign_groups(persons)
     start = window_start(args.date, args.window_months)
     qualified, rejected = filter_window(persons, start, args.date)
+    policy = policy_for(args)
+    if policy:
+        def recent_signals(person):
+            records, _ = filter_window([person], start, args.date)
+            return records[0]['qualifying'] if records else []
+        qualified, topic_audit = apply_policy(
+            persons, policy, start, args.date, recent_signals)
+        rejected += [{**item, 'check': 'topic_policy'} for item in topic_audit]
     codes, core = region_codes(args.region), region_codes(args.region_core)
     eligible = [{**p, 'tier': tier_for(p, core, codes)} for p in qualified
                 if any(s.get('evidence_url') for s in p.get('signals', []))]
@@ -291,8 +306,15 @@ def export(persons: list[dict], args) -> None:
     with open(f'{args.out}.out-of-region.json', 'w', encoding='utf-8') as target:
         json.dump([{k: r[k] for k in ('name', 'current_affiliation', 'country', 'affiliation_source')} for r in outside], target, ensure_ascii=False, indent=1)
     with open(f'{args.out}.excluded-signals.json', 'w', encoding='utf-8') as target:
-        json.dump(rejected, target, ensure_ascii=False, indent=2)
+        json.dump([r for r in rejected if r.get('check') != 'topic_policy'], target, ensure_ascii=False, indent=2)
+    policy = policy_for(args)
+    if policy:
+        with open(f'{args.out}.topic-audit.json', 'w', encoding='utf-8') as target:
+            json.dump([r for r in rejected if r.get('check') == 'topic_policy'], target, ensure_ascii=False, indent=2)
     coverage = window_coverage(persons, selected, start, args.date, no_qualifying)
+    coverage += ('- topic policy: checked; professors require a recent authored paper per displayed topic; '
+                 'see .topic-audit.json for pending evidence (not proof of inactivity)\n'
+                 if policy else '- topic policy: not_checked (legacy export without topic-policy.json)\n')
     coverage += coverage_text(len(rows), cut, len(outside), args.coverage_dir)
     write_md(rows, f'{args.out}.md', coverage, appendix=evidence_appendix(selected))
     write_groups(selected, args.out, start, args.date)
@@ -310,6 +332,7 @@ def main() -> None:
     parser.add_argument('--region-core', default='DE+CH')
     parser.add_argument('--max-rows', type=int, default=0)
     parser.add_argument('--coverage-dir', default=None)
+    parser.add_argument('--topic-policy', help='topic policy JSON; defaults to topic-policy.json beside persons')
     args = parser.parse_args()
     if not 1 <= args.window_months <= (args.date.year - 1) * 12 + args.date.month - 1:
         parser.error('--window-months must be positive and not reach before year 1')

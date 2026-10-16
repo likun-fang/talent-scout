@@ -6,6 +6,7 @@ sources_used: [domain-cache-2026-10-08, official-project-pages, robodojo, xpolic
 region_core: "DE+CH+FR+ES+NL+BE"  # defaults only; explicit run scope takes precedence
 region_extended: "EU27+UK+CH+NO"
 facets_file: assets/facets/embodied-ai.json  # relative to SKILL_ROOT; copied by the stage-1 agent
+topic_policy_file: assets/topics/embodied-ai.json  # short labels + recent professor papers; copied into RUN_DIR
 scope:
   core:
     - Visual and language conditioning connected to robot action generation (VLA).

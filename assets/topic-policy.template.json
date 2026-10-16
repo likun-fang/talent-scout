@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "include_preprints": true,
+  "topics": [
+    {"id": "vlm", "label": "VLM", "facet_ids": ["vlm"]},
+    {"id": "vla", "label": "VLA", "facet_ids": ["vla"]},
+    {"id": "agentic", "label": "Agentic", "facet_ids": ["agentic"]}
+  ]
+}

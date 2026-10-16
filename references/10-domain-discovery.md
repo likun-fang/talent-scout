@@ -14,6 +14,9 @@ For `embodied-ai`, start from `SKILL_ROOT/domain-cache/embodied-ai.yaml`. Its `s
 source-to-person follow-ups. These are instructions for the agent, not fields executed by a Python scheduler.
 Carry them into the run domain map and channel briefs; record the seed IDs and query groups assigned to each
 channel. Use the existing channels and hop rules, with a per-direction coverage record inside their coverage notes.
+For new runs, materialize these assignments in the plan described in `20-execution-tracing.md`. Copy all required
+direction IDs from the agreed map and freeze the plan before stage 2. The checker validates declared task execution;
+it does not turn this YAML into an automatic scheduler or verify that chosen queries are sufficient.
 Do not treat the cached broad robotics topics, an inspected shortlist or a nonempty roster as complete coverage.
 
 The run's explicit domain, geography, dates and budgets take precedence over preset defaults. Materialize `window`
@@ -98,6 +101,12 @@ Search GitHub topics matching the phrase; take repos with the most stars whose o
 top contributors are in region. Record repo URLs; people come later via hops.
 
 ## Emit and stop
+
+Also write `RUN_DIR/topic-policy.json` following `46-topic-qualification.md`: copy/adapt the preset's
+`topic_policy_file` when present, otherwise derive concise domain labels using `assets/topic-policy.template.json`
+as a format example. This controls displayed topics and professor paper eligibility; it is separate from
+the broad task/modality/evaluation facets and does not add discovery directions. Show the chosen short labels
+and preprint setting with the domain map, and hash the policy in the execution plan's `config_refs`.
 
 Write `RUN_DIR/domain-map.yaml` (template in `SKILL_ROOT/assets/domain-map.template.yaml`) and a copy to
 `RUN_DIR/domain-cache/<slug>.yaml` with `derived_on` and `sources_used`; `SKILL_ROOT/domain-cache/` changes only when

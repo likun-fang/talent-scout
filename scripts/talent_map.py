@@ -19,6 +19,7 @@ from collections import Counter
 from pathlib import Path
 from table_export import select_persons, row_for, group_rows, window_start, signal_date
 from person_fields import facet_texts, tags_for
+from research_topics import policy_for, topic_tags
 
 ASSETS = Path(__file__).resolve().parents[1] / 'assets'
 ROR_API = 'https://api.ror.org/v2/organizations?query='
@@ -32,7 +33,7 @@ CENTROIDS = {
     'NO': (61.5, 9.0),
 }
 SIGNAL_FIELDS = ('signal_type', 'date', 'strength', 'channel', 'evidence_url', 'snippet', 'role', 'role_title',
-                 'affiliation_raw', 'country', 'hop_depth', 'parent', 'topics', 'note', 'fit')
+                 'affiliation_raw', 'country', 'hop_depth', 'parent', 'topics', 'note', 'fit', 'publication', 'topic_evidence')
 
 
 def load_aliases() -> dict:
@@ -150,6 +151,8 @@ def person_entry(person: dict, row: dict, aliases: dict) -> dict:
              'signals': [trimmed_signal(s) for s in signals],
              'group_evidence': person.get('group_evidence', ''), 'group_rule': person.get('group_rule'),
              'group_link': person.get('group_link', '')}
+    if 'display_topics' in person:
+        entry['topic_papers'] = person.get('topic_papers', [])
     for key in ('final_pass_title', 'final_pass_affiliation', 'final_pass_country', 'final_pass_url', 'linkedin_headline'):
         if person.get(key):
             entry[key] = person[key]
@@ -199,8 +202,10 @@ def build_data(persons: list[dict], args, geocoder, summaries: dict | None = Non
     selected, outside, rejected, cut, no_qualifying = select_persons(persons, args)
     date = args.date.isoformat()
     entries = [person_entry(p, row_for(p, args.domain, date), aliases) for p in selected]
+    policy = policy_for(args)
     for person, entry in zip(selected, entries):
-        entry['tags'] = tags_for(*facet_texts(person), facets) if facets else []
+        entry['tags'] = (topic_tags(person, policy, facets, tags_for, facet_texts) if policy
+                         else tags_for(*facet_texts(person), facets)) if facets else []
     start = window_start(args.date, args.window_months)
     by_name = {e['name']: e for e in entries}
     groups = []
@@ -249,6 +254,8 @@ def build_data(persons: list[dict], args, geocoder, summaries: dict | None = Non
                              'tier': min(e['tier'] for e in people)})
     return {
         'meta': {'domain': args.domain, 'date': date, 'window_start': start.isoformat(), 'region': args.region,
+                 'topic_policy': 'checked' if policy else 'not_checked',
+                 'professors_pending_evidence': sum(r.get('reason') == 'professor_pending_recent_topic_paper' for r in rejected),
                  'region_core': args.region_core, 'persons': len(entries), 'groups': len(groups),
                  'institutions': len(institutions), 'out_of_region': len(outside), 'no_qualifying': no_qualifying,
                  'cut': cut, 'generated': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
@@ -374,6 +381,8 @@ const I18N = {
     ids: 'identifiers', notes: 'notes', hop: 'hop', merge: 'merge', fit: 'fit', latest: 'latest', firstPub: 'first publication', undated: 'undated',
     groupEvidence: 'grouping evidence', parent: 'parent', tags: 'direction tags', all: 'all', tagged: 'people tagged', untagged: 'without a tag',
     coauthors: 'coauthors', coauthorsOnly: 'coauthors only',
+    topicPapers: 'Recent papers supporting topics', preprint: 'preprint', published: 'published',
+    topicPolicyNote: 'Short topics reflect sourced contributions. Each professor topic needs an authored paper in the run window; group topics come from retained members, not necessarily the PI. Other facets describe the qualifying evidence.',
     facetsNote: 'Tags come from a per-domain keyword list (facets.json): one keyword in a topic, or two different keywords in snippets and project titles. A tag means the words occur in the record, not that a reviewer classified the work.',
     basemaps: {esri: 'Esri light gray', osmde: 'OpenStreetMap (DE mirror)', osm: 'OpenStreetMap', none: 'no basemap'},
     tileHint: n => `basemap "${n}" is not loading on this network; pick another one, the markers still work`,
@@ -383,7 +392,7 @@ const I18N = {
       4: 'T4 extended-region PhD student', 5: 'T5 everyone else in the region'},
     tiersShort: {1: 'T1 core professors / leaders', 2: 'T2 extended professors / leaders', 3: 'T3 core researchers / PhDs', 4: 'T4 extended-region PhDs', 5: 'T5 others'},
     about: {domain: 'domain', date: 'run date', window: 'signal window', region: 'region', core: 'core', people: 'people', tiers: 'tiers', positions: 'positions',
-      generated: 'generated', peopleLine: m => `${m.persons} in the roster · ${m.out_of_region} outside the region · ${m.no_qualifying} without a record in the window (not shown)`,
+      generated: 'generated', peopleLine: m => `${m.persons} in the roster · ${m.out_of_region} outside the region · ${m.no_qualifying} without qualifying evidence (not shown) · ${m.professors_pending_evidence || 0} professors pending paper evidence`,
       positions_: 'institution coordinates from ROR; "position from the manual table" means assets/geo-overrides.json (city level); "approximate position" means the country centroid',
       note: 'Every person, group and role comes with the public record it was read from. Roles are inferred from titles and funding records and can be wrong: check the evidence before acting on a row.',
       how: 'How to read it: pick a group (the PI and the people linked to them), or click an institution on the map. Filters narrow all three lists and the map at once; the address bar carries a link to the open card.'},
@@ -417,6 +426,8 @@ const I18N = {
     ids: '标识', notes: '备注', hop: '跳数', merge: '合并', fit: '匹配', latest: '最新', firstPub: '首篇发表', undated: '无日期',
     groupEvidence: '归组依据', parent: '来源', tags: '方向标签', all: '全部', tagged: '人有标签', untagged: '无标签',
     coauthors: '合著', coauthorsOnly: '仅合著',
+    topicPapers: '支持研究方向的近期论文', preprint: '预印本', published: '正式发表',
+    topicPolicyNote: '简短方向标签来自有来源的研究贡献。教授的每个方向都须有窗口内本人署名论文；组方向汇总自入选成员，不代表负责人本人都做。其他属性描述入选证据。',
     facetsNote: '标签来自按领域写的关键词表（facets.json）：方向里出现一个关键词，或摘录和项目标题里出现两个不同的关键词。有标签只说明记录里出现了这些词，不代表有人审过。',
     basemaps: {esri: 'Esri 浅灰底图', osmde: 'OpenStreetMap（德国镜像）', osm: 'OpenStreetMap', none: '无底图'},
     tileHint: n => `底图 "${n}" 在当前网络加载不了，换一个即可，圆点不受影响`,
@@ -425,7 +436,7 @@ const I18N = {
     tiers: {1: 'T1 核心区（德/瑞）教授或课题组长', 2: 'T2 扩展区教授或课题组长', 3: 'T3 核心区研究员或博士生', 4: 'T4 扩展区博士生', 5: 'T5 区域内其他人'},
     tiersShort: {1: 'T1 核心区教授/组长', 2: 'T2 扩展区教授/组长', 3: 'T3 核心区研究员/博士生', 4: 'T4 扩展区博士生', 5: 'T5 其他'},
     about: {domain: '领域', date: '运行日期', window: '记录窗口', region: '区域', core: '核心区', people: '人数', tiers: '层级', positions: '定位',
-      generated: '生成时间', peopleLine: m => `名单 ${m.persons} 人 · 区域外 ${m.out_of_region} 人 · 窗口内无记录 ${m.no_qualifying} 人（不显示）`,
+      generated: '生成时间', peopleLine: m => `名单 ${m.persons} 人 · 区域外 ${m.out_of_region} 人 · 缺少符合条件的证据 ${m.no_qualifying} 人（不显示） · ${m.professors_pending_evidence || 0} 位教授待补论文证据`,
       positions_: '机构坐标来自 ROR；"位置来自手工表"表示取自 assets/geo-overrides.json（城市级）；"位置为近似"表示用的是国家中心点',
       note: '每个人、每个课题组、每个角色都附带读取它的公开记录。角色是从头衔和资助记录推断的，可能有错：行动前先看证据。',
       how: '怎么找：先按课题组看（负责人和挂在其名下的人），或者点地图上的机构。筛选同时作用于三个列表和地图；地址栏带有当前卡片的链接。'},
@@ -672,6 +683,7 @@ function personView(name) {
     ${FACETS.length ? `<dt>${T().tags}</dt><dd>${tagChips(p.tags || []) || '<span class="muted">—</span>'}</dd>` : ''}
     <dt>${T().topics}</dt><dd>${(p.topics || []).map(t => `<span class="topic">${esc(t)}</span>`).join('') || '<span class="muted">—</span>'}</dd>
     ${p.notes ? `<dt>${T().notes}</dt><dd class="muted">${esc(p.notes)}</dd>` : ''}</dl></div>
+    ${(p.topic_papers || []).length ? `<div class="card"><h3>${T().topicPapers}</h3><ul>${p.topic_papers.map(w => `<li>${link(w.url, w.title)} · ${esc(w.date)} · ${esc(T()[w.status] || w.status)}<br>${esc(w.topic_ids.join(', '))} · ${link(w.authorship_evidence_url, T().roleEvidence)}</li>`).join('')}</ul></div>` : ''}
     <div class="card"><h3>${T().signals} (${p.signals.length})</h3><ul class="sig">${p.signals.map(sig).join('')}</ul></div>`;
 }
 function about() {
@@ -684,14 +696,14 @@ function about() {
     <dt>${a.tiers}</dt><dd>${[1, 2, 3, 4, 5].map(t => badge(t) + ' ' + esc(T().tiers[t].slice(3))).join('<br>')}</dd>
     <dt>${a.positions}</dt><dd>${esc(a.positions_)}</dd>
     <dt>${a.generated}</dt><dd>${esc(m.generated)}</dd></dl>
-    <p class="muted">${esc(a.note)}</p></div>` + facetsAbout();
+    <p class="muted">${esc(a.note)}</p>${m.topic_policy === 'checked' ? `<p>${esc(T().topicPolicyNote)}</p>` : ''}</div>` + facetsAbout();
 }
 function facetsAbout() {
   if (!FACETS.length) return '';
   const counts = {};
   for (const p of DATA.persons) for (const t of p.tags || []) counts[t] = (counts[t] || 0) + 1;
   const tagged = DATA.persons.filter(p => (p.tags || []).length).length;
-  return `<div class="card"><h3>${esc(T().tags)}</h3><p class="muted">${esc(T().facetsNote)} ${tagged} ${esc(T().tagged)}, ${DATA.persons.length - tagged} ${esc(T().untagged)}.</p><dl>` +
+  return `<div class="card"><h3>${esc(T().tags)}</h3><p class="muted">${esc(DATA.meta.topic_policy === 'checked' ? T().topicPolicyNote : T().facetsNote)} ${tagged} ${esc(T().tagged)}, ${DATA.persons.length - tagged} ${esc(T().untagged)}.</p><dl>` +
     FACETS.map(f => `<dt>${esc(i18nLabel(f.label, f.id))}</dt><dd>${tagChips(f.tags.map(t => t.id).filter(t => counts[t]), counts) || '<span class="muted">—</span>'}</dd>`).join('') + '</dl></div>';
 }
 
@@ -775,6 +787,7 @@ def main() -> None:
     parser.add_argument('--geo-cache', default=None, help='default: <out dir>/cache/geo/institutions.json')
     parser.add_argument('--offline', action='store_true', help='use the geo cache only; no ROR requests')
     parser.add_argument('--summaries', default=None, help='optional JSON with en/zh summaries per group and person')
+    parser.add_argument('--topic-policy', help='topic policy JSON; defaults to topic-policy.json beside persons')
     parser.add_argument('--facets', default=None,
                         help='research-direction facets JSON (assets/facets.template.json); default: facets.json next to the persons file when present')
     args = parser.parse_args()

@@ -9,3 +9,8 @@ A final-pass affiliation/country overrides `current_affiliation`/`country`; `aff
 read date and URL, and notes retain the provider affiliation/source. `tier` uses the corrected country. `role`
 and `latest_role` still describe the signals. Topics stay verbatim in source/person records; the exporters fold
 cell whitespace consistently in CSV and Markdown without rewriting those records.
+
+With a topic policy, the exported `topics` column contains configured short labels instead of the raw
+phrases. Professors' labels require recent personally authored paper evidence. Group topics aggregate
+retained members' labels, excluding coauthor-only links. Column counts do not change; see
+`references/46-topic-qualification.md` for evidence, pending cases and historical-run compatibility.

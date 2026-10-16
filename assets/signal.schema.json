@@ -120,6 +120,35 @@
       "type": "string",
       "description": "Verbatim title or section heading associated with this name on the source page."
     },
+    "publication": {
+      "type": "object",
+      "description": "Paper evidence for the named person; date is first publication/public posting, not award, crawl or revision date. Authorship is verified by the researcher from the cited author list.",
+      "required": ["title", "date", "status", "url", "author_name", "authorship_verified", "authorship_evidence_url"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "abstract": {"type": "string"},
+        "date": {"type": "string", "pattern": "^[0-9]{4}(-[0-9]{2})?(-[0-9]{2})?$"},
+        "status": {"enum": ["published", "preprint"]},
+        "url": {"type": "string", "format": "uri"},
+        "author_name": {"type": "string"},
+        "author_ids": {"type": "object", "additionalProperties": {"type": "string"}},
+        "authorship_verified": {"type": "boolean"},
+        "authorship_evidence_url": {"type": "string", "format": "uri"}
+      }
+    },
+    "topic_evidence": {
+      "type": "array",
+      "description": "Reviewed mappings to RUN_DIR/topic-policy.json. A contribution quote must occur in the signal source; professor topic quotes must occur in the publication title or abstract, not just a lab page.",
+      "items": {
+        "type": "object",
+        "required": ["topic_id", "quote", "relation"],
+        "properties": {
+          "topic_id": {"type": "string"},
+          "quote": {"type": "string", "minLength": 8},
+          "relation": {"enum": ["contribution", "background"]}
+        }
+      }
+    },
     "topics": {
       "type": "array",
       "items": {

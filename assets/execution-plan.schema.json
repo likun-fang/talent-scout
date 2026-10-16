@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Talent Scout execution plan",
+  "type": "object",
+  "required": ["schema_version", "run_id", "domain", "code_version", "directions", "config_refs", "tasks"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run_id": {"type": "string", "minLength": 1},
+    "domain": {"type": "string", "minLength": 1},
+    "code_version": {"type": "string", "minLength": 1},
+    "directions": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "channel_page_budgets": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "config_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/artifact"}},
+    "previous_hash": {"type": "string"},
+    "change_reason": {"type": "string", "minLength": 1},
+    "tasks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "channel", "input", "expected_artifacts"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["discovery", "process"]},
+          "direction": {"type": ["string", "null"]},
+          "channel": {"type": "string", "minLength": 1},
+          "input": {"type": "string", "minLength": 1},
+          "expected_artifacts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "page_budget": {"type": "integer", "minimum": 0}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object", "required": ["path", "sha256"],
+      "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}
+    }
+  }
+}

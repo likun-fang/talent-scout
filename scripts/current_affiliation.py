@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Callable
 from person_fields import assign_groups, topics_for, same_institution
 from openalex_auth import auth_headers
+from execution_trace import Span, traced
 
 REGIONS = {
     "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
@@ -43,6 +44,10 @@ class ResponseCache:
         self._locks: dict[str, threading.Lock] = {}
 
     def load(self, key: str, fetch: Callable[[], dict | None]) -> dict | None:
+        with Span('affiliation.cache', inputs={'cache_key': key}, metadata={'operation': 'cache'}) as span:
+            return self._load(key, fetch, span)
+
+    def _load(self, key: str, fetch: Callable[[], dict | None], span) -> dict | None:
         filename = hashlib.sha256(key.encode("utf-8")).hexdigest() + ".json"
         path = self.directory / filename
         with self._guard:
@@ -52,15 +57,21 @@ class ResponseCache:
                 with path.open(encoding="utf-8") as f:
                     cached = json.load(f)
                 if isinstance(cached, dict):
+                    span.outputs = {'status': 'cache_hit', 'cache_hit': True}
                     return cached
             except (OSError, ValueError):
                 pass
             if self.offline:
                 with self._guard:
                     self.misses += 1
+                span.status = 'error'
+                span.outputs = {'status': 'offline_miss', 'cache_hit': False}
                 return None
             response = fetch()
+            span.outputs = {'status': 'success' if isinstance(response, dict) else 'fetch_error',
+                            'cache_hit': False}
             if not isinstance(response, dict):
+                span.status = 'error'
                 return None
             temporary = None
             try:
@@ -77,6 +88,9 @@ class ResponseCache:
                     os.unlink(temporary)
             return response
 
+@traced('affiliation.request', inputs=lambda url, headers=None: {'url': url},
+        outputs=lambda result: {'status': 'success' if isinstance(result, dict) else 'fetch_error'},
+        metadata={'operation': 'transport'})
 def get(url: str, headers: dict | None = None) -> dict | None:
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}), timeout=40) as r:
@@ -86,6 +100,9 @@ def get(url: str, headers: dict | None = None) -> dict | None:
         print(f"lookup failed {url.split('?')[0]}: {type(exc).__name__}", file=sys.stderr)
         return None
 
+@traced('affiliation.lookup', inputs=lambda key, url, cache, headers=None: {'url': url},
+        outputs=lambda result: {'status': 'success' if isinstance(result, dict) else 'fetch_error'},
+        metadata={'operation': 'retrieval'})
 def cached_get(key: str, url: str, cache: ResponseCache | None,
                headers: dict | None = None) -> dict | None:
     return cache.load(key, lambda: get(url, headers)) if cache is not None else get(url, headers)

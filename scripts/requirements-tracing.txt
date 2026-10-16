@@ -1,0 +1,3 @@
+# Optional; local tracing and all sourcing helpers work without this package.
+# SDK integration tested with 0.14.11; this optional extra requires Python 3.10+.
+langsmith>=0.14.11,<0.15

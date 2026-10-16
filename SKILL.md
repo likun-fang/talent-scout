@@ -35,6 +35,10 @@ with six agents and produced 845 signals, 521 in-region people; its lessons are 
 
 ## Working rules
 
+- For new runs, read `references/46-topic-qualification.md`: freeze `topic-policy.json` at stage 1,
+  collect reviewed topic/publication evidence, and require a recent authored paper for every displayed
+  professor topic. Both final exporters must receive `--topic-policy RUN_DIR/topic-policy.json`.
+  Use short display labels while preserving verbatim signal topics; disclose pending paper checks.
 - Paths: skill files (`references/`, `assets/`, `scripts/`, `domain-cache/`) are relative to `SKILL_ROOT`, the
   directory holding this file; every artefact of a run is written under `RUN_DIR` (`run_dir` in `run.meta.json`), and
   `SKILL_ROOT/domain-cache/` changes only when the maintainer confirms by hand.
@@ -55,6 +59,14 @@ with six agents and produced 845 signals, 521 in-region people; its lessons are 
   or a web.archive.org capture when the live page is the only source.
 
 ## Resuming a run
+
+For new runs, read `references/20-execution-tracing.md` after agreeing the stage-1 map. Freeze an execution plan,
+use `scripts/run_step.py` for observed helper execution, and record research handoffs against attempt IDs.
+Run `scripts/check_execution.py --run-dir RUN_DIR` before reporting completion. Keep its coverage status separate
+from stage termination: a budget-ended stage may be `done` while the execution check is `incomplete`.
+Legacy runs without plans remain resumable but are `not_checked`; do not retrofit automatic call evidence.
+Host-native tools without instrumentation are explicit blind spots. LangSmith export is optional; local records
+are the basis for checks. Existing channel, hop and output rules continue to apply.
 
 The run directory is the handoff. Read `RUN_DIR/run.meta.json` and continue from the first stage in `stage_status`
 that is not `"done"`. A stage marked `"running"` was interrupted or is waiting for the user: re-read its output and its

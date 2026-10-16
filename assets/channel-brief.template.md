@@ -12,6 +12,12 @@ Follow the date rules in `references/channels/README.md`; emit older or undated 
 - Write everything under `RUN_DIR` = <run_dir>; never write into `SKILL_ROOT`.
 
 ## Output
+For planned runs, fill task IDs <task_ids>, direction IDs <direction_ids>, plan hash <plan_hash> and expected
+artifact paths <expected_artifacts>. Follow `SKILL_ROOT/references/20-execution-tracing.md` and the frozen plan.
+`run_step.py` supplies parent context; never fabricate tool events. Use separate worker output paths. Link research
+handoffs to attempt IDs, report unresolved/untraced work and share the channel budget below. Legacy runs keep the
+existing outputs with execution coverage `not_checked`.
+
 Append one JSON object per line to `RUN_DIR/signals/<channel>.jsonl` (schema: `SKILL_ROOT/assets/signal.schema.json`).
 - Emit the non-person signal (work / team / company / org) AND hop to people yourself: one person signal per
   person in <region_extended>, `hop_depth: 1`, `parent` set, `evidence_url` = the page that names the person.
@@ -23,6 +29,10 @@ Append one JSON object per line to `RUN_DIR/signals/<channel>.jsonl` (schema: `S
   never infer it. Fill `topics` with 1–3 key phrases cut verbatim from the paper title, project name or repository
   name. The channel file says where both come from.
 - Tag `fit`: `core` or `adjacent`. Add `homepage` when the page links a lab or personal site.
+- Read `references/46-topic-qualification.md` and `RUN_DIR/topic-policy.json`. Map sourced contributions
+  with `topic_evidence`; keep raw `topics` verbatim. For professor candidates from any channel, collect
+  `publication` metadata and verified authorship for each recent topic, or report the missing check.
+  A grant/team page cannot replace a paper, and old papers cannot be refreshed with an award date.
 - People outside <region_extended> get no person signal.
 
 ## Access (fill from run.meta.json env)

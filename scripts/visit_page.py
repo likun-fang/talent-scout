@@ -29,6 +29,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from execution_trace import Span, traced, file_ref
 
 MAX_BYTES = 4_000_000
 MIN_TEXT = 200  # fewer characters than this on a 200 page is a JavaScript shell, not content
@@ -125,6 +126,10 @@ class PublicRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+@traced('web.http', inputs=lambda url, timeout, user_agent=BROWSER_UA: {'url': url, 'timeout': timeout},
+        outputs=lambda result: {'http_status': result.get('http_status'), 'status': classify(result),
+                                'chars': len(result.get('text', ''))},
+        metadata={'operation': 'page_attempt', 'method': 'http'})
 def http_read(url: str, timeout: float, user_agent: str = BROWSER_UA) -> dict:
     """One plain GET. A browser User-Agent is used because many public pages answer 403 to anything else;
     nothing else about the request pretends to be a person: no cookies, no login, no proxy."""
@@ -191,6 +196,10 @@ def launch(runtime, channel: str | None):
     raise ImportError(f'no browser available for Playwright ({type(last).__name__}); install Google Chrome or run playwright install chromium')
 
 
+@traced('web.browser', inputs=lambda url, timeout, channel, wait_ms: {'url': url, 'timeout': timeout},
+        outputs=lambda result: {'http_status': result.get('http_status'), 'status': classify(result),
+                                'chars': len(result.get('text', ''))},
+        metadata={'operation': 'page_attempt', 'method': 'browser'})
 def browser_read(url: str, timeout: float, channel: str | None, wait_ms: int) -> dict:
     from playwright.sync_api import sync_playwright
     with sync_playwright() as runtime:
@@ -362,6 +371,10 @@ def linkedin_sections(text: str, lines_per_section: int = 14) -> dict:
     return {key: value['lines'] for key, value in section_excerpts(text, lines_per_section).items()}
 
 
+@traced('web.visit', inputs=lambda url, *args, **kwargs: {'url': url},
+        outputs=lambda result: {key: result.get(key) for key in
+                               ('status', 'http_status', 'fetch_via', 'attempts', 'truncated')},
+        metadata={'operation': 'retrieval'})
 def visit(url: str, browser: bool = False, timeout: float = 30, channel: str | None = None,
           wait_ms: int = 1500, max_chars: int = 60000, full_text: bool = False,
           ladder: tuple = DEFAULT_LADDER, min_chars: int = MIN_TEXT, render: bool = False) -> dict:
@@ -411,8 +424,14 @@ def visit(url: str, browser: bool = False, timeout: float = 30, channel: str | N
 
 
 def save(record: dict, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    with Span('web.save', metadata={'operation': 'artifact'}) as span:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        if span.run_dir:
+            try:
+                span.outputs = {'artifact': file_ref(path, span.run_dir)}
+            except ValueError:
+                span.outputs = {'status': 'outside_run_directory'}
 
 
 def batch(urls: list[str], out_dir: Path, delay: float, **options) -> dict:

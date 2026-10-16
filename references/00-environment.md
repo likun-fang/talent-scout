@@ -89,3 +89,9 @@ or `"done"` per stage; set a stage to `"running"` when you start it and to `"don
 `SKILL.md` holds. Stages 1 and 2 end with a stop for the user, so they stay `"running"` until the user has replied.
 
 Everything downstream cites this file so a reader can tell how the table was produced.
+
+For new runs, also record an `execution` object with `plan: "execution-plan.json"`,
+`check: "execution-check.json"`, `coverage_status: "not_checked"` and `tracing: "local"`.
+After stage 1, record the frozen plan hash and actual code version; update coverage_status from the checker.
+Use `local+langsmith` only when export is explicitly enabled. Never store API keys here.
+See `20-execution-tracing.md`. Mutable run metadata must not be included in frozen configuration checksums.
