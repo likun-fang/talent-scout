@@ -16,6 +16,8 @@ def digest(value):
 def validate(plan):
     if not isinstance(plan, dict) or plan.get('schema_version') != 1:
         raise ValueError('plan schema_version must be 1')
+    if 'group_recovery_required' in plan and type(plan['group_recovery_required']) is not bool:
+        raise ValueError('group_recovery_required must be boolean')
     for key in ('run_id', 'domain', 'code_version'):
         if not isinstance(plan.get(key), str) or not plan[key].strip():
             raise ValueError(f'plan requires {key}')

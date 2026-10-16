@@ -211,11 +211,17 @@ def check(root):
                 row['issues'].append('shared_channel_page_budget_exceeded')
                 row['status'] = 'incomplete'
     direction_check = 'checked' if plan['directions'] else 'not_checked'
+    from group_recovery import check as check_groups
+    grouping = check_groups(root / 'group-recovery')
+    if plan.get('group_recovery_required') and grouping['status'] == 'not_checked':
+        global_issues.append('missing_required_group_recovery')
+    if grouping['status'] not in {'complete', 'not_checked'}:
+        global_issues.append('group_recovery_' + grouping['status'])
     complete = all(r['status'] == 'complete' for r in rows) and not global_issues
     return {'status': 'complete' if complete else 'incomplete', 'direction_check': direction_check,
             'scope': 'declared_plan_only_not_exhaustive_research_or_identity_verification',
             'budget_check': 'declared_budgets_only' if plan.get('channel_page_budgets') else 'not_checked_at_channel_level',
-            'channel_usage': channel_usage,
+            'channel_usage': channel_usage, 'group_recovery': grouping,
             'plan_hash': revision, 'previous_hash': plan.get('previous_hash'),
             'change_reason': plan.get('change_reason'), 'tasks': rows,
             'issues': global_issues + ([] if direction_check == 'checked' else ['Legacy plan: no direction-level check.'])}

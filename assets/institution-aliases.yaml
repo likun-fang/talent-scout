@@ -1,4 +1,9 @@
 {
+  "University of Oxford": ["Oxford University"],
+  "University of Cambridge": ["Cambridge University"],
+  "LUT University": ["Lappeenranta-Lahti University of Technology", "Lappeenranta University of Technology", "U Lappeenranta of Technology"],
+  "Technische Universität Ilmenau": ["Ilmenau TU", "TU Ilmenau", "Ilmenau University of Technology"],
+  "University of Stuttgart": ["Universität Stuttgart", "Stuttgart U"],
   "EPFL": ["École Polytechnique Fédérale de Lausanne", "EPF Lausanne – EPFL", "Swiss Federal Institute of Technology, Lausanne (EPFL)", "Swiss Federal Institute of Technology Lausanne", "Ecole Polytechnique Fédérale de Lausanne"],
   "ETH Zurich": ["ETH Zürich", "ETH Zurich – ETHZ", "Eidgenössische Technische Hochschule Zürich"],
   "RWTH Aachen University": ["RWTH Aachen", "Rheinisch-Westfälische Technische Hochschule Aachen"],

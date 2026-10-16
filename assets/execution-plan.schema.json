@@ -4,6 +4,7 @@
   "type": "object",
   "required": ["schema_version", "run_id", "domain", "code_version", "directions", "config_refs", "tasks"],
   "properties": {
+    "group_recovery_required": {"type": "boolean", "description": "New talent runs require per-person grouping coverage checks; missing is legacy/not checked."},
     "schema_version": {"const": 1},
     "run_id": {"type": "string", "minLength": 1},
     "domain": {"type": "string", "minLength": 1},

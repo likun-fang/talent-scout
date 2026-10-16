@@ -280,7 +280,8 @@ def title_evidence(person: dict, employment: tuple | None, institution: tuple | 
 
 
 def inferred_role(person: dict, run_year: int) -> dict:
-    signals = person.get('signals', [])
+    from publication_signals import inference_signals
+    signals = inference_signals(person.get('signals', []))
     try:
         first_year_number = int(person.get('first_pub_year') or 0)
         years = run_year - first_year_number if 1 <= first_year_number <= run_year else -1
@@ -444,6 +445,8 @@ def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
     if institution:
         result.update(institution_type=institution[3], institution_name=institution[0], institution_id=institution[4])
     result = apply_final_pass(result)
+    if p.get('identity_reenrichment_required') and cur[2].startswith(('orcid employment', 'openalex last_known')):
+        result.pop('identity_reenrichment_required', None)
     if result.get('final_pass_affiliation') and employment and not same_institution(result['current_affiliation'], employment[1]):
         employment = None
     return {**result, **classify_role(result, run_year or datetime.date.today().year, employment, institution)}

@@ -10,6 +10,9 @@ OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows r
 | `visit_page.py` | final pass | public URL (or `--batch` file) → timestamped page text or LinkedIn excerpts, access status; optional Playwright rendering for JS-only lab pages |
 | `current_affiliation.py` | 4 | `persons.jsonl` → same records with current affiliation from ORCID / OpenAlex / newest evidence, with the stale-ORCID override, role classification, topics, group and tier |
 | `merge_persons.py` | 4 | `signals.jsonl` → `persons.jsonl` using the key ladder; emits role fields, topics, group and tier; never merges on name alone |
+| `publication_signals.py` | 2–4 | Shared original-author-position conversion and distinct-work role inference |
+| `group_recovery.py` | 4b | Full uncapped ungrouped queue, resumable research worker execution, evidence receipts and per-person completion checks; see `references/42-group-recovery.md` |
+| `group_relations.py` | 4b–5 | Apply reviewed direct memberships without clearing identity holds or qualifying new topics |
 | `table_export.py` | 5 | `persons.jsonl` → region-filtered `roster.csv` + `roster.md` + `groups.csv` + `groups.md` (+ Coverage and evidence, `.out-of-region.json`, `.excluded-signals.json`), sorted by tier before `--max-rows` |
 | `talent_map.py` | 5 | the same `persons.jsonl` → one `talent-map.html`: a map of institutions with every group, person, signal and evidence link inline; same selection, tiers and groups as `table_export.py`; institutions placed from the manual table `assets/geo-overrides.json` (city level, with sources), then through ROR (cached in `cache/geo/`, `--offline` to reuse), country centroid when neither has a match; research-direction tags from `facets.json` (`--facets`) |
 
@@ -152,6 +155,11 @@ top three recent outputs, funding evidence, open-source links and Coverage count
 lists retained funding signals; absent award end dates, it does not establish that a grant is still active.
 See `references/50-output.md` for exact columns and aggregation rules.
 
+Reviewed direct memberships take precedence over inference, and coauthor chains stop at the direct association.
+Initial export creates an uncapped `group-recovery/` queue; validated recovery receipts are shared by both
+exporters. Historical membership cannot be revived by a weaker paper match. A known team can be displayed
+without a PI. For execution and evidence contracts see `references/42-group-recovery.md`.
+
 Roster Coverage distinguishes window-excluded evidence retained on final table people from all signals
 belonging to omitted people. The `.excluded-signals.json` audit contains window-excluded signals from
 both sets and therefore has a different total from retained background evidence.
@@ -179,6 +187,26 @@ If you used it, configure your key again with the setup script, then remove the 
 the skill. Git ignore rules do not exclude files from arbitrary directory archives.
 
 ## Final-pass corrections and offline replay
+
+Both exporters share a final identity gate in `identity_quality.py`. It normalizes strong IDs,
+merges compatible duplicates, and holds conflicting provider IDs/current employers for review.
+The roster writes `.identity-audit.json` with the original records and decisions; missing identity
+evidence is never resolved by name alone. Publication-specific holds live in `assets/source-reviews.json`.
+The gate preserves raw source signals in the audit and does not certify all remaining identities.
+Evidence-backed aliases and per-source decisions are loaded from `assets/identity-reviews.json` by merging
+and final selection. See `references/41-identity-reviews.md`. The registry contains curated, dated decisions; identities without a supported binding still need research. Reviewed identities can retain clean sources while conflicting sources are held;
+explicit author-source reviews can correct a binding without deleting the paper. Every correction retains its
+original signal. Recompute topics/eligibility after quarantine; a reviewed profile cannot replace a recent paper.
+Corrected provider identities cannot reuse an unbound old employer; re-enrichment must succeed first.
+
+`groups.relations.json` supplements the unchanged CSV columns with separate team/project/coauthor
+counts and leader-presence status. Map links use person record keys, and group institutions come from
+their own group record. Oxford/Cambridge aliases reuse their canonical geocache entries; department
+strings remain in the person's affiliation. Country-centroid markers are explicitly non-institution locations.
+Independently reviewed profiles of identity-held leaders may act as reference-only grouping anchors. They are
+never roster rows and cannot supply disputed paper links. HTML and `groups.relations.json` expose the reference
+URL/date. HTML also shows identity-review status separately from merge and role confidence; CSV notes flag
+pending identity/source decisions without changing its columns.
 
 New runs also pass `--topic-policy RUN_DIR/topic-policy.json` to **both** `table_export.py` and
 `talent_map.py`. `research_topics.py` validates short labels and professor eligibility per recent authored

@@ -145,7 +145,10 @@ def publication_problem(person, signal, start, end, policy):
         return 'author_identity_mismatch'
     person_ids = person.get('ids') or {}
     shared = set(author_ids) & set(person_ids) & {'openalex', 'orcid'}
-    if any(not author_id(author_ids[k], k) or author_id(author_ids[k], k) != author_id(person_ids[k], k)
+    from identity_quality import reviewed_id, validate_identity_reviews
+    reviews = validate_identity_reviews([person['identity_review']]) if person.get('identity_review') else []
+    if any(not author_id(author_ids[k], k) or not author_id(person_ids[k], k) or
+           reviewed_id(k, author_ids[k], reviews) != reviewed_id(k, person_ids[k], reviews)
            for k in shared):
         return 'author_identity_mismatch'
     names = {normalized(person.get('name')), normalized(signal.get('name_raw'))} - {''}

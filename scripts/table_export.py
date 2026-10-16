@@ -12,11 +12,12 @@ row as evidence (signals and evidence_urls columns) and are listed in <out>.excl
 Ranking uses tier, eligible channel count, strongest signal, newest signal date, then name.
 """
 from __future__ import annotations
-import argparse, csv, datetime, glob, json, os, sys
+import argparse, copy, csv, datetime, glob, json, os, sys
 from pathlib import Path
 from current_affiliation import region_codes, apply_final_pass, classify_role, FUNDING_PREFIXES
 from person_fields import topics_for, assign_groups
 from research_topics import policy_for, apply_policy
+from identity_quality import resolve_persons, assert_unique_identities, reference_leaders
 
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
            "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes",
@@ -95,7 +96,13 @@ def row_for(p: dict, domain: str, date: str) -> dict:
     fits = {s["fit"] for s in sigs if s.get("fit")}
     fit = "" if not fits else "core" if fits == {"core"} else "adjacent" if fits == {"adjacent"} else "mixed"
     roles = [s.get("role") for s in sigs if s.get("role") and s.get("role") != "unknown"]
-    role = max(set(roles), key=roles.count) if roles else "unknown"
+    role = max(sorted(set(roles)), key=roles.count) if roles else "unknown"
+    notes = [p.get('notes', '')]
+    if p.get('identity_status') in {'needs_review', 'reviewed_with_held_sources', 'reviewed_with_pending_ids'}:
+        notes.append('Identity status: ' + p['identity_status'] + '; see identity audit for source decisions.')
+    if p.get('group_leader_reference'):
+        ref = p['group_leader_reference']
+        notes.append('Group leader is a profile reference only; identity unresolved and not counted in roster: ' + ref['url'])
     return {
         "name": p.get("name", ""),
         "current_affiliation": p.get("current_affiliation") or newest.get("affiliation_raw", ""),
@@ -110,7 +117,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
         "merge_confidence": p.get("merge_confidence", "low"),
         "affiliation_source": p.get("affiliation_source") or f"evidence {newest.get('date','')}",
         "last_verified": p.get("last_verified") or "",
-        "notes": p.get("notes", ""),
+        "notes": '; '.join(dict.fromkeys(n for n in notes if n)),
         "fit": fit,
         "first_pub_year": p.get("first_pub_year", ""),
         "latest_role": newest.get("role") or "unknown",
@@ -151,6 +158,8 @@ def coverage_text(kept: int, cut: int, out_of_region: int, cov_dir: str | None) 
 
 
 def country_for(person: dict) -> str:
+    if person.get('identity_reenrichment_required'):
+        return ''
     if person.get('final_pass_affiliation'):
         return person.get('final_pass_country') or ''
     newest = max(person.get('signals', []), key=signal_date, default={})
@@ -210,8 +219,13 @@ def join_unique(values) -> str:
 
 
 def group_row(group: str, persons: list[dict], start: datetime.date, end: datetime.date) -> dict:
+    assert_unique_identities(persons)
     members = sorted(persons, key=lambda p: (p['tier'], p.get('name', '')))
     pi_name, _, institution = group.rpartition(' @ ')
+    definition = next((p['group_definition'] for p in persons if p.get('group_definition')), {})
+    if definition:
+        pi_name = (definition.get('leader') or {}).get('name', '')
+        institution = definition['institution']
     pi = next((p for p in members if p.get('name') == pi_name), {})
     signals = [s for p in members for s in p.get('signals', [])]
     recent = sorted((s for s in unique_signals(members) if in_window(s, start, end)),
@@ -220,7 +234,7 @@ def group_row(group: str, persons: list[dict], start: datetime.date, end: dateti
     return {
         'group': group or '(unattached)', 'pi_name': pi_name, 'institution': institution,
         'country': join_unique(country_for(p) for p in members), 'tier': min(p['tier'] for p in members),
-        'homepage': pi.get('homepage') or next((s['homepage'] for s in pi.get('signals', []) if s.get('homepage')), ''),
+        'homepage': definition.get('url') or pi.get('homepage') or next((s['homepage'] for s in pi.get('signals', []) if s.get('homepage')), ''),
         'topics': (join_unique(t for p in members if p.get('group_link') != 'coauthor'
                               for t in p.get('display_topics', []))
                    if any('display_topics' in p for p in members) else ';'.join(topics_for(signals))),
@@ -231,7 +245,8 @@ def group_row(group: str, persons: list[dict], start: datetime.date, end: dateti
                                       if s.get('signal_type', '').startswith(FUNDING_PREFIXES)
                                       or s.get('signal_type') in ('national_project', 'national_fellowship')),
         'open_source': join_unique(s.get('evidence_url', '') for s in signals if s.get('channel') == 'open-source'),
-        'evidence_urls': join_unique(s.get('evidence_url', '') for s in signals),
+        'evidence_urls': join_unique([*(s.get('evidence_url', '') for s in signals),
+            *(e['url'] for p in persons for r in p.get('group_memberships', []) for e in r['evidence'])]),
     }
 
 
@@ -259,16 +274,62 @@ def write_groups(persons: list[dict], out: str, start: datetime.date, end: datet
                 '- scope: people retained in the cut roster\n')
     write_csv(rows, str(path) + '.csv', GROUP_COLUMNS)
     write_md(rows, str(path) + '.md', coverage, GROUP_COLUMNS)
+    relations = []
+    for row in rows:
+        linked = [p for p in persons if (p.get('group') or '(unattached)') == row['group']]
+        relations.append({'group': row['group'], 'linked_person_count': len(linked),
+                          'team_count': sum(p.get('group_link') == 'team' for p in linked),
+                          'project_count': sum(p.get('group_link') == 'project' for p in linked),
+                          'coauthor_count': sum(p.get('group_link') == 'coauthor' for p in linked),
+                          'unverified_count': sum(p.get('group_link') not in {'team', 'project', 'coauthor'} for p in linked),
+                          'leader_in_selected_roster': any(p.get('name') == row['pi_name'] and
+                              p.get('group_link') != 'coauthor' for p in linked),
+                          'leader_reference': next((p['group_leader_reference'] for p in linked
+                                                    if p.get('group_leader_reference')), None)})
+    with open(str(path) + '.relations.json', 'w', encoding='utf-8') as target:
+        json.dump(relations, target, ensure_ascii=False, indent=2)
+
+
+def recovery_root(args):
+    if getattr(args, 'group_recovery', None):
+        return Path(args.group_recovery)
+    if getattr(args, 'persons', None):
+        return Path(args.persons).resolve().parent / 'group-recovery'
+    if getattr(args, 'out', None):
+        return Path(args.out).resolve().parent / 'group-recovery'
+    return None
 
 
 def select_persons(persons: list[dict], args) -> tuple:
+    persons, identity_audit = resolve_persons(persons)
+    for person in persons:
+        if person.get('group_rule') == 'reviewed':
+            person.update(group='', group_link='', group_rule=None, group_evidence='Reviewed grouping requires a current recovery receipt')
+        for field in ('group_memberships', 'group_definition', 'group_id'):
+            person.pop(field, None)
     persons = [apply_final_pass(p) for p in persons]
     persons = [{**p, **classify_role(p, args.date.year)} if p.get('final_pass_affiliation') or
-               p.get('final_pass_title') or p.get('linkedin_headline') else p for p in persons]
-    if any(p.get('final_pass_affiliation') or p.get('final_pass_title') for p in persons):
-        persons = assign_groups(persons)
+               p.get('final_pass_title') or p.get('linkedin_headline') or p.get('identity_sources_changed') else p for p in persons]
+    anchors = reference_leaders(identity_audit, persons)
+    deferred = [p for p in persons if p.get('identity_reenrichment_required')]
+    persons = [p for p in persons if not p.get('identity_reenrichment_required')]
+    root = recovery_root(args)
+    from group_recovery import load_relations
+    relationships = load_relations(root, persons, args.date.isoformat()) if root else []
+    if relationships or anchors or any(p.get('final_pass_affiliation') or p.get('final_pass_title') or
+                      p.get('identity_sources_changed') or p.get('identity_review') for p in persons):
+        grouped = (assign_groups(persons + anchors, relationships, args.date.isoformat()) if relationships
+                   else assign_groups(persons + anchors))
+        references = {p['group']: {'name': p['name'], 'url': p['final_pass_url'],
+                      'last_verified': p['last_verified'], 'status': p['identity_status']}
+                      for p in grouped if p.get('reference_only') and p.get('group')}
+        persons = [{**p, **({'group_leader_reference': references[p['group']]} if p.get('group') in references else {})}
+                   for p in grouped if not p.get('reference_only')]
+    persons += [{**p, 'group': '', 'group_link': '', 'group_rule': None,
+                 'group_evidence': 'Identity binding corrected; current profile pending enrichment'} for p in deferred]
     start = window_start(args.date, args.window_months)
     qualified, rejected = filter_window(persons, start, args.date)
+    rejected += identity_audit
     policy = policy_for(args)
     if policy:
         def recent_signals(person):
@@ -283,6 +344,7 @@ def select_persons(persons: list[dict], args) -> tuple:
     in_region = sorted((p for p in eligible if country_for(p) in codes), key=sort_key)
     outside = [row_for(p, args.domain, args.date.isoformat()) for p in eligible if country_for(p) not in codes]
     selected = in_region[:args.max_rows] if args.max_rows else in_region
+    assert_unique_identities(selected)
     return selected, outside, rejected, len(in_region) - len(selected), len(persons) - len(qualified)
 
 
@@ -300,18 +362,23 @@ def window_coverage(persons: list[dict], selected: list[dict], start: datetime.d
 def export(persons: list[dict], args) -> None:
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     selected, outside, rejected, cut, no_qualifying = select_persons(persons, args)
+    recovery = prepare_recovery(persons, selected, args)
     rows = [row_for(p, args.domain, args.date.isoformat()) for p in selected]
     start = window_start(args.date, args.window_months)
     write_csv(rows, f'{args.out}.csv', COLUMNS)
     with open(f'{args.out}.out-of-region.json', 'w', encoding='utf-8') as target:
         json.dump([{k: r[k] for k in ('name', 'current_affiliation', 'country', 'affiliation_source')} for r in outside], target, ensure_ascii=False, indent=1)
     with open(f'{args.out}.excluded-signals.json', 'w', encoding='utf-8') as target:
-        json.dump([r for r in rejected if r.get('check') != 'topic_policy'], target, ensure_ascii=False, indent=2)
+        json.dump([r for r in rejected if r.get('check') not in {'topic_policy', 'identity'}], target, ensure_ascii=False, indent=2)
+    with open(f'{args.out}.identity-audit.json', 'w', encoding='utf-8') as target:
+        json.dump([r for r in rejected if r.get('check') == 'identity'], target, ensure_ascii=False, indent=2)
     policy = policy_for(args)
     if policy:
         with open(f'{args.out}.topic-audit.json', 'w', encoding='utf-8') as target:
             json.dump([r for r in rejected if r.get('check') == 'topic_policy'], target, ensure_ascii=False, indent=2)
     coverage = window_coverage(persons, selected, start, args.date, no_qualifying)
+    coverage += '- identity gate: checked; merges, held sources and unresolved identity conflicts are in .identity-audit.json\n'
+    coverage += f"- group recovery: {recovery['status']}; targets={recovery.get('target_count', 0)}, verified={recovery.get('verified_current_count', 0)}; see group-recovery/coverage.json\n"
     coverage += ('- topic policy: checked; professors require a recent authored paper per displayed topic; '
                  'see .topic-audit.json for pending evidence (not proof of inactivity)\n'
                  if policy else '- topic policy: not_checked (legacy export without topic-policy.json)\n')
@@ -319,6 +386,18 @@ def export(persons: list[dict], args) -> None:
     write_md(rows, f'{args.out}.md', coverage, appendix=evidence_appendix(selected))
     write_groups(selected, args.out, start, args.date)
     print(f'wrote {len(rows)} rows ({cut} cut, {len(outside)} outside region) → {args.out}.csv, {args.out}.md, groups.csv, groups.md', file=sys.stderr)
+
+
+def prepare_recovery(persons, selected, args):
+    from group_recovery import plan, write
+    root = recovery_root(args) or Path(args.out).resolve().parent / 'group-recovery'
+    uncapped = copy.copy(args); uncapped.max_rows = 0
+    population = select_persons(persons, uncapped)[0] if getattr(args, 'max_rows', 0) else selected
+    scope = {'domain': args.domain, 'region': args.region, 'window_months': args.window_months,
+             'topic_policy': policy_for(args)}
+    report = plan(root, population, args.date.isoformat(), scope)
+    write(root / 'coverage.json', report)
+    return report
 
 
 def main() -> None:
@@ -333,6 +412,7 @@ def main() -> None:
     parser.add_argument('--max-rows', type=int, default=0)
     parser.add_argument('--coverage-dir', default=None)
     parser.add_argument('--topic-policy', help='topic policy JSON; defaults to topic-policy.json beside persons')
+    parser.add_argument('--group-recovery', help='reviewed grouping queue/receipts directory; default beside persons')
     args = parser.parse_args()
     if not 1 <= args.window_months <= (args.date.year - 1) * 12 + args.date.month - 1:
         parser.error('--window-months must be positive and not reach before year 1')

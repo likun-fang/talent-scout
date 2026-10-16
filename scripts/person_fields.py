@@ -85,6 +85,13 @@ def institution_aliases() -> dict[str, str]:
             for canonical, variants in aliases.items() for alias in [canonical, *variants]}
 
 
+@lru_cache(maxsize=1)
+def institution_alias_spellings() -> set[str]:
+    path = Path(__file__).resolve().parents[1] / 'assets/institution-aliases.yaml'
+    registry = json.loads(path.read_text(encoding='utf-8'))
+    return {normalized(alias) for canonical, variants in registry.items() for alias in [canonical, *variants]}
+
+
 INSTITUTION_WORDS = (r'universit|hochschule|institut|school|college|cent(?:er|re)|laborator|polytech|academ|akademie|'
                      r'\beth\b|\bepfl\b|\bmpi\b|max.planck|inria|gmbh|\bag\b|\binc\b|\bltd\b|\blabs?\b|research|'
                      r'hospital|klinik|clinic|charit|foundation|stiftung')
@@ -105,8 +112,8 @@ def institution_names(value: str) -> tuple[set[str], set[str]]:
     for part in re.split(r';|\s/\s', (value or '').split('||', 1)[0]):
         candidates = [part]
         if ',' in part:
-            head, tail = part.rsplit(',', 1)
-            candidates += [segment for segment in (head, tail) if re.search(INSTITUTION_WORDS, normalized(segment))]
+            candidates += [segment for segment in part.split(',') if re.search(INSTITUTION_WORDS, normalized(segment))
+                           or normalized(segment) in institution_alias_spellings()]
         for candidate in candidates:
             name = institution_name(candidate)
             if name in UMBRELLA:
@@ -308,6 +315,8 @@ def github_org(url: str) -> str:
 
 
 def domain_link(member: dict, leader: dict) -> str:
+    if not same_institution(member, leader):
+        return ''  # Shared company/lab hosting does not establish cross-employer supervision.
     if leader.get('role_class') not in {'professor', 'group_leader'} and shared_parent_link(member, leader):
         return ''  # The same team page cannot bypass the team-anchor requirement through its host.
     shared = personal_hosts(member) & personal_hosts(leader)
@@ -330,14 +339,20 @@ def repository_link(member: dict, leader: dict) -> str:
     return ''
 
 
-def assign_groups(persons: list[dict]) -> list[dict]:
+def assign_groups(persons: list[dict], relationships=None, as_of=None) -> list[dict]:
     """Resolve ordered links to unique leaders, recording the rule even for ambiguity."""
+    from group_relations import assignments, person_ref
+    explicit = assignments(persons, relationships or [], as_of)
     leaders = [p for p in persons if affiliation_for(p) and (p.get('role_class') in {'professor', 'group_leader'}
                or any(s.get('role') in {'pi', 'last_author'} for s in p.get('signals', [])))]
     lab_parents = {parent_name(s['parent']) for p in persons for s in p.get('signals', [])
                    if s.get('signal_type') == 'lab_member' and s.get('parent')}
     results = []
     for person in persons:
+        if person_ref(person) in explicit:
+            clean = {k: v for k, v in person.items() if k not in {'group_leader_reference', 'group_definition', 'group_memberships', 'group_id'}}
+            results.append({**clean, **explicit[person_ref(person)]})
+            continue
         pi = any(s.get('role') == 'pi' for s in person.get('signals', []))
         own = {'_leader': id(person), 'group': f"{person['name']} @ {affiliation_for(person)}", 'group_rule': 4,
                'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}", 'group_link': 'team'}
@@ -386,8 +401,19 @@ def assign_groups(persons: list[dict]) -> list[dict]:
                 names = ', '.join(results[i]['name'] for i in path)
                 updated.update(group='', group_link='', group_evidence=f"rule {result['group_rule']}: ambiguous: {names} (leader chain unresolved) | {evidence_url(persons[index])}")
             elif result['group'] != results[current]['group']:
+                # Collaboration is not a transitive team relationship. Keep the
+                # direct association, rather than relabel it with a remote PI.
+                if any(results[i].get('group_link') == 'coauthor' for i in path[:-1]):
+                    updated['group_evidence'] += ' | coauthor chain stopped at direct association'
+                    resolved.append(updated)
+                    continue
                 via = '; '.join(f"via {results[i]['name']}: {results[i]['group_evidence']}" for i in path[1:])
-                updated.update(group=results[current]['group'], group_evidence=f"{result['group_evidence']} | {via}")
+                # A member of someone's team is not automatically a member of their
+                # collaborator's team. Preserve the weakest relation in the chain.
+                kinds = [results[i].get('group_link', '') for i in path[:-1]]
+                kind = 'coauthor' if 'coauthor' in kinds else 'project' if 'project' in kinds else result['group_link']
+                updated.update(group=results[current]['group'], group_link=kind,
+                               group_evidence=f"{result['group_evidence']} | {via}")
         resolved.append(updated)
     return resolved
 

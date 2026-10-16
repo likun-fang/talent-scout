@@ -20,6 +20,7 @@ from pathlib import Path
 from table_export import select_persons, row_for, group_rows, window_start, signal_date
 from person_fields import facet_texts, tags_for
 from research_topics import policy_for, supported_topics, topic_tags
+from identity_quality import record_key
 
 ASSETS = Path(__file__).resolve().parents[1] / 'assets'
 ROR_API = 'https://api.ror.org/v2/organizations?query='
@@ -55,6 +56,12 @@ def canonical_institution(name: str, aliases: dict) -> str:
         for canonical, variants in aliases.items():
             if lowered == canonical.casefold() or any(lowered == v.casefold() for v in variants):
                 return canonical
+    # A department may precede its university. Only collapse an exact, unique
+    # parent-name segment; retain the original hierarchy on the person record.
+    parents = {canonical for segment in name.split(',') for canonical, variants in aliases.items()
+               if segment.strip().casefold() in {x.casefold() for x in [canonical, *variants]}}
+    if len(parents) == 1:
+        return parents.pop()
     return name
 
 
@@ -157,11 +164,19 @@ def annotate_signal_topics(person: dict, entry: dict, policy: dict | None) -> No
 def person_entry(person: dict, row: dict, aliases: dict) -> dict:
     signals = sorted(person.get('signals', []), key=signal_date, reverse=True)
     entry = {**row, 'topics': [t for t in row['topics'].split(';') if t] if isinstance(row['topics'], str) else row['topics'],
+             'entity_id': person.get('entity_id') or record_key(person),
+             'identity_status': person.get('identity_status', 'not_checked'),
+             'record_key': person.get('entity_id') or record_key(person),
              'channels_hit': person.get('channels_hit', []), 'ids': person.get('ids') or {},
              'institution_key': canonical_institution(row['current_affiliation'], aliases),
              'signals': [trimmed_signal(s) for s in signals],
              'group_evidence': person.get('group_evidence', ''), 'group_rule': person.get('group_rule'),
              'group_link': person.get('group_link', '')}
+    if person.get('group_leader_reference'):
+        entry['group_leader_reference'] = person['group_leader_reference']
+    for key in ('group_id', 'group_memberships', 'group_definition'):
+        if person.get(key):
+            entry[key] = person[key]
     if 'display_topics' in person:
         entry['topic_papers'] = person.get('topic_papers', [])
     for key in ('final_pass_title', 'final_pass_affiliation', 'final_pass_country', 'final_pass_url', 'linkedin_headline'):
@@ -219,17 +234,25 @@ def build_data(persons: list[dict], args, geocoder, summaries: dict | None = Non
         entry['tags'] = (topic_tags(person, policy, facets, tags_for, facet_texts) if policy
                          else tags_for(*facet_texts(person), facets)) if facets else []
     start = window_start(args.date, args.window_months)
-    by_name = {e['name']: e for e in entries}
     groups = []
     for row in group_rows(selected, start, args.date):
         if row['group'] == '(unattached)':
             continue
-        pi = by_name.get(row['pi_name'])
-        key = pi['institution_key'] if pi and pi['institution_key'] else canonical_institution(row['institution'], aliases)
+        group_people = [e for e in entries if e['group'] == row['group']]
+        leaders = [e for e in group_people if e['name'] == row['pi_name'] and e['group_link'] != 'coauthor']
+        pi = leaders[0] if len(leaders) == 1 else None
+        key = canonical_institution(row['institution'], aliases)
+        relationships = Counter(e['group_link'] or 'unverified' for e in group_people)
+        references = [e['group_leader_reference'] for e in group_people if e.get('group_leader_reference')]
         # A coauthor-only link says nothing about what the group works on.
         tag_counts = Counter(tag for e in entries if e['group'] == row['group'] and e['group_link'] != 'coauthor'
                              for tag in e['tags'])
         groups.append({**row, 'institution_key': key,
+                       'display_name': row['pi_name'] or row['group'].rpartition(' @ ')[0],
+                       'pi_key': pi['record_key'] if pi else None,
+                       'pi_status': 'included' if pi else 'not_in_selected_roster' if row['pi_name'] else 'not_recorded',
+                       'leader_reference': references[0] if references else None,
+                       'relationship_counts': dict(relationships),
                        'tags': [[tag, n] for tag, n in tag_counts.most_common()],
                        'topics': [t for t in row['topics'].split(';') if t],
                        'members': [{'name': m.rsplit('(', 1)[0], 'role_class': m.rsplit('(', 1)[1].rstrip(')')}
@@ -386,7 +409,7 @@ const I18N = {
     search: 'search name, institution, group, topic', allCountries: 'all countries', allTiers: 'all tiers', allRoles: 'all roles',
     allChannels: 'all channels', reset: 'reset', tier: 'tier', sortTier: 'sort: tier, then size', sortSize: 'sort: size', sortName: 'sort: name',
     sortNewest: 'sort: newest signal', people: 'people', groups: 'groups', institutions: 'institutions', members: 'members', back: '← back',
-    showOnMap: 'show on map', approx: 'approximate position', manualPos: 'position from the manual table', position: 'position', noMatch: 'nothing matches', noInst: 'No institution on record',
+    showOnMap: 'show on map', approx: 'country-level placeholder, not institution coordinates', manualPos: 'position from the manual table', position: 'position', noMatch: 'nothing matches', noInst: 'No institution on record',
     loose: 'Not attached to a group here', unattached: 'unattached', group: 'group', pi: 'PI', institution: 'institution', homepage: 'homepage',
     topics: 'topics', funding: 'active funding', recent: 'recent outputs', openSource: 'open source', evidence: 'evidence links', signals: 'public records',
     affiliation: 'affiliation', finalPass: 'final pass', roleEvidence: 'role evidence', rolesInSignals: 'roles in records', channels: 'channels',
@@ -420,7 +443,8 @@ const I18N = {
     },
     introGroup: (g, members) => {
       const counts = roleCounts(members).map(([k, n]) => `${n} ${I18N.en.roles[k] || k}`).join(', ');
-      let s = `${g.pi_name}'s group at ${g.institution_key} (${g.country}): ${members.length} people on record (${counts}).`;
+      const title = g.pi_name ? `${g.pi_name}'s group` : groupLabel(g);
+      let s = `${title} at ${g.institution_key} (${g.country}): ${members.length} people on record (${counts}).`;
       if (g.active_funding.length) s += ` Active funding: ${g.active_funding.map(f => label(f.split('@')[0]) + (f.split('@')[1] ? ' ' + f.split('@')[1] : '')).join('; ')}.`;
       if (g.topics.length) s += ` Topics: ${g.topics.slice(0, 4).join('; ')}.`;
       return s;
@@ -431,7 +455,7 @@ const I18N = {
     search: '搜索姓名、机构、课题组、方向', allCountries: '所有国家', allTiers: '所有层级', allRoles: '所有角色',
     allChannels: '所有渠道', reset: '重置', tier: '第', sortTier: '排序：层级，再按人数', sortSize: '排序：人数', sortName: '排序：姓名',
     sortNewest: '排序：最新记录', people: '人', groups: '课题组', institutions: '机构', members: '成员', back: '← 返回',
-    showOnMap: '在地图上显示', approx: '位置为近似', manualPos: '位置来自手工表', position: '定位', noMatch: '没有匹配结果', noInst: '没有机构记录',
+    showOnMap: '在地图上显示', approx: '国家范围示意，非机构实际位置', manualPos: '位置来自手工表', position: '定位', noMatch: '没有匹配结果', noInst: '没有机构记录',
     loose: '本机构内未归入课题组', unattached: '未归组', group: '课题组', pi: '负责人', institution: '机构', homepage: '主页',
     topics: '方向', funding: '在研资助', recent: '近期产出', openSource: '开源', evidence: '证据链接', signals: '公开记录',
     affiliation: '隶属', finalPass: '终检', roleEvidence: '角色依据', rolesInSignals: '记录中的身份', channels: '渠道',
@@ -464,7 +488,8 @@ const I18N = {
     },
     introGroup: (g, members) => {
       const counts = roleCounts(members).map(([k, n]) => `${I18N.zh.roles[k] || k} ${n} 人`).join('，');
-      let s = `${g.pi_name} 课题组，${g.institution_key}（${g.country}），有记录的成员 ${members.length} 人（${counts}）。`;
+      const title = g.pi_name ? `${g.pi_name} 课题组` : groupLabel(g);
+      let s = `${title}，${g.institution_key}（${g.country}），有记录的成员 ${members.length} 人（${counts}）。`;
       if (g.active_funding.length) s += `在研资助：${g.active_funding.map(f => label(f.split('@')[0]) + (f.split('@')[1] ? ' ' + f.split('@')[1] : '')).join('；')}。`;
       if (g.topics.length) s += `方向：${g.topics.slice(0, 4).join('；')}。`;
       return s;
@@ -518,7 +543,9 @@ function matches(p) {
 }
 const visible = () => DATA.persons.filter(matches);
 const groupOf = name => DATA.groups.find(g => g.group === name);
-const personOf = name => DATA.persons.find(p => p.name === name);
+const groupLabel = g => g.display_name || g.pi_name || g.group.split(' @ ')[0];
+const personOf = key => DATA.persons.find(p => p.record_key === key || p.entity_id === key) ||
+  (DATA.persons.filter(p => p.name === key).length === 1 ? DATA.persons.find(p => p.name === key) : undefined);
 const newestDate = p => (p.signals.find(s => s.date) || {}).date || '';
 function sortPeople(people) {
   const by = {tier: (a, b) => a.tier - b.tier || a.name.localeCompare(b.name), size: (a, b) => a.tier - b.tier || b.signals.length - a.signals.length,
@@ -527,7 +554,7 @@ function sortPeople(people) {
 }
 function sortGroups(groups, countOf) {
   const by = {tier: (a, b) => a.tier - b.tier || countOf(b) - countOf(a), size: (a, b) => countOf(b) - countOf(a),
-    name: (a, b) => a.pi_name.localeCompare(b.pi_name), newest: (a, b) => a.tier - b.tier || countOf(b) - countOf(a)}[filters.sort];
+    name: (a, b) => groupLabel(a).localeCompare(groupLabel(b)), newest: (a, b) => a.tier - b.tier || countOf(b) - countOf(a)}[filters.sort];
   return [...groups].sort(by);
 }
 
@@ -604,12 +631,23 @@ function render() {
 }
 const topicsLine = ts => ts.length ? `<div class="k">${esc(ts.slice(0, 3).join(' · '))}</div>` : '';
 const tagsLine = tags => tags.length ? `<div class="tags">${tagChips(tags.slice(0, 6))}</div>` : '';
+function identityLabel(status) {
+  const labels = {
+    reviewed: ['Identity bindings reviewed', '身份关联已审核'],
+    reviewed_with_held_sources: ['Identity reviewed; some sources held', '身份已审核，部分来源待核验'],
+    reviewed_with_pending_ids: ['Identity reviewed; other provider IDs unverified', '身份已审核，其他来源 ID 未核验'],
+    needs_review: ['Same-name identity review needed', '同名身份待核验'],
+    provider_only: ['Provider ID only; identity not independently verified', '仅有来源 ID，身份未独立核验'],
+    unkeyed: ['No strong identity key', '缺少强身份标识']
+  };
+  return (labels[status] || ['Identity not checked', '身份未检查'])[lang === 'zh' ? 1 : 0];
+}
 function personRow(p) {
-  return `<div class="row" data-person="${esc(p.name)}"><div><span class="t">${esc(p.name)}</span> ${badge(p.tier)} <span class="role">${esc(roleLabel(p.role_class))}</span></div>
-    <div class="r">${newestDate(p) || ''}</div><div class="m">${esc(p.current_affiliation || '')}${p.country ? ' · ' + esc(p.country) : ''}${p.group ? ' · ' + esc(p.group.split(' @ ')[0]) : ''}</div>${tagsLine(p.tags || [])}</div>`;
+  return `<div class="row" data-person="${esc(p.record_key || p.name)}"><div><span class="t">${esc(p.name)}</span> ${badge(p.tier)} <span class="role">${esc(roleLabel(p.role_class))}</span></div>
+    <div class="r">${newestDate(p) || ''}</div><div class="m">${esc(p.current_affiliation || '')}${p.country ? ' · ' + esc(p.country) : ''}${p.group ? ' · ' + esc(p.group.split(' @ ')[0]) : ''}</div>${['needs_review', 'reviewed_with_held_sources', 'reviewed_with_pending_ids'].includes(p.identity_status) ? `<div class="m">${esc(identityLabel(p.identity_status))}</div>` : ''}${tagsLine(p.tags || [])}</div>`;
 }
 function groupRow(g, n, m = 0) {
-  return `<div class="row" data-group="${esc(g.group)}"><div><span class="t">${esc(g.pi_name)}</span> ${badge(g.tier)}</div>
+  return `<div class="row" data-group="${esc(g.group)}"><div><span class="t">${esc(groupLabel(g))}</span> ${badge(g.tier)}</div>
     <div class="r">${n} ${T().members}${m ? ` (+${m} ${T().coauthors})` : ''}</div><div class="m">${esc(g.institution_key)} · ${esc(g.country)}</div>${tagsLine((g.tags || []).map(x => x[0]))}${topicsLine(g.topics)}</div>`;
 }
 function groupsList(people) {
@@ -658,10 +696,12 @@ function groupView(name, people) {
   const g = groupOf(name); if (!g) return '<div class="card">?</div>';
   const linked = people.filter(p => p.group === name), members = linked.filter(p => !isCoauthor(p)), coauthors = linked.length - members.length;
   const fund = g.active_funding.map(f => { const [t, d] = f.split('@'); return `${esc(label(t))}${d ? ' · ' + esc(d) : ''}`; });
-  return `<div class="card"><h2>${esc(g.pi_name)} ${badge(g.tier)}</h2>
+  return `<div class="card"><h2>${esc(groupLabel(g))} ${badge(g.tier)}</h2>
     <div class="sub"><a data-inst="${esc(g.institution_key)}" href="#">${esc(g.institution_key)}</a> · ${esc(g.country)} · ${members.length} ${T().members}${coauthors ? ` (+${coauthors} ${T().coauthors})` : ''} <button class="btn" data-fly="${esc(g.institution_key)}">${T().showOnMap}</button></div>
     <p class="intro">${esc(summaryFor(g, 'group', members))}</p>
-    <dl><dt>${T().pi}</dt><dd><a data-person="${esc(g.pi_name)}" href="#">${esc(g.pi_name)}</a></dd>
+    <p class="muted">${lang === 'zh' ? '关系依据（完整分组）：团队 / 项目 / 合著' : 'Relationship evidence (full group): team / project / coauthor'}: ${['team', 'project', 'coauthor'].map(k => (g.relationship_counts || {})[k] || 0).join(' / ')}${!g.pi_name ? (lang === 'zh' ? '；负责人尚未核实。' : '; group leader not established.') : !g.pi_key ? (lang === 'zh' ? '；负责人未入选当前名单，分组名称仅保留来源关联。' : '; leader not in the selected roster; group name retains the source relationship only.') : ''}</p>
+    ${g.leader_reference ? `<p class="muted">${g.leader_reference.status === 'reviewed_team_reference' ? (lang === 'zh' ? '已核查的团队负责人引用，未入选人员名单：' : 'Reviewed team leader reference, not included in the selected roster: ') : (lang === 'zh' ? '负责人身份冲突未解决；仅引用已审核主页，不计入人数：' : 'Leader identity conflict unresolved; reviewed profile reference only, excluded from person counts: ')}${link(g.leader_reference.url)} · ${esc(g.leader_reference.last_verified)}</p>` : ''}
+    <dl><dt>${T().pi}</dt><dd>${g.pi_key ? `<a data-person="${esc(g.pi_key)}" href="#">${esc(g.pi_name)}</a>` : esc(g.pi_name || '—')}</dd>
     ${g.homepage ? `<dt>${T().homepage}</dt><dd>${link(g.homepage)}</dd>` : ''}
     ${FACETS.length ? `<dt>${T().tags}</dt><dd>${tagChips((g.tags || []).map(x => x[0]), Object.fromEntries(g.tags || [])) || '<span class="muted">—</span>'}</dd>` : ''}
     <dt>${T().topics}</dt><dd>${g.topics.map(t => `<span class="topic">${esc(t)}</span>`).join('') || '<span class="muted">—</span>'}</dd>
@@ -697,9 +737,11 @@ function personView(name) {
     <dl><dt>${T().affiliation}</dt><dd>${esc(p.current_affiliation) || '—'}<br><span class="muted">${esc(p.affiliation_source)}</span></dd>
     ${p.final_pass_title || p.final_pass_affiliation ? `<dt>${T().finalPass}</dt><dd>${esc(p.final_pass_title || '')} ${esc(p.final_pass_affiliation || '')} ${esc(p.final_pass_country || '')} ${link(p.final_pass_url)}<br><span class="muted">${esc(p.last_verified)}</span></dd>` : ''}
     <dt>${T().group}</dt><dd>${p.group ? `<a data-group="${esc(p.group)}" href="#">${esc(p.group)}</a>` : `<span class="muted">${T().unattached}</span>`}${p.group_evidence ? `<br><span class="muted">${esc(p.group_evidence)}</span>` : ''}</dd>
+    ${(p.group_memberships || []).length ? `<dt>${lang === 'zh' ? '已核查团队关系' : 'Reviewed team relationships'}</dt><dd><ul>${p.group_memberships.map(r => `<li>${link(r.group.url, r.group.name)} · ${esc(r.group.institution)} · ${esc(r.relation_type)} · ${esc(r.status)}<br>${esc(r.valid_from || '')} ${r.valid_to ? '→ ' + esc(r.valid_to) : ''} · ${esc(r.observed_on)}<br>${r.evidence.map(e => link(e.url, e.quote)).join('<br>')}</li>`).join('')}</ul></dd>` : ''}
     <dt>${T().roleEvidence}</dt><dd class="muted">${esc(p.role_evidence) || '—'}</dd>
     <dt>${T().rolesInSignals}</dt><dd>${esc(p.role)} · ${T().latest} ${esc(p.latest_role)}${p.first_pub_year ? ` · ${T().firstPub} ${esc(p.first_pub_year)}` : ''}</dd>
     <dt>${T().channels}</dt><dd>${p.channels_hit.map(c => esc(channelLabel(c))).join(', ')} · ${T().hop} ${esc(p.hop_depth)} · ${T().merge} ${esc(p.merge_confidence)} · ${T().fit} ${esc(p.fit) || '—'}</dd>
+    <dt>${lang === 'zh' ? '身份核验' : 'Identity review'}</dt><dd>${esc(identityLabel(p.identity_status))}</dd>
     ${p.homepage ? `<dt>${T().homepage}</dt><dd>${link(p.homepage)}</dd>` : ''}
     ${ids.length ? `<dt>${T().ids}</dt><dd>${ids.join(' · ')}</dd>` : ''}
     ${FACETS.length ? `<dt>${T().tags}</dt><dd>${tagChips(p.tags || []) || '<span class="muted">—</span>'}</dd>` : ''}
@@ -810,6 +852,7 @@ def main() -> None:
     parser.add_argument('--offline', action='store_true', help='use the geo cache only; no ROR requests')
     parser.add_argument('--summaries', default=None, help='optional JSON with en/zh summaries per group and person')
     parser.add_argument('--topic-policy', help='topic policy JSON; defaults to topic-policy.json beside persons')
+    parser.add_argument('--group-recovery', help='reviewed grouping queue/receipts directory; default beside persons')
     parser.add_argument('--facets', default=None,
                         help='research-direction facets JSON (assets/facets.template.json); default: facets.json next to the persons file when present')
     args = parser.parse_args()
@@ -825,6 +868,9 @@ def main() -> None:
     geocoder = Geocoder(args.geo_cache or str(out.parent / 'cache' / 'geo' / 'institutions.json'), offline=args.offline,
                         overrides=load_geo_overrides(str(ASSETS / 'geo-overrides.json')))
     data = build_data(persons, args, geocoder, load_summaries(args.summaries), load_facets(args.facets))
+    from table_export import prepare_recovery
+    selected = select_persons(persons, args)[0]
+    data['meta']['group_recovery'] = prepare_recovery(persons, selected, args)
     geocoder.save()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(render_html(data), encoding='utf-8')

@@ -246,8 +246,8 @@ class GroupResolutionTests(unittest.TestCase):
 
     def test_member_of_nested_leader_uses_resolved_group_with_chain_evidence(self):
         lead = person('PI', role='pi')
-        junior = {**person('Junior', parent='PI'), 'role_class': 'group_leader'}
-        student = person('Student', parent='Junior')
+        junior = {**person('Junior', parent='PI', signal_type='team_member'), 'role_class': 'group_leader'}
+        student = person('Student', parent='Junior', signal_type='team_member')
         results = assign_groups([lead, junior, student])
         self.assertEqual([p['group'] for p in results], ['PI @ EPFL'] * 3)
         self.assertIn('via Junior', results[-1]['group_evidence'])

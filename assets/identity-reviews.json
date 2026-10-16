@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "entities": [
+    {
+      "entity_id": "jan-peters-tu-darmstadt",
+      "names": [
+        "Jan Peters"
+      ],
+      "canonical_ids": {
+        "orcid": "0000-0002-5266-8091"
+      },
+      "id_aliases": {},
+      "evidence": [
+        {
+          "url": "https://www.ias.tu-darmstadt.de/Team/JanPeters",
+          "quote": "Jan Peters is a full professor (W3) for Intelligent Autonomous Systems at the Computer Science Department of the Technische Universität Darmstadt and, at the same time, he is the dept head of the research department on Systems AI for Robot Learning (SAIROL) at the German Research Center for Artificial Intelligence (Deutsches Forschungszentrum für Künstliche Intelligenz, DFKI).",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/peters-profile.json",
+          "linked_identifier": {
+            "href": "https://orcid.org/0000-0002-5266-8091",
+            "meaning": "ORCID link appears in the official named researcher profile; confirmed in saved link list."
+          }
+        },
+        {
+          "url": "https://pub.orcid.org/v3.0/0000-0002-5266-8091/record",
+          "quote": "Jan Peters is a full professor (W3) for Intelligent Autonomous Systems at the Computer Science Department of the Technische Universitaet Darmstadt since 2011, and, at the same time, he is the dept head of the research department on Systems AI for Robot Learning (SAIROL) at the German Research Center for Artificial Intelligence (Deutsches Forschungszentrum für Künstliche Intelligenz, DFKI) since 2022. He is also is a founding research faculty member of the Hessian Center for Artificial Intelligence. Jan Peters has received the Dick Volz Best 2007 US PhD Thesis Runner-Up Award, the Robotics: Science & Systems - Early Career Spotlight, the",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/peters-orcid-good.json"
+        },
+        {
+          "url": "https://www.ias.tu-darmstadt.de/Team/JanPeters",
+          "quote": "Nguyen, K.; Le, A.T.; Peters, J.; Vu, M.N. (2026). DoublyAware: Dual Planning and Policy Awareness for Temporal Difference Learning in Humanoid Locomotion, IEEE Robotics and Automation Letters (RA-L), 11, 2, pp.2162--2169.",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/peters-profile.json"
+        }
+      ],
+      "signal_reviews": [
+        {
+          "evidence_url": "https://arxiv.org/abs/2506.12095",
+          "decision": "accept",
+          "reason": "Official named researcher profile lists this exact paper with the researcher as coauthor; this run independently read its original author list. This approves only the source authorship, not all provider-ID aliases.",
+          "evidence_refs": [
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "entity_id": "edward-johns-imperial",
+      "names": [
+        "Edward Johns"
+      ],
+      "canonical_ids": {
+        "orcid": "0000-0002-8914-8786"
+      },
+      "id_aliases": {},
+      "evidence": [
+        {
+          "url": "https://www.robot-learning.uk/",
+          "quote": "The lab is led by Dr Edward Johns in the Department of Computing at Imperial College London.",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/johns-home.json"
+        },
+        {
+          "url": "https://pub.orcid.org/v3.0/0000-0002-8914-8786/record",
+          "quote": "https://www.robot-learning.uk",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/johns-orcid.json",
+          "json_pointer": "/data/person/researcher-urls/researcher-url/0/url/value",
+          "meaning": "Public ORCID 0000-0002-8914-8786 names Edward Johns and explicitly points to this same lab website; Imperial-authored work assertions also appear in its works list."
+        }
+      ],
+      "signal_reviews": []
+    },
+    {
+      "entity_id": "alois-knoll-tum",
+      "names": [
+        "Alois Knoll",
+        "Alois C. Knoll",
+        "Alois Christian Knoll"
+      ],
+      "canonical_ids": {
+        "orcid": "0000-0003-4840-076X"
+      },
+      "id_aliases": {},
+      "evidence": [
+        {
+          "url": "https://www.ce.cit.tum.de/air/people/prof-dr-ing-habil-alois-knoll/",
+          "quote": "Prof. Dr.-Ing. habil.\nAlois Christian\nKnoll\nTechnische Universität München",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/knoll-official.json"
+        },
+        {
+          "url": "https://pub.orcid.org/v3.0/0000-0003-4840-076X/record",
+          "quote": "https://www.ce.cit.tum.de/air/people/prof-dr-ing-habil-alois-knoll/",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/knoll-orcid.json",
+          "json_pointer": "/data/person/researcher-urls/researcher-url/0/url/value",
+          "meaning": "The ORCID record explicitly links the official TUM profile, names Alois Knoll, and supplies Alois C. Knoll as a public name variant."
+        },
+        {
+          "url": "https://www.ce.cit.tum.de/air/people/prof-dr-ing-habil-alois-knoll/",
+          "quote": "Since the autumn of 2001 he has been a professor of Computer Science at the Department of Informatics of the Technical University Munich (TUM).",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/knoll-official.json"
+        },
+        {
+          "url": "https://www.ce.cit.tum.de/air/people/prof-dr-ing-habil-alois-knoll/",
+          "quote": "1908/1937Li, Hang; Shen, Fengyi; Chen, Dong; Yang, Liudi; Wang, Xudong; Shi, Jinkui; Bing, Zhenshan; Liu, Ziyuan; Knoll, Alois: ReMem-VLA: Empowering Vision-Language-Action Model with Memory via Dual-Level Recurrent Queries. , 2026 mehr… BibTeX",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/identity-followup/knoll-official.json"
+        }
+      ],
+      "signal_reviews": [
+        {
+          "evidence_url": "https://arxiv.org/abs/2603.12942",
+          "decision": "accept",
+          "reason": "Official named researcher profile lists this exact paper with the researcher as coauthor; this run independently read its original author list. This approves only the source authorship, not all provider-ID aliases.",
+          "evidence_refs": [
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "entity_id": "shan-luo-robot-perception",
+      "names": [
+        "Shan Luo"
+      ],
+      "canonical_ids": {
+        "orcid": "0000-0003-4760-0372"
+      },
+      "evidence": [
+        {
+          "url": "https://shanluo.github.io/",
+          "quote": "I am currently Professor and Chair of Robotics and AI at the Department of Engineering, King’s College London, where I lead the Robot Perception Lab (RPL).",
+          "reviewed_on": "2026-10-16",
+          "linked_identifier": {
+            "href": "https://orcid.org/0000-0003-4760-0372"
+          },
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/vla-vlm/profiles/shan-personal.json"
+        },
+        {
+          "url": "https://www.kcl.ac.uk/people/shan-luo",
+          "quote": "Professor Shan Luo is a Full Professor in Robotics and AI at King's College London",
+          "reviewed_on": "2026-10-16",
+          "cache": "runs/embodied-ai-2026-10-16-refined-full/cache/vla-vlm/profiles/shan.json"
+        }
+      ],
+      "signal_reviews": []
+    }
+  ]
+}

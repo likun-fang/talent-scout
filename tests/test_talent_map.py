@@ -1,6 +1,9 @@
 import argparse
 import datetime
 import json
+import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -80,6 +83,32 @@ class BuildDataTests(unittest.TestCase):
         ]
         self.geo = FakeGeocoder({'Technical University of Munich': (48.15, 11.57, 'Munich', 'ror:https://ror.org/02kkvpp62'),
                                  'University of Amsterdam': (52.37, 4.9, 'Amsterdam', 'ror:https://ror.org/04dkp9463')})
+
+    @unittest.skipUnless(shutil.which('node'), 'Node is needed to execute the HTML rendering regression')
+    def test_group_row_displays_team_name_without_inventing_pi(self):
+        html = render_html(build_data(self.persons, args(), self.geo))
+        declarations = [re.search(r'const groupLabel = .*?;', html).group()]
+        for name in ['groupRow', 'sortGroups']:
+            declarations.append(re.search(r'function ' + name + r'\([^)]*\) \{.*?\n\}', html, re.S).group())
+        program = '''
+const assert = require('node:assert/strict');
+const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+const badge = () => '', tagsLine = () => '', topicsLine = () => '';
+const T = () => ({members:'members',coauthors:'coauthors'});
+const filters = {sort:'name'};
+''' + '\n'.join(declarations) + '''
+const lab = {group:'Robot Lab @ Example University',display_name:'Robot Lab',pi_name:'',
+             tier:1,institution_key:'Example University',country:'DE',topics:[]};
+const pi = {...lab,group:'Ada @ Example University',display_name:'Ada',pi_name:'Ada'};
+assert.ok(groupRow(lab, 2).includes('<span class="t">Robot Lab</span>'));
+assert.equal(lab.pi_name, '');
+assert.ok(groupRow(pi, 1).includes('<span class="t">Ada</span>'));
+assert.deepEqual(sortGroups([lab, pi], () => 1).map(groupLabel), ['Ada','Robot Lab']);
+filters.sort='tier';
+assert.deepEqual(sortGroups([pi, lab], g => g === lab ? 2 : 1).map(groupLabel), ['Robot Lab','Ada']);
+'''
+        result = subprocess.run([shutil.which('node'), '-e', program], text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_institutions_groups_and_persons_are_aggregated_with_evidence(self):
         data = build_data(self.persons, args(), self.geo)

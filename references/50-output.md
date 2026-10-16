@@ -11,6 +11,14 @@ A group view is written to `groups.csv` and `groups.md` in the same directory. W
 otherwise guesses a local code page and turns ä, ł, ś into mojibake; Mac readers accept either. Columns are fixed
 (`assets/person-table.columns.md`); do not add or drop columns per run.
 
+Before window/topic selection, both exporters apply the same post-enrichment identity gate. Inspect
+`roster.identity-audit.json` for duplicate merges, held identity conflicts and held publication sources.
+Unique strong identities are an export invariant; do not report row counts as fully verified people.
+The existing `groups.csv` member count remains the count of linked roster records, including coauthors.
+`groups.relations.json` separates team, project, coauthor and unverified counts and records whether the
+named leader is in the selected roster. A source-named leader can be absent after topic qualification;
+this does not authorize linking to another same-name person or asserting formal team membership.
+
 | column | content |
 |--------|---------|
 | name | display name as on the most authoritative evidence page |

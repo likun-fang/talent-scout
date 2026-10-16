@@ -11,6 +11,7 @@
     "hop_depth"
   ],
   "properties": {
+    "author_position": {"enum": ["first", "middle", "last", "unknown", ""], "description": "Position in the complete original author list, never the filtered regional list."},
     "kind": {
       "enum": [
         "person",

@@ -4,6 +4,11 @@ This is the domain-agnostic engine. Every non-person signal is converted with on
 Each produced person carries `hop_depth` (+1 per hop) and the parent signal's evidence plus the
 page that named the person.
 
+For paper conversion use `scripts/publication_signals.py`: retain position in the original complete author list
+before filtering by region. Do not infer first/last author from the filtered list. After initial merge/enrichment,
+follow every ungrouped person through the queue in `42-group-recovery.md`; finishing work-to-author hops does not
+establish their current laboratory membership.
+
 | From | Rule | Evidence to keep |
 |------|------|------------------|
 | `work` | Full author list via OpenAlex (`works?search=<title>`), DBLP, or OpenReview; keep authors whose institution is in region; `role` by position (first / last / coauthor). | work URL + author list page |

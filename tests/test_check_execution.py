@@ -50,6 +50,20 @@ class CheckTests(unittest.TestCase):
         self.attempt()
         self.assertEqual(ce.check(self.root)['status'], 'complete')
 
+    def test_required_recovery_cannot_be_omitted_or_satisfied_by_pending_queue(self):
+        import group_recovery as gr
+        from test_group_recovery import candidate, DATE
+        self.plan['group_recovery_required'] = True
+        self.revision = install_plan(self.root, self.plan, 'Require full grouping coverage')
+        self.attempt()
+        report = ce.check(self.root)
+        self.assertIn('missing_required_group_recovery', report['issues'])
+        gr.plan(self.root/'group-recovery', [candidate()], DATE)
+        report = ce.check(self.root)
+        self.assertEqual(report['status'], 'incomplete')
+        self.assertEqual(report['group_recovery']['target_count'], 1)
+        self.assertIn('group_recovery_incomplete', report['issues'])
+
     def test_failed_request_cannot_be_reported_as_zero(self):
         self.attempt(error=True)
         report = ce.check(self.root)

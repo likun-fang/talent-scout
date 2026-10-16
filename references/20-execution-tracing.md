@@ -1,5 +1,9 @@
 # Execution tracing and plan checks
 
+New talent plans include `group_recovery_required: true` and the full grouping recovery stage described in
+`42-group-recovery.md`. `check_execution.py` combines declared task checks with the frozen per-person recovery
+queue. Missing required queues, unprocessed people and unverified membership keep completion incomplete.
+
 Read when preparing a task plan, executing channel helpers or checking delivery. Research rules, channels,
 budgets, person resolution and exports remain in their existing references. Tracing observes execution;
 it does not schedule agents, retry searches, verify identities or guarantee recall.

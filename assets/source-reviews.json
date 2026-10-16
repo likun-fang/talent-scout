@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "holds": [
+    {
+      "doi": "10.67228/30716357/ijmrse-2024pii8t1v",
+      "reason": "The 2024 publisher record names Ole-Johan Dahl and Kristen Nygaard as University of Oslo professors. Contemporary memorials document the historical scientists' deaths in 2002. Authorship and source identity are unresolved; this record cannot establish a current talent candidate. This hold concerns this publication, not a name blacklist.",
+      "reviewed_on": "2026-10-16",
+      "evidence_urls": [
+        "https://worldcometresearchgroup.com/index.php/ijmrse/article/view/913",
+        "https://www.jot.fm/issues/issue_2002_09/eulogy/",
+        "https://www.mn.uio.no/ifi/english/about/kristen-nygaard/index.html"
+      ]
+    }
+  ]
+}

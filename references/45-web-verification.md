@@ -1,5 +1,9 @@
 # Final pass: current roles and affiliations by group
 
+The full ungrouped-person recovery queue in `42-group-recovery.md` also runs for people without a known PI/team
+page, at every tier. This group's existing-page ordering must not omit those queue entries. Role/affiliation
+corrections and direct group relationships remain separate evidence updates.
+
 Runs after an initial stage-5 export; the table is uncapped by default (`--max-rows 0`). Budget reads by group:
 read the PI team page once for the PI and members, then individual pages as needed. Record current role and
 affiliation excerpts. Re-export after verification: corrected countries and roles can change tiers, sorting and region eligibility. Reading a page is not verification:

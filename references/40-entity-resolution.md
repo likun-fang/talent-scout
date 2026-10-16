@@ -4,17 +4,17 @@
 1. ORCID (academic spine). OpenAlex author records carry it; ORCID public API `https://pub.orcid.org/v3.0/<id>` returns employment history (current affiliation!).
 2. OpenAlex author id, DBLP pid, OpenReview id, GEPRIS person id (`ids.gepris`), SNSF person number (`ids.snsf`).
 3. GitHub login (engineering spine).
-4. Weak key: normalised name + a shared institution token ("Hugging Face, Paris" and "Hugging Face / Sorbonne" match;
-   exact-string matching missed six such pairs in the first run). Tokens are words: an affiliation list joined by `;`
-   or a bracketed name yields the same tokens as the bare name ("TUM Klinikum; Technical University of Munich" shares
-   `klinikum` with "TUM Klinikum Rechts der Isar"). A short name and its long form ("EPFL", "École Polytechnique
+4. Weak key: normalised name + a matching institution or a specific multiword institution prefix.
+   A shared generic word such as "University" is insufficient. A semicolon-separated item such as
+   "TUM Klinikum" can match "TUM Klinikum Rechts der Isar". A short name and its long form ("EPFL", "École Polytechnique
    Fédérale de Lausanne") share no token; the institution comparison of stage 4 (aliases, lists, umbrella bodies,
    below) decides those. Two records the final pass recognises as one person (the same name on one team page, or a
    page that names the other record's institution as the previous post) are merged by the apply step: the result line
    says `duplicate_of: <name as in persons.jsonl>`, signals and ids are joined and the verified record's fields win.
 
 ## Procedure
-- Group signals sharing any strong key → one person.
+- Group signals sharing a strong key only when the combined component has no contradictory provider IDs.
+  Normalize provider URLs and bare IDs before comparing. Never overwrite a contradictory ID with the last value.
 - For remaining signals, attempt the weak key only when the institution matches or the two
   affiliations are linked by a known move (e.g., the ORCID employment history shows both).
 - Confidence: `high` (strong key), `medium` (weak key + same domain + plausible timeline),
@@ -35,6 +35,33 @@ Current-role checks against web pages and public LinkedIn profiles happen by gro
 ## Script
 `scripts/merge_persons.py signals.jsonl > persons.jsonl` implements the key ladder and leaves name-only
 matches as separate rows. Manual path: build the table in the conversation, one row per strong key.
+
+Both final exporters run `identity_quality.resolve_persons` after enrichment and before selection.
+Compatible duplicate strong identities are merged with source records retained. Unreviewed contradictory IDs
+(including per-signal IDs), unresolved current-employer collisions, and explicit held/deceased identity statuses
+are held outside the main roster. A matching ORCID with different OpenAlex IDs requires review, not an automatic merge.
+The shared `assets/identity-reviews.json` registry supplies evidence-backed canonical identities and approved aliases
+to merging, final selection and publication qualification. Its entries are explicit reviewed decisions; a provider ID or matching name alone is not a review.
+See [Identity review decisions](41-identity-reviews.md) for the format and source-level acceptance rules.
+An ID-less weak match with two incompatible candidates stays separate regardless of input order.
+Same-name records without a shared strong key stay separate and are reported for identity/career-history review.
+`roster.identity-audit.json` preserves the merged/held records and reasons. Resolve conflicts from public evidence
+and retain the audit; do not empty conflicting IDs merely to bypass the gate.
+With a reviewed identity binding, quarantine incompatible/unbound source signals and recompute eligibility from
+the remaining signals. A specific authored-source review can correct a provider binding without discarding the
+paper; retain the original signal, correction and evidence references in the audit. Unreviewed provider annotations
+never become canonical IDs or approved aliases. Identity proof does not waive recent-paper/topic requirements.
+If a corrected identity invalidates the provider profile, defer geographic eligibility until successful enrichment
+or an independently bound profile supports it. Never reuse the discarded provider's job or publication age.
+
+An identity-held PI may remain a grouping reference only when a separately reviewed, dated profile proves the
+name, institution and leadership title. Rebuild relationships from the member's own evidence and that profile;
+do not reuse disputed PI papers or blindly restore the previous group string. Reference nodes are excluded from
+person counts and cannot qualify topics. Both HTML and the relation sidecar disclose the reference and missing PI.
+
+`assets/source-reviews.json` records publication-specific holds with DOI, reason, review date and public evidence.
+A held source cannot establish activity, identity or topics; unrelated safe evidence remains eligible.
+This is a curated source-quality gate, not automatic verification of every publication or a name blacklist.
 
 ## Known failure modes
 - Common names (Chinese, Spanish, German) → always demand a strong key or shared institution.
@@ -126,10 +153,15 @@ another institution is stale: the link is rejected as `moved since the roster` a
 it. A rule-1 parent from awards-papers / industry / competitions,
 or a parent that is not used by any pool signal of type lab_member, is treated as paper evidence: require
 `same_institution` even for a unique leader. Otherwise record `coauthor only, different institution` and leave
-it unattached; later fallbacks do not override that rejection. Other unique team links, homepage-host and
-repository-organization links may cross institutions. Preserve that distinction when reviewing moves. Resolve a linked
-leader's own membership to its final PI and record the chain; cyclic or unresolved leader chains remain
+it unattached; later fallbacks do not override that rejection. Other unique team links and repository-organization links may cross institutions. Homepage-host links require a matching institution. Preserve that distinction when reviewing moves. Resolve a linked
+leader's own membership through team/project links to its final PI and record the chain. If a chain contains
+coauthorship, retain the direct association instead of assigning the terminal PI's team. Cyclic or unresolved leader chains remain
 ambiguous. An isolated last-author signal without a linked member does not invent a team.
+
+Validated direct memberships from `42-group-recovery.md` take precedence over these inference rules, including
+explicit historical relationships that must not be restored by a paper fallback. A stable team ID can identify a
+group without a known PI; multiple memberships remain visible without guessing a primary group. These records
+do not change current affiliation, professor eligibility, source identity decisions or topic evidence.
 
 Compare institution names using only the first `||` segment, casefold, accent removal and removal of "university
 of" in its translations (`University`, `Universität`, `Università di`, `Universidad de`, `Universiteit`, `the`, `of`,

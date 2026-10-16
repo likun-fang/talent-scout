@@ -23,6 +23,7 @@ Each stage names the file to read when you reach it and the condition that ends 
 | 2 | Sweep channels into signals, hopping to people inside each channel | `references/channels/README.md`, then one file per channel in the run; hop rules in `references/30-hops.md` | every channel in `run.meta.json` has either reached its page budget or exhausted its sources; `signals/<channel>.jsonl` and `signals/<channel>.coverage.md` exist for each |
 | 3 | Close the hop gaps | `references/30-hops.md` | every non-person signal across channels has produced person signals or a `roster not public` note; `signals.jsonl` is the concatenation |
 | 4 | Merge signals into persons, then enrich | `references/40-entity-resolution.md` | `persons.jsonl` written by `merge_persons.py` **and passed through `current_affiliation.py`** (ORCID title and employment, OpenAlex institution and first publication year); each person has a strong key, or a weak key with same institution, or is marked `ambiguous`; each carries `role_class`, `role_evidence`, `role_confidence`, `tier`, `topics`, `group` |
+| 4b | Recover affiliations for every ungrouped candidate | `references/42-group-recovery.md` | Initial export creates the uncapped queue; every target has an evidence-backed result or an explicitly unresolved status; remaining pending/failed/budget-exhausted jobs keep execution incomplete |
 | 5 | Emit the roster and the group view | `references/50-output.md` | `roster.csv`, `roster.md`, `groups.csv` and `groups.md` written with the fixed columns, sorted by tier, uncapped unless the user set `target_rows`, with the Coverage block |
 
 Two moments to stop for the user: after stage 1 (the domain map and the chosen OpenAlex topics, one screen) and after
@@ -62,6 +63,8 @@ with six agents and produced 845 signals, 521 in-region people; its lessons are 
 
 For new runs, read `references/20-execution-tracing.md` after agreeing the stage-1 map. Freeze an execution plan,
 use `scripts/run_step.py` for observed helper execution, and record research handoffs against attempt IDs.
+New plans set `group_recovery_required: true`. Execute the full stage-4b queue, not only previously grouped
+people or a sample. A completed review of all targets is distinct from verified current membership for all targets.
 Run `scripts/check_execution.py --run-dir RUN_DIR` before reporting completion. Keep its coverage status separate
 from stage termination: a budget-ended stage may be `done` while the execution check is `incomplete`.
 Legacy runs without plans remain resumable but are `not_checked`; do not retrofit automatic call evidence.
