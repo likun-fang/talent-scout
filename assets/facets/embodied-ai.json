@@ -10,14 +10,14 @@
         {"id": "3d", "label": {"en": "3D / depth", "zh": "三维/深度"}, "keywords": ["3D", "point cloud", "point clouds", "RGB-D", "depth image", "depth images"]},
         {"id": "tactile", "label": {"en": "touch / force", "zh": "触觉/力觉"}, "keywords": ["tactile", "visuotactile", "visual-tactile", "haptic", "force sensing", "force feedback"]},
         {"id": "audio", "label": {"en": "audio / speech", "zh": "音频/语音"}, "keywords": ["audio", "speech", "audio-visual", "sound-conditioned"]},
-        {"id": "proprioception", "label": {"en": "proprioception / robot state", "zh": "本体感知/机器人状态"}, "keywords": ["proprioception", "proprioceptive", "joint state", "joint states", "robot state"]}
+        {"id": "proprioception", "label": {"en": "proprioception", "zh": "本体感知"}, "keywords": ["proprioception", "proprioceptive", "joint state", "joint states", "robot state"]}
       ]
     },
     {
       "id": "task",
       "label": {"en": "task", "zh": "任务"},
       "tags": [
-        {"id": "manipulation", "label": {"en": "manipulation / grasping", "zh": "机器人操作/抓取"}, "keywords": ["manipulation", "grasping", "grasp", "bimanual", "dual-arm", "assembly", "insertion"]},
+        {"id": "manipulation", "label": {"en": "manipulation / grasping", "zh": "操作/抓取"}, "keywords": ["manipulation", "grasping", "grasp", "bimanual", "dual-arm", "assembly", "insertion"]},
         {"id": "navigation", "label": {"en": "navigation / exploration", "zh": "导航/探索"}, "keywords": ["navigation", "robot exploration", "embodied exploration", "object-goal", "object navigation"]},
         {"id": "locomotion", "label": {"en": "locomotion / whole-body control", "zh": "移动/全身控制"}, "keywords": ["locomotion", "whole-body control", "loco-manipulation", "robot walking", "parkour"]},
         {"id": "planning", "label": {"en": "task / motion planning", "zh": "任务/运动规划"}, "keywords": ["task planning", "motion planning", "task and motion planning", "robot planning", "robotic planning"]},
@@ -29,11 +29,11 @@
       "id": "approach",
       "label": {"en": "approach", "zh": "方法"},
       "tags": [
-        {"id": "vla", "label": {"en": "VLA", "zh": "VLA · 视觉语言动作"}, "keywords": ["vision-language-action", "vision language action", "VLA", "VLAs"]},
-        {"id": "vlm", "label": {"en": "robot VLM", "zh": "VLM · 机器人视觉语言"}, "keywords": ["vision-language model", "vision-language models", "visual language model", "VLM", "VLMs", "embodied multimodal language model", "multimodal large language model"]},
-        {"id": "robot-policy", "label": {"en": "robot policy", "zh": "Policy · 机器人动作策略"}, "keywords": ["robot policy", "robot policies", "robotic policy", "robotic policies", "visuomotor policy", "visuomotor policies", "diffusion policy", "diffusion policies", "generalist robot policy", "generalist robot policies", "robot action generation", "flow matching for robot control", "flow-based robot policy", "flow-based robot policies"]},
+        {"id": "vla", "label": {"en": "VLA", "zh": "VLA"}, "keywords": ["vision-language-action", "vision language action", "VLA", "VLAs"]},
+        {"id": "vlm", "label": {"en": "VLM", "zh": "VLM"}, "keywords": ["vision-language model", "vision-language models", "visual language model", "VLM", "VLMs", "embodied multimodal language model", "multimodal large language model"]},
+        {"id": "robot-policy", "label": {"en": "Policy", "zh": "Policy"}, "keywords": ["robot policy", "robot policies", "robotic policy", "robotic policies", "visuomotor policy", "visuomotor policies", "diffusion policy", "diffusion policies", "generalist robot policy", "generalist robot policies", "robot action generation", "flow matching for robot control", "flow-based robot policy", "flow-based robot policies"]},
         {"id": "wam", "label": {"en": "world model / WAM", "zh": "世界模型 / WAM"}, "keywords": ["world model", "world models", "world-action model", "world-action modeling", "WAM", "robot world model"]},
-        {"id": "diffusion-flow", "label": {"en": "diffusion / flow policies", "zh": "扩散/流匹配策略"}, "keywords": ["diffusion policy", "diffusion policies", "action diffusion", "flow matching policy", "flow-based robot policy", "flow matching for robot control"]},
+        {"id": "diffusion-flow", "label": {"en": "diffusion / flow", "zh": "扩散/流匹配"}, "keywords": ["diffusion policy", "diffusion policies", "action diffusion", "flow matching policy", "flow-based robot policy", "flow matching for robot control"]},
         {"id": "il", "label": {"en": "imitation learning", "zh": "模仿学习"}, "keywords": ["imitation learning", "behavior cloning", "behaviour cloning", "learning from demonstration", "learning from demonstrations"]},
         {"id": "rl", "label": {"en": "reinforcement learning", "zh": "强化学习"}, "keywords": ["reinforcement learning", "reinforcement-learning", "robot RL", "policy optimization"]},
         {"id": "adaptation", "label": {"en": "adaptation / fine-tuning", "zh": "适配/微调"}, "keywords": ["fine-tuning", "finetuning", "domain adaptation", "parameter-efficient", "test-time adaptation"]}
@@ -43,14 +43,14 @@
       "id": "auxiliary",
       "label": {"en": "capabilities / evaluation context (auxiliary)", "zh": "能力/评测背景（辅助）"},
       "tags": [
-        {"id": "generalization", "label": {"en": "capability: generalization", "zh": "能力：泛化"}, "keywords": ["generalization", "generalisation", "cross-embodiment", "unseen objects", "zero-shot"]},
-        {"id": "precision", "label": {"en": "capability: precision / dexterity", "zh": "能力：精度/灵巧性"}, "keywords": ["precision", "dexterous", "dexterity", "contact-rich", "in-hand"]},
-        {"id": "long-horizon", "label": {"en": "capability: long horizon", "zh": "能力：长程任务"}, "keywords": ["long-horizon", "long horizon", "multi-step", "multi-stage"]},
-        {"id": "memory", "label": {"en": "capability: memory", "zh": "能力：记忆"}, "keywords": ["memory", "partial observability", "partially observable", "history-aware"]},
-        {"id": "open", "label": {"en": "capability: open-world operation", "zh": "能力：开放环境"}, "keywords": ["open-world", "open world", "open-ended", "unstructured environments"]},
-        {"id": "sim", "label": {"en": "evaluation: simulation", "zh": "评测：仿真"}, "keywords": ["simulation", "simulator", "simulated", "Isaac Sim", "MuJoCo"]},
-        {"id": "real", "label": {"en": "evaluation: real robot", "zh": "评测：真机"}, "keywords": ["real robot", "real robots", "real-robot", "physical robot", "physical robots"]},
-        {"id": "humanoid", "label": {"en": "embodiment: humanoid / legged", "zh": "形态：人形/足式"}, "keywords": ["humanoid", "humanoids", "legged", "quadruped", "biped"]}
+        {"id": "generalization", "label": {"en": "generalization", "zh": "泛化"}, "keywords": ["generalization", "generalisation", "cross-embodiment", "unseen objects", "zero-shot"]},
+        {"id": "precision", "label": {"en": "precision / dexterity", "zh": "精度/灵巧性"}, "keywords": ["precision", "dexterous", "dexterity", "contact-rich", "in-hand"]},
+        {"id": "long-horizon", "label": {"en": "long horizon", "zh": "长程任务"}, "keywords": ["long-horizon", "long horizon", "multi-step", "multi-stage"]},
+        {"id": "memory", "label": {"en": "memory", "zh": "记忆"}, "keywords": ["memory", "partial observability", "partially observable", "history-aware"]},
+        {"id": "open", "label": {"en": "open-world operation", "zh": "开放环境"}, "keywords": ["open-world", "open world", "open-ended", "unstructured environments"]},
+        {"id": "sim", "label": {"en": "simulation", "zh": "仿真"}, "keywords": ["simulation", "simulator", "simulated", "Isaac Sim", "MuJoCo"]},
+        {"id": "real", "label": {"en": "real robot", "zh": "真机"}, "keywords": ["real robot", "real robots", "real-robot", "physical robot", "physical robots"]},
+        {"id": "humanoid", "label": {"en": "humanoid / legged", "zh": "人形/足式"}, "keywords": ["humanoid", "humanoids", "legged", "quadruped", "biped"]}
       ]
     }
   ]

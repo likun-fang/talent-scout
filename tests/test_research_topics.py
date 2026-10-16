@@ -203,6 +203,44 @@ class TopicExportTests(unittest.TestCase):
         def locate(self, *args):
             return None
 
+    def test_signal_topics_use_individual_evidence_and_keep_raw_titles(self):
+        records = [person([paper('vla'), paper('vlm')])]
+        before = copy.deepcopy(records)
+        data = talent_map.build_data(records, args(), self.Geo())
+        signals = data['persons'][0]['signals']
+        self.assertEqual([s['display_topics'] for s in signals], [['VLA'], ['VLM']])
+        self.assertEqual([s['topics'] for s in signals], [s['topics'] for s in records[0]['signals']])
+        self.assertEqual(records, before)
+
+    def test_unqualified_signal_has_no_short_topic_and_legacy_export_is_unchanged(self):
+        old = paper('vlm', '2020-01-01')
+        unreviewed = paper('agentic'); unreviewed.pop('topic_evidence')
+        data = talent_map.build_data([person([paper(), old, unreviewed])], args(), self.Geo())
+        signals = {s['evidence_url']: s for s in data['persons'][0]['signals']}
+        self.assertEqual(signals[old['evidence_url']]['display_topics'], [])
+        self.assertEqual(signals[unreviewed['evidence_url']]['display_topics'], [])
+        legacy = talent_map.build_data([person()], args(topic_policy=None), self.Geo())
+        self.assertNotIn('display_topics', legacy['persons'][0]['signals'][0])
+
+    @unittest.skipUnless(shutil.which('node'), 'Node required for evidence topic rendering check')
+    def test_signal_markup_keeps_source_titles_outside_short_chips(self):
+        html = talent_map.render_html(talent_map.build_data([person()], args(), self.Geo()))
+        helper = html[html.index('function signalTopicMarkup(s)'):html.index('function personView(name)')]
+        script = "const assert=require('node:assert/strict'); const esc=s=>s.replaceAll('<','&lt;');\n" + helper + """
+const title = 'A long paper title <with source wording>';
+let rendered = signalTopicMarkup({topics:[title], display_topics:['VLA']});
+assert.ok(rendered.includes('<span class="topic">VLA</span>'));
+assert.ok(rendered.includes('<span class="muted">A long paper title &lt;with source wording>'));
+assert.ok(!rendered.includes('<span class="topic">A long'));
+rendered = signalTopicMarkup({topics:[title], parent:title, display_topics:[]});
+assert.equal(rendered, '');
+rendered = signalTopicMarkup({topics:[title], display_topics:[]});
+assert.ok(!rendered.includes('class="topic"')); assert.ok(rendered.includes('A long paper title'));
+assert.ok(signalTopicMarkup({topics:['Legacy']}).includes('<span class="topic">Legacy</span>'));
+"""
+        result = subprocess.run(['node'], input=script, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_map_group_topics_and_facets_exclude_old_topics_and_coauthors(self):
         records = [person([paper(), paper('vlm', '2020-01-01')]),
                    person([paper('agentic', name='Coauthor')], name='Coauthor', role='researcher', group_link='coauthor')]

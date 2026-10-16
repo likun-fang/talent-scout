@@ -19,7 +19,7 @@ from collections import Counter
 from pathlib import Path
 from table_export import select_persons, row_for, group_rows, window_start, signal_date
 from person_fields import facet_texts, tags_for
-from research_topics import policy_for, topic_tags
+from research_topics import policy_for, supported_topics, topic_tags
 
 ASSETS = Path(__file__).resolve().parents[1] / 'assets'
 ROR_API = 'https://api.ror.org/v2/organizations?query='
@@ -143,6 +143,17 @@ def trimmed_signal(signal: dict) -> dict:
     return {key: signal.get(key) for key in SIGNAL_FIELDS if signal.get(key) not in (None, '', [])}
 
 
+def annotate_signal_topics(person: dict, entry: dict, policy: dict | None) -> None:
+    """Display each accepted signal's own short topics; preserve its source phrases."""
+    if not policy:
+        return
+    accepted = person.get('topic_signals', [])
+    for signal, rendered in zip(sorted(person.get('signals', []), key=signal_date, reverse=True), entry['signals']):
+        supported = (supported_topics(signal, policy, publication_only=person.get('role_class') == 'professor')
+                     if signal in accepted else set())
+        rendered['display_topics'] = [t['label'] for t in policy['topics'] if t['id'] in supported]
+
+
 def person_entry(person: dict, row: dict, aliases: dict) -> dict:
     signals = sorted(person.get('signals', []), key=signal_date, reverse=True)
     entry = {**row, 'topics': [t for t in row['topics'].split(';') if t] if isinstance(row['topics'], str) else row['topics'],
@@ -204,6 +215,7 @@ def build_data(persons: list[dict], args, geocoder, summaries: dict | None = Non
     entries = [person_entry(p, row_for(p, args.domain, date), aliases) for p in selected]
     policy = policy_for(args)
     for person, entry in zip(selected, entries):
+        annotate_signal_topics(person, entry, policy)
         entry['tags'] = (topic_tags(person, policy, facets, tags_for, facet_texts) if policy
                          else tags_for(*facet_texts(person), facets)) if facets else []
     start = window_start(args.date, args.window_months)
@@ -660,6 +672,16 @@ function groupView(name, people) {
     <div class="card">${membersByRole(linked)}</div>
     <div class="card"><details><summary>${T().evidence} (${g.evidence_urls.length})</summary>${g.evidence_urls.slice(0, 60).map(u => link(u)).join('<br>')}</details></div>`;
 }
+function signalTopicMarkup(s) {
+  const topics = s.display_topics ?? s.topics ?? [];
+  const chips = topics.length ? `<br>${topics.map(t => `<span class="topic">${esc(t)}</span>`).join('')}` : '';
+  if (!('display_topics' in s)) return chips;
+  // Keep source wording as ordinary evidence text, without repeating titles already shown.
+  const existing = [s.parent || '', s.snippet || ''];
+  const phrases = [...new Set([s.publication?.title, ...(s.topics || [])].filter(Boolean))]
+    .filter(t => !existing.some(text => text.includes(t)));
+  return chips + (phrases.length ? `<br><span class="muted">${phrases.map(esc).join(' · ')}</span>` : '');
+}
 function personView(name) {
   const p = personOf(name); if (!p) return '<div class="card">?</div>';
   const ids = Object.entries(p.ids || {}).map(([k, v]) => k === 'orcid' ? link(`https://orcid.org/${v}`, `ORCID ${v}`)
@@ -667,7 +689,7 @@ function personView(name) {
   const sig = s => `<li><b>${esc(label(s.signal_type))}</b> · ${esc(s.date || T().undated)} · ${esc(T().strength[s.strength] || s.strength || '')} · ${esc(channelLabel(s.channel))} · ${T().hop} ${s.hop_depth ?? ''}
       ${s.role_title ? `<br><i>${esc(s.role_title)}</i>` : ''}${s.affiliation_raw ? `<br>${esc(s.affiliation_raw)} ${esc(s.country || '')}` : ''}
       ${s.snippet ? `<br><span class="muted">${esc(s.snippet)}</span>` : ''}${s.parent ? `<br>${T().parent}: ${esc(s.parent)}` : ''}
-      ${(s.topics || []).length ? `<br>${s.topics.map(t => `<span class="topic">${esc(t)}</span>`).join('')}` : ''}
+      ${signalTopicMarkup(s)}
       ${s.note ? `<br><span class="muted">${esc(s.note)}</span>` : ''}<br>${link(s.evidence_url)}</li>`;
   return `<div class="card"><h2>${esc(p.name)} ${badge(p.tier)} <span class="role">${esc(roleLabel(p.role_class))} · ${esc(p.role_confidence)}</span></h2>
     <div class="sub">${p.institution_key ? `<a data-inst="${esc(p.institution_key)}" href="#">${esc(p.current_affiliation)}</a>` : esc(p.current_affiliation) || '—'} · ${esc(p.country)}${p.institution_key ? ` <button class="btn" data-fly="${esc(p.institution_key)}">${T().showOnMap}</button>` : ''}</div>
