@@ -1,14 +1,105 @@
-domain: "embodied AI / robot learning"
+domain: "embodied AI: VLA, robot VLM, robot policy, world / world-action models"
 slug: embodied-ai
-derived_on: "2026-10-08"
-window: {from: "2021-01-01", to: "2026-10-08"}   # counts below use this window; recompute for a 36-month run
-sources_used: [openalex-topics, openalex-group-by, erc-panels, euroscivoc, domain-cache-2026-10-08, web-search]
-region_core: "DE+CH"          # field layout updated 2026-10-12; values below unchanged from 2026-10-08
-region_extended: "EU27+UK+CH"
+derived_on: "2026-10-15"  # preset revision, not a fresh institutional census
+window: {from: null, to: null}  # materialize from RUN_DIR/run.meta.json; default is the last 36 months
+sources_used: [domain-cache-2026-10-08, official-project-pages, robodojo, xpolicylab]
+region_core: "DE+CH+FR+ES+NL+BE"  # defaults only; explicit run scope takes precedence
+region_extended: "EU27+UK+CH+NO"
+facets_file: assets/facets/embodied-ai.json  # relative to SKILL_ROOT; copied by the stage-1 agent
+scope:
+  core:
+    - Visual and language conditioning connected to robot action generation (VLA).
+    - Vision-language methods for robot perception, grounded reasoning or planning (robot VLM).
+    - Learned policies mapping observations/state and optional tasks to robot actions or action sequences.
+    - World / world-action models used for robot interaction prediction, planning or control.
+  conditional:
+    - Manipulation, navigation, locomotion, RL and imitation learning require a concrete contribution to a core direction.
+    - Foundation-model applications need a documented technical contribution; distinguish application from model development.
+    - Benchmark, dataset and infrastructure work needs a direct connection to a core direction and attributable contributions.
+  excluded:
+    - Hardware or conventional control without a learned-policy or other core-direction contribution.
+    - Text-only alignment, generic vision-language benchmarks or video generation without embodied relevance.
+    - Generic repository maintenance, company membership or competition participation as sole proof of core expertise.
+
+# Agent-readable discovery plan, not a Python scheduler. Refresh and expand these starting points each run.
+directions:
+  - id: vla
+    queries: [vision-language-action, vision language action robot, VLA robot, generalist robot policy language]
+    inclusion: Visual and language inputs condition executable robot actions; inspect the original method and contribution.
+    exclusion: Language-conditioned control alone does not establish a visual input or a VLA contribution.
+    seed_ids: [smolvla, openvla, xpolicylab]
+  - id: vlm
+    queries: [vision-language model robotics, embodied multimodal reasoning, vision-language robot planning, embodied question answering, open-vocabulary robot perception]
+    inclusion: Visual-language grounding, reasoning, perception or planning in an embodied setting, with an attributable method or system contribution.
+    exclusion: Calling an existing VLM does not establish VLM model authorship; generic VQA is not enough.
+    seed_ids: [openeqa, nimbro-foundation-models]
+  - id: robot-policy
+    queries: [robot policy, visuomotor policy, diffusion policy, generalist robot policy, flow matching robot control, imitation learning robot, reinforcement learning robot]
+    inclusion: A learned observation/state-to-action mapping for a robot, in simulation or on hardware.
+    exclusion: Bare policy, RL or flow matching outside robot action generation is insufficient.
+    seed_ids: [diffusion-policy, lerobot, xpolicylab]
+  - id: wam
+    queries: [robot world model, world-action model, action-conditioned video robot, learned dynamics robot planning, predictive world model manipulation]
+    inclusion: Learned interaction or dynamics prediction connected to robot actions, planning or control; distinguish world models from joint world-action models.
+    exclusion: Generic video prediction or generation alone is insufficient.
+    seed_ids: [aha-wam, robodojo, xpolicylab]
+
+discovery_seeds:
+  - id: robodojo
+    url: https://robodojo-benchmark.com/leaderboard
+    selection_reason: Manipulation-policy evaluation entries lead to concrete models; capability scores describe tested models, not people.
+    follow_up: Follow each relevant entry to its original paper/code; a leaderboard is not a complete VLM or European-talent census.
+  - id: xpolicylab
+    url: https://github.com/XPolicyLab/XPolicyLab
+    selection_reason: Per-policy READMEs link original papers and code across VLA, learned policies and world-action models.
+    follow_up: Separate original model authors from adapter contributors; integrated policies are not necessarily ranked entries.
+  - id: smolvla
+    url: https://huggingface.co/blog/smolvla
+    selection_reason: Original model release links its report, named contributors and implementation.
+    follow_up: Resolve report authors and specific contributions; unknown individual geography requires follow-up, not company-HQ inference.
+  - id: openvla
+    url: https://openvla.github.io/
+    selection_reason: Original VLA project with author, paper and implementation links.
+    follow_up: Verify each person's regional eligibility; a global seed does not promise European authors.
+  - id: openeqa
+    url: https://open-eqa.github.io/
+    selection_reason: Embodied question-answering methods and evaluation provide a VLM discovery route independent of action-policy leaderboards.
+    follow_up: Trace original authors and relevant subsequent work; distinguish embodied perception/reasoning from action-policy development.
+  - id: nimbro-foundation-models
+    url: https://arxiv.org/abs/2412.14989
+    selection_reason: Named robot-system authors and perception/planning methods provide a European team discovery lead.
+    follow_up: Read methods and contribution evidence before tagging individuals; do not assign every team member every method.
+  - id: diffusion-policy
+    url: https://diffusion-policy.cs.columbia.edu/
+    selection_reason: Original visuomotor action-diffusion work and code provide a policy-method anchor.
+    follow_up: The original March 2023 paper can be outside the run window; find qualifying recent work without redating the original achievement.
+  - id: aha-wam
+    url: https://github.com/XPolicyLab/XPolicyLab/blob/main/policy/AHA_WAM/README.md
+    selection_reason: Adapter README links the original world-action-model paper and implementation.
+    follow_up: Follow upstream sources to authors; adapter maintainers are separate contribution leads.
+  - id: lerobot
+    url: https://github.com/huggingface/lerobot
+    selection_reason: Policy implementations and model releases provide attributable project/module contributions.
+    follow_up: Inspect the relevant model/module and dated contributions; repository-wide top contributors are not automatically VLA authors.
+
+collection_requirements:
+  - Use all four directions in the channel briefs; source choice and query variants must cover each, not just the broad word robot.
+  - Keep global model seeds for discovery; enforce run geography on people, not repository owners, paper venues or corporate headquarters.
+  - Track unknown regional affiliations separately from confirmed out-of-region people; follow original authorship and public institutional/personal pages before closing the lead.
+  - For relevant grants and projects, follow the PI to the project and group pages, then current members and related in-window outputs using the existing hop rules.
+  - Capture explicit grant acknowledgements when available; a PI's coauthored paper alone does not establish project funding or team membership.
+  - Preserve team, project and coauthor links separately; do not admit every member of a broadly relevant lab without domain evidence.
+  - Preserve original dates and role headings; an undated membership is background unless it qualifies under the existing final-pass roster rule.
+  - Preserve verbatim method-bearing topics/snippets with source URLs; read method sections when titles or repository names are insufficient. Do not insert guessed labels into evidence.
+  - Reuse shared pages and cache across channels; per-channel budgets and existing optional-snowball limits still apply.
+  - Report per-direction queries, inspected seeds, resolved people, geographic unknowns and unprocessed leads in channel coverage. Budget exhaustion is a documented gap, not proof of full coverage.
+  - Zero matches require a search record; neither reading a model page nor emitting only its PI closes an unfinished author/member follow-up.
+
 openalex_topics:
-  - {id: T10462, name: Reinforcement Learning in Robotics}
-  - {id: T10653, name: Robot Manipulation and Learning}
-  - {id: T10879, name: Robotic Locomotion and Control}
+  - {id: T10462, name: Reinforcement Learning in Robotics, fit: adjacent, selection_reason: Broad discovery proxy; inspect robot-action contribution and refresh topic fit.}
+  - {id: T10653, name: Robot Manipulation and Learning, fit: adjacent, selection_reason: Broad discovery proxy; not a complete VLA or VLM source.}
+  - {id: T10879, name: Robotic Locomotion and Control, fit: adjacent, selection_reason: Retain learned-policy leads; conventional control is not automatically core.}
+topic_discovery_queries: [vision language robotics, vision language action, robot world models, robot learning]
 venues:
   conferences:
     - {name: CoRL, openalex_source_id: null, award_page_pattern: "corl.org / robot-learning.org awards <year>", note: "not in OpenAlex top-30 (PMLR)"}
@@ -27,47 +118,55 @@ competitions:
   - {name: "RoboCup major leagues (Humanoid, SPL, @Home, Rescue, Industrial)", results_url_pattern: league sites, roster_source: tdp, note: "junior leagues excluded"}
   - {name: "ICRA/IROS competitions (RGMC, legged, manipulation, AgiBot World)", results_url_pattern: "<year>.ieee-icra.org/program/competitions", roster_source: team_site}
   - {name: ANA Avatar XPRIZE / Cybathlon / European Rover Challenge / euRobin challenges, roster_source: team_site}
-labs:
-  - {name: "Centre National de la Recherche Scientifique", openalex_institution_id: I1294671590, works: 1639}
-  - {name: "Technical University of Munich", openalex_institution_id: I62916508, works: 1487}
-  - {name: "ETH Zurich", openalex_institution_id: I35440088, works: 1114}
-  - {name: "Imperial College London", openalex_institution_id: I47508984, works: 997}
-  - {name: "University of Oxford", openalex_institution_id: I40120149, works: 972}
-  - {name: "University College London", openalex_institution_id: I45129253, works: 887}
-  - {name: "Delft University of Technology", openalex_institution_id: I98358874, works: 813}
-  - {name: "Italian Institute of Technology", openalex_institution_id: I30771326, works: 770}
-  - {name: "École Polytechnique Fédérale de Lausanne", openalex_institution_id: I5124864, works: 671}
-  - {name: "KTH Royal Institute of Technology", openalex_institution_id: I86987016, works: 648}
-  - {name: "Politecnico di Milano", openalex_institution_id: I93860229, works: 617}
-  - {name: "Institut national de recherche en sciences et technologies du numérique", openalex_institution_id: I1326498283, works: 588}
-  - {name: "Karlsruhe Institute of Technology", openalex_institution_id: I102335020, works: 535}
-  - {name: "University of Cambridge", openalex_institution_id: I241749, works: 519}
-  - {name: "Google DeepMind (United Kingdom)", openalex_institution_id: I4210090411, works: 492}
-  - {name: "Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR)", openalex_institution_id: I2898391981, works: 470}
-  - {name: "Technische Universität Darmstadt", openalex_institution_id: I31512782, works: 465}
-  - {name: "University of Edinburgh", openalex_institution_id: I98677209, works: 458}
-  - {name: "University of Manchester", openalex_institution_id: I28407311, works: 430}
-  - {name: "King's College London", openalex_institution_id: I183935753, works: 429}
-  - {name: "RWTH Aachen University", openalex_institution_id: I887968799, works: 414}
-  - {name: "University of Bristol", openalex_institution_id: I36234482, works: 405}
-  - {name: "University of Genoa", openalex_institution_id: I83816512, works: 388}
-  - {name: "TU Wien", openalex_institution_id: I145847075, works: 372}
-  - {name: "University of Liverpool", openalex_institution_id: I146655781, works: 363}
-  - {name: "Eindhoven University of Technology", openalex_institution_id: I83019370, works: 357}
-  - {name: "University of Stuttgart", openalex_institution_id: I100066346, works: 355}
-  - {name: "KU Leuven", openalex_institution_id: I99464096, works: 353}
-  - {name: "Sorbonne Université", openalex_institution_id: I39804081, works: 335}
-  - {name: "Max Planck Institute for Intelligent Systems", openalex_institution_id: I4210135521, works: 326}
+labs: []  # derive current institution leads, then resolve actual groups during stage 2
+
 companies: []   # filled by startups/industry channel
-open_source_anchors: [huggingface/lerobot, stack-of-tasks/pinocchio, loco-3d/crocoddyl, leggedrobotics/rsl_rl, leggedrobotics/legged_gym, isaac-sim/IsaacLab, google-deepmind/mujoco_playground, leggedrobotics/ocs2]
-# Policy scope clarified 2026-10-15 at user request; cached dates/counts above were NOT refreshed.
-# Robot policy: maps observations/state and optional task instructions to robot actions/action sequences.
-# VLA may implement a policy; imitation learning/RL train policies. VLMs and world/action models
-# may support perception, planning or prediction without being action policies themselves.
-# Accept policy work when the title/abstract/repository demonstrates robot action generation,
-# manipulation or locomotion, in simulation or on real robots. Bare policy, RL, flow matching,
-# video generation or LLM alignment is not sufficient. Tags are overlapping, not admission rules.
-# selection_reason: add explicit robot-action-policy retrieval alongside existing robot-learning terms.
-# References: https://diffusion-policy.cs.columbia.edu/ ; https://www.pi.website/blog/pi0
-keywords: [robot learning, embodied, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, dexterous, imitation learning, reinforcement learning robot, robot policy, robot policies, robotic policy, robotic policies, visuomotor policy, visuomotor policies, diffusion policy, diffusion policies, generalist robot policy, generalist robot policies, robot action generation, flow matching for robot control, flow-based robot policy, flow-based robot policies]
+open_source_anchors:
+  - {url: "https://github.com/XPolicyLab/XPolicyLab", selection_reason: "Model-specific upstream paper and code discovery; separate adapters from original research."}
+  - {url: "https://github.com/huggingface/lerobot", selection_reason: "Inspect relevant policy modules and model releases, not all contributions."}
+  - {url: "https://github.com/openvla/openvla", selection_reason: "Original VLA implementation; verify individual geography."}
+  - {url: "https://github.com/real-stanford/diffusion_policy", selection_reason: "Original policy code; older work needs separate qualifying recent evidence."}
+  - {url: "https://github.com/leggedrobotics/rsl_rl", selection_reason: "Auxiliary learned robot-policy source; no automatic VLA or VLM label."}
+  - {url: "https://github.com/google-deepmind/mujoco_playground", selection_reason: "Auxiliary robot-policy and evaluation source; verify individual contributions."}
+# Flat keywords remain available to existing channel workflows. Directions above define relevance and query groups.
+keywords: [robot learning, embodied, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, vision language action, VLA, vision-language model, vision language model, VLM, embodied multimodal reasoning, vision-language robot planning, embodied question answering, open-vocabulary robot perception, robot world model, world-action model, WAM, action-conditioned video robot, learned dynamics robot planning, dexterous, imitation learning, reinforcement learning robot, robot policy, robot policies, robotic policy, robotic policies, visuomotor policy, visuomotor policies, diffusion policy, diffusion policies, generalist robot policy, generalist robot policies, robot action generation, flow matching for robot control, flow-based robot policy, flow-based robot policies]
 prizes_filter: engineering
+
+# Preserved for provenance only. Never rank current leads or populate a new run from these counts.
+historical_snapshot:
+  derived_on: "2026-10-08"
+  window: {from: "2021-01-01", to: "2026-10-08"}
+  region_core: "DE+CH"
+  region_extended: "EU27+UK+CH"
+  sources_used: [openalex-topics, openalex-group-by, erc-panels, euroscivoc, web-search]
+  labs:
+    - {name: "Centre National de la Recherche Scientifique", openalex_institution_id: I1294671590, works: 1639}
+    - {name: "Technical University of Munich", openalex_institution_id: I62916508, works: 1487}
+    - {name: "ETH Zurich", openalex_institution_id: I35440088, works: 1114}
+    - {name: "Imperial College London", openalex_institution_id: I47508984, works: 997}
+    - {name: "University of Oxford", openalex_institution_id: I40120149, works: 972}
+    - {name: "University College London", openalex_institution_id: I45129253, works: 887}
+    - {name: "Delft University of Technology", openalex_institution_id: I98358874, works: 813}
+    - {name: "Italian Institute of Technology", openalex_institution_id: I30771326, works: 770}
+    - {name: "École Polytechnique Fédérale de Lausanne", openalex_institution_id: I5124864, works: 671}
+    - {name: "KTH Royal Institute of Technology", openalex_institution_id: I86987016, works: 648}
+    - {name: "Politecnico di Milano", openalex_institution_id: I93860229, works: 617}
+    - {name: "Institut national de recherche en sciences et technologies du numérique", openalex_institution_id: I1326498283, works: 588}
+    - {name: "Karlsruhe Institute of Technology", openalex_institution_id: I102335020, works: 535}
+    - {name: "University of Cambridge", openalex_institution_id: I241749, works: 519}
+    - {name: "Google DeepMind (United Kingdom)", openalex_institution_id: I4210090411, works: 492}
+    - {name: "Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR)", openalex_institution_id: I2898391981, works: 470}
+    - {name: "Technische Universität Darmstadt", openalex_institution_id: I31512782, works: 465}
+    - {name: "University of Edinburgh", openalex_institution_id: I98677209, works: 458}
+    - {name: "University of Manchester", openalex_institution_id: I28407311, works: 430}
+    - {name: "King's College London", openalex_institution_id: I183935753, works: 429}
+    - {name: "RWTH Aachen University", openalex_institution_id: I887968799, works: 414}
+    - {name: "University of Bristol", openalex_institution_id: I36234482, works: 405}
+    - {name: "University of Genoa", openalex_institution_id: I83816512, works: 388}
+    - {name: "TU Wien", openalex_institution_id: I145847075, works: 372}
+    - {name: "University of Liverpool", openalex_institution_id: I146655781, works: 363}
+    - {name: "Eindhoven University of Technology", openalex_institution_id: I83019370, works: 357}
+    - {name: "University of Stuttgart", openalex_institution_id: I100066346, works: 355}
+    - {name: "KU Leuven", openalex_institution_id: I99464096, works: 353}
+    - {name: "Sorbonne Université", openalex_institution_id: I39804081, works: 335}
+    - {name: "Max Planck Institute for Intelligent Systems", openalex_institution_id: I4210135521, works: 326}

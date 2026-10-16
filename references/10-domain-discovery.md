@@ -7,6 +7,36 @@ exists, load it, refresh the dated fields and recompute publication-based counts
 starting over. The cache records the `window` its counts were computed over; counts from another window are not
 recent activity. This stage maps where to look; it reads no grant lists or rosters (that is stage 2).
 
+## Domain presets
+
+For `embodied-ai`, start from `SKILL_ROOT/domain-cache/embodied-ai.yaml`. Its `scope`, `directions`,
+`discovery_seeds` and `collection_requirements` describe the four requested research directions and the
+source-to-person follow-ups. These are instructions for the agent, not fields executed by a Python scheduler.
+Carry them into the run domain map and channel briefs; record the seed IDs and query groups assigned to each
+channel. Use the existing channels and hop rules, with a per-direction coverage record inside their coverage notes.
+Do not treat the cached broad robotics topics, an inspected shortlist or a nonempty roster as complete coverage.
+
+The run's explicit domain, geography, dates and budgets take precedence over preset defaults. Materialize `window`
+from `run.meta.json`, refresh topic/venue/institution discovery, and set the run's `derived_on` and `sources_used`
+to what was actually checked. `historical_snapshot` is provenance only: do not reuse its publication counts as
+current activity. Seeds are starting points to refresh and expand, not a permanent exhaustive list or a list of
+people to accept. A global seed can produce no eligible regional people; record the outcome without inventing any.
+
+When the selected preset has `facets_file`, resolve it relative to `SKILL_ROOT`, read it, and copy/adapt it to
+`RUN_DIR/facets.json`. For embodied AI this is `assets/facets/embodied-ai.json`: three primary axes (modality,
+task, approach) and one explicitly auxiliary axis for capabilities and evaluation context. Keep VLA, robot VLM,
+robot policy and world/world-action models visible by name in the approach vocabulary; they can overlap.
+The existing HTML renders matching tags from every axis; this does not add grouped card rows or change its
+zero-match hiding behavior. Labels are lexical evidence aids, not semantic verification or admission rules.
+Read original methods and contributions before accepting a person; preserve source wording in signal topics and
+snippets instead of inserting desired tags. Benchmark capabilities describe evaluated models, not automatically
+every author or member of their lab.
+
+Other domains, including multimodal AI, keep the existing discovery workflow. Do not apply the embodied preset
+because a multimodal project happens to use a robot. If there is no domain-specific `facets_file`, derive the
+run facets below using the shared template as a format example. Never overwrite an existing run's chosen facets
+merely because a new preset is available.
+
 ## 1. Venues and labs — OpenAlex (keyless JSON)
 
 - Topics: `https://api.openalex.org/topics?search=<phrase>` → read the top 10 (or all, when fewer come back) and
@@ -71,7 +101,8 @@ top contributors are in region. Record repo URLs; people come later via hops.
 
 Write `RUN_DIR/domain-map.yaml` (template in `SKILL_ROOT/assets/domain-map.template.yaml`) and a copy to
 `RUN_DIR/domain-cache/<slug>.yaml` with `derived_on` and `sources_used`; `SKILL_ROOT/domain-cache/` changes only when
-the maintainer confirms by hand. Next to it write `RUN_DIR/facets.json` (template `SKILL_ROOT/assets/facets.template.json`):
+the maintainer confirms by hand. Next to it write `RUN_DIR/facets.json` (use the selected preset's `facets_file`
+when present; otherwise the format example is `SKILL_ROOT/assets/facets.template.json`):
 two to four facets that classify the domain's research directions, each a short list of tags with the words that
 put a record under the tag. Take the facets from how the field itself sorts its work, for example the axes of a
 public leaderboard (RoboDojo sorts robot-manipulation policies by policy type, capability dimension and sim/real
