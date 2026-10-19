@@ -57,7 +57,12 @@ class RoleTests(unittest.TestCase):
         for title in ['Engineer', 'Software developer', 'Research Engineer']:
             with self.subTest(title=title):
                 self.assertEqual(self.classify(role_title=title, institution_type='company')['role_class'], 'industry')
+        for title in ['Engineer', 'Software developer']:
+            with self.subTest(title=title):
                 self.assertEqual(self.classify(role_title=title)['role_class'], 'unknown')
+        # At an institute a research engineer is research staff; without any employer the title decides nothing.
+        self.assertEqual(self.classify(role_title='Research Engineer')['role_class'], 'researcher')
+        self.assertEqual(ca.title_class('Research Engineer'), '')
         for suffix in ['GmbH', 'AG', 'Ltd', 'Inc']:
             result = self.classify(role_title=f'Employee, Example {suffix}')
             self.assertEqual((result['role_class'], result['role_confidence']), ('industry', 'high'))

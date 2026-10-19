@@ -39,5 +39,71 @@ class ReadTitleStopsInferenceTests(unittest.TestCase):
         self.assertEqual((grant['role_class'], grant['role_evidence'][:6]), ('group_leader', 'rule 2'))
 
 
+class ProfessorialTitleTests(unittest.TestCase):
+    def test_ius_promovendi_is_a_right_to_supervise(self):
+        result = read('Associate Professor with Ius Promovendi', 'University of Groningen, Faculty of Economics', 'NL')
+        self.assertEqual(result['role_class'], 'professor')
+        self.assertEqual(ca.title_class('Promovendus'), 'phd_student')
+
+    def test_professorship_beats_a_founder_signal_and_profesor_spelling_counts(self):
+        result = read('Professorship Visual Computing and Artificial Intelligence', 'Technical University of Munich',
+                      signals=[{'name_raw': 'Alex', 'role_title': 'Co-Founder', 'affiliation_raw': 'Synthesia', 'date': '2025-06',
+                                'evidence_url': 'https://synthesia.example/team'}])
+        self.assertEqual((result['role_class'], result['role_evidence'][:6]), ('professor', 'rule 0'))
+        self.assertEqual(read('associate profesor', 'University of Zaragoza', 'ES')['role_class'], 'professor')
+
+    def test_swedish_and_french_permanent_faculty_ranks_are_professor(self):
+        for title, affiliation, country in (('Universitetslektor', 'KTH', 'SE'), ('Forskare, Universitetslektor, bitr', 'KTH', 'SE'),
+                                            ('Maître de conférences (HDR)', 'Université Lumière Lyon 2', 'FR'),
+                                            ('Maitre de Conférences', 'INSA Rouen Normandie', 'FR')):
+            with self.subTest(title=title):
+                self.assertEqual(read(title, affiliation, country)['role_class'], 'professor')
+        for title in ('Biträdande universitetslektor', 'Biträdande lektor', 'Lecturer', 'Chargé de recherche'):
+            with self.subTest(title=title):
+                self.assertEqual(read(title, 'KTH', 'SE')['role_class'], 'researcher')
+
+
+class EngineerTests(unittest.TestCase):
+    def test_an_engineer_at_a_non_academic_employer_is_industry(self):
+        for title, affiliation, country in (('AI Engineer', 'TKH AI Technology', None), ('CV Engineer', 'DeepScenario', 'DE'),
+                                            ('Software Engineer', 'Palantir Technologies (London)', 'GB'),
+                                            ('computer vision/ML engineer', 'Hexagon', None),
+                                            ('Principal Machine Learning Engineer', 'IXI Eyewear', 'FI')):
+            with self.subTest(title=title):
+                result = read(title, affiliation, country, institution_type='education')  # provider type is often wrong here
+                self.assertEqual(result['role_class'], 'industry')
+                self.assertIn('engineer at a non-academic employer', result['role_evidence'])
+
+    def test_research_engineers_at_academic_employers_are_researchers(self):
+        for title, affiliation in (('Research Engineer', 'Max Planck Institute for Intelligent Systems'),
+                                   ('RESEARCH ENGINEER', 'Barcelona Supercomputing Center'),
+                                   ('Research Engineers', 'Barcelona Supercomputing Center (BSC)'),
+                                   ('JUNIOR RESEARCH ENGINEER', 'BSC-CNS, AI Institute - Single and Multi Agent Systems')):
+            with self.subTest(title=title):
+                self.assertEqual(read(title, affiliation, 'ES')['role_class'], 'researcher')
+        # An engineer whose employer is unknown is not guessed.
+        self.assertEqual(read('Software Engineer', '', None)['role_class'], 'unknown')
+        self.assertEqual(read('Research Engineer', 'Hugging Face', 'FR')['role_class'], 'industry')
+
+
+class GroupLeaderSpellingTests(unittest.TestCase):
+    def test_group_manager_and_heads_the_division(self):
+        self.assertEqual(read('Group Manager Perceptual User Interfaces', 'Fraunhofer IOSB')['role_class'], 'group_leader')
+        self.assertEqual(read('heads the division of Artificial Material Intelligence at the Institute of Energy Technologies',
+                              'Forschungszentrum Jülich, Institute of Energy Technologies')['role_class'], 'group_leader')
+
+
+class UnchangedTests(unittest.TestCase):
+    def test_existing_decisions_hold(self):
+        mixed = read('PhD candidate / Guest', 'Leiden University', 'NL')
+        self.assertEqual((mixed['role_class'], 'mixed heading proves membership only' in mixed['role_evidence']), ('unknown', True))
+        self.assertEqual(read('Senior Researcher', 'Microsoft Research (United Kingdom)', 'GB')['role_class'], 'industry')
+        self.assertEqual(read('Physician Scientist', 'TUM Klinikum Rechts der Isar')['role_class'], 'researcher')
+        self.assertEqual(read('Oberarzt', 'Charité - Universitätsmedizin Berlin')['role_class'], 'researcher')
+        for title in ('Wissenschaftliche Mitarbeitende', 'Wissenschaftlicher Mitarbeiter'):
+            result = read(title, 'Karlsruhe Institute of Technology')
+            self.assertEqual((result['role_class'], '(DE: may be PhD student)' in result['role_evidence']), ('researcher', True))
+
+
 if __name__ == '__main__':
     unittest.main()
