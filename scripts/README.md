@@ -11,6 +11,7 @@ OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows r
 | `table_export.py` | 5 | `persons.jsonl` → region-filtered `roster.csv` + `roster.md` + `groups.csv` + `groups.md` (+ Coverage and evidence, `.out-of-region.json`, `.excluded-signals.json`), sorted by tier before `--max-rows` |
 | `talent_map.py` | 5 | the same `persons.jsonl` → one `talent-map.html`: a map of institutions with every group, person, signal and evidence link inline; same selection, tiers and groups as `table_export.py`; institutions placed from the manual table `assets/geo-overrides.json` (city level, with sources), then through ROR (cached in `cache/geo/`, `--offline` to reuse), country centroid when neither has a match; research-direction tags from `facets.json` (`--facets`) |
 | `group_export.py` | 5 | the same `persons.jsonl` → `groups.json`, one record per research group for the public group map (`references/50-output.md`, schema `assets/groups.schema.json`); no tiers, no LinkedIn data |
+| `group_map.py` | 5 | `groups.json` → one static bilingual `index.html`: institutions on a map, groups listed by institution and PI, a correction link per card |
 
 Date defaults: `openalex_lookup.py --topics` queries the 36 months ending on `--date` (default today);
 `--since YYYY` widens the start to that January 1. `table_export.py` applies the same 36-month window before
