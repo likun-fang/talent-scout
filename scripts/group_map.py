@@ -246,20 +246,21 @@ function groupRow(g) {
 }
 // Groups that share a homepage are PI groups of one lab: the list draws the lab once, with each group as a row inside.
 function labBlock(g, groups) {
-  const inLab = groups.filter(x => x.lab && x.lab.homepage === g.lab.homepage);
+  const inLab = groups.filter(x => x.lab && x.lab.homepage === g.lab.homepage && x.institution.name === g.institution.name);
   return `<div class="lab"><span class="m">${esc(T().lab)} · ${link(g.lab.homepage)}</span>${inLab.map(groupRow).join('')}</div>`;
 }
 function listView(groups) {
   let html = '', current = null;
   const drawn = new Set();
   for (const g of groups) {
-    if (g.lab && drawn.has(g.lab.homepage)) continue;
+    const key = g.lab ? g.institution.name + '|' + g.lab.homepage : '';
+    if (key && drawn.has(key)) continue;
     if (g.institution.name !== current) {
       current = g.institution.name;
       const loc = g.institution.location || {};
       html += `<div class="inst" data-inst="${esc(current)}">${esc(current)} <span class="m">${esc(g.institution.country)}${loc.city ? ' · ' + esc(loc.city) : ''}</span></div>`;
     }
-    if (g.lab) drawn.add(g.lab.homepage);
+    if (key) drawn.add(key);
     html += g.lab ? labBlock(g, groups) : groupRow(g);
   }
   return `<div class="card">${html || `<span class="muted">${T().noMatch}</span>`}</div>`;

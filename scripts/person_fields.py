@@ -126,6 +126,13 @@ def distinct_institutions(left: str, right: str) -> bool:
     return bool(stems(left)) and bool(stems(right)) and not stems(left) & stems(right)
 
 
+def names_part_of(name: str, place: str) -> bool:
+    """The name is the place or one of its items: "Munich Center for Machine Learning" in "Munich Center for Machine
+    Learning (MCML); TU Munich", "University of Helsinki" in "FIMM, University of Helsinki"."""
+    items = [place] + [item for item in re.split(r'[,;()]|\s/\s', place) if item.strip()]
+    return any(normalized(name) == normalized(item) or same_institution_name(name, item) for item in items)
+
+
 def roster_institutions(person: dict) -> list[str]:
     """Academic institutions of final-pass rosters read for this person as their head (lab_member signals with role pi
     and roster_pi) that differ from the institution the person's own final pass names: a second post, such as a group
@@ -134,7 +141,8 @@ def roster_institutions(person: dict) -> list[str]:
     if not own or past_position(person):
         return []
     places = (s.get('affiliation_raw') or '' for s in person.get('signals', [])
-              if s.get('signal_type') == 'lab_member' and s.get('role') == 'pi' and s.get('roster_pi'))
+              if s.get('signal_type') == 'lab_member' and s.get('role') == 'pi' and s.get('channel') == 'final-pass'
+              and parent_name(s.get('roster_pi') or '') == parent_name(person.get('name', '')))
     return list(dict.fromkeys(place for place in places if place and re.search(ACADEMIC_WORDS, place, re.I)
                               and re.search(ACADEMIC_WORDS, own, re.I) and not same_institution_name(place, own)
                               and distinct_institutions(place, own)))
@@ -368,8 +376,7 @@ def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, st
         if (signal.get('signal_type') in TEAM_SIGNALS and not signal.get('date') and member.get('final_pass_affiliation')
                 and not same_institution(member, leader)
                 # A member placed at the leader's second institution (a roster read there) has not moved away.
-                and not any(not distinct_institutions(member['final_pass_affiliation'], place)
-                            for place in roster_institutions(leader))):
+                and not any(names_part_of(member['final_pass_affiliation'], place) for place in roster_institutions(leader))):
             rejected = f"moved since the roster: {parent} -> {leader['name']}, now {member['final_pass_affiliation']} | {url}"
             continue
         paper = signal.get('channel') in {'awards-papers', 'industry', 'competitions'} or key not in lab_parents

@@ -79,6 +79,9 @@ class SharedLabTests(unittest.TestCase):
         self.assertEqual([g.get('lab') for g in payload(html)['groups']], [lab, lab, None])
         # The list draws a lab once, with each of its PI groups as a row inside; a card links the lab's other groups.
         self.assertIn('function labBlock(', html)
+        # A lab whose groups sit at two institutions is drawn under each institution with that institution's groups.
+        self.assertIn("g.institution.name + '|' + g.lab.homepage", html)
+        self.assertIn('x.institution.name === g.institution.name', html)
         self.assertIn("lab: 'lab'", html)
         self.assertIn("lab: '实验室'", html)
 

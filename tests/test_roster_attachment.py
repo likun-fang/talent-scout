@@ -81,6 +81,22 @@ class PiAtTwoInstitutionsTests(unittest.TestCase):
                         final_pass_affiliation='Munich Center for Machine Learning', last_verified='2026-10-19')
         self.assertEqual(grouped([pi, member])['Mia Member']['group'], 'Rolf Lead @ TUM School of Medicine and Health')
 
+    def test_a_member_elsewhere_that_only_shares_a_word_with_the_roster_institution_has_moved(self):
+        member = person('Mia Member', 'Helsinki AI Ltd', 'industry', [roster(parent='Digital Diagnostics', roster_pi='Lena Lead')],
+                        final_pass_affiliation='Helsinki AI Ltd', final_pass_country='FI', last_verified='2026-10-19')
+        result = grouped([self.pi, member])['Mia Member']
+        self.assertEqual(result['group'], '')
+        self.assertIn('moved since the roster', result['group_evidence'])
+
+    def test_only_a_final_pass_roster_read_for_this_pi_names_a_second_institution(self):
+        for signal in (roster('pi', parent='Digital Diagnostics', affiliation_raw='FIMM, University of Helsinki', roster_pi='Another Leader'),
+                       {'signal_type': 'lab_member', 'role': 'pi', 'parent': 'Digital Diagnostics', 'channel': 'funding-eu',
+                        'date': '2019-01-01', 'affiliation_raw': 'FIMM, University of Helsinki', 'roster_pi': 'Lena Lead'}):
+            pi = person('Lena Lead', 'Karolinska Institutet', 'professor', [signal],
+                        final_pass_affiliation='Karolinska Institutet', last_verified='2026-10-19')
+            with self.subTest(signal=signal):
+                self.assertEqual(group_affiliation(pi), ('Karolinska Institutet', []))
+
     def test_a_roster_at_the_same_institution_adds_nothing(self):
         pi = person('Lena Lead', 'Karolinska Institutet', 'professor',
                     [roster('pi', parent='Digital Diagnostics', affiliation_raw='Karolinska Institutet, Department of Oncology')],
