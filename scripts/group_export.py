@@ -59,10 +59,11 @@ def pages(person: dict) -> set[str]:
     return {url for url in urls | {person.get('final_pass_url')} if url}
 
 
-def team_page(people: list[dict], page_groups: dict, group: str) -> str:
+def team_page(people: list[dict], page_groups: dict, group: str, programme_pages: set[str]) -> str:
     """A page that lists two or more of the group's people and nobody from another group: the group's own page.
-    A page that lists people of several groups is a department or institute page."""
-    counts = Counter(url for person in people for url in pages(person) if page_groups.get(url) == {group})
+    A page that lists people of several groups is a department or institute page; a programme's page is neither."""
+    counts = Counter(url for person in people for url in pages(person)
+                     if page_groups.get(url) == {group} and url not in programme_pages)
     # Ties go to the first URL in sort order: the pages come from sets, whose order changes from run to run.
     return next((url for url, n in sorted(counts.items(), key=lambda item: (-item[1], item[0])) if n >= 2), '')
 
@@ -109,7 +110,7 @@ def group_record(group: dict, linked: list[dict], pi: dict | None, place: dict, 
         'pi': {'name': group['pi_name'], 'role_class': pi.get('role_class', 'unknown') if pi else 'unknown', 'homepage': homepage},
         'institution': {'name': group['institution_key'], 'country': place.get('country', ''),
                         'ids': institution_ids(pi, group['institution_key']), 'location': location},
-        'homepage': team_page(named, page_groups, group['group']) or homepage,
+        'homepage': team_page(named, page_groups, group['group'], programme_pages) or homepage,
         'tags': [tag for tag, _ in group['tags']],
         'topics': group['topics'],
         'members': [{'name': p['name'], 'role_class': p['role_class'], 'link': p['group_link']} for p in members],
