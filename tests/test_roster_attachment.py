@@ -71,11 +71,32 @@ class PiAtTwoInstitutionsTests(unittest.TestCase):
         result = grouped([self.pi, member])['Mia Member']
         self.assertEqual((result['group'], result['group_link']), ('Lena Lead @ Karolinska Institutet', 'team'))
 
+    def test_a_member_named_by_one_item_of_the_rosters_institution_list_joins_too(self):
+        pi = person('Rolf Lead', 'TUM School of Medicine and Health', 'professor',
+                    [roster('pi', parent='AI in Medicine', affiliation_raw='Munich Center for Machine Learning (MCML); TU Munich',
+                            roster_pi='Rolf Lead')],
+                    final_pass_affiliation='TUM School of Medicine and Health', last_verified='2026-10-19')
+        member = person('Mia Member', 'Munich Center for Machine Learning', 'phd_student',
+                        [roster(parent='AI in Medicine', roster_pi='Rolf Lead')],
+                        final_pass_affiliation='Munich Center for Machine Learning', last_verified='2026-10-19')
+        self.assertEqual(grouped([pi, member])['Mia Member']['group'], 'Rolf Lead @ TUM School of Medicine and Health')
+
     def test_a_roster_at_the_same_institution_adds_nothing(self):
         pi = person('Lena Lead', 'Karolinska Institutet', 'professor',
                     [roster('pi', parent='Digital Diagnostics', affiliation_raw='Karolinska Institutet, Department of Oncology')],
                     final_pass_affiliation='Karolinska Institutet', last_verified='2026-10-19')
         self.assertEqual(group_affiliation(pi), ('Karolinska Institutet', []))
+
+    def test_a_spelling_of_the_same_institution_is_not_a_second_one(self):
+        for own, printed in (('Karlsruhe Institute of Technology', 'KIT - Karlsruher Institut für Technologie'),
+                             ('University of Freiburg', 'Albert-Ludwigs-Universität Freiburg'),
+                             ('EPFL', 'EPFL Neuro-X Institute'),
+                             ('Heidelberg University', 'Institute for Medical AI (IMAI), Heidelberg University Hospital')):
+            pi = person('Lena Lead', own, 'professor',
+                        [roster('pi', parent='Vision Lab', affiliation_raw=printed, roster_pi='Lena Lead')],
+                        final_pass_affiliation=own, last_verified='2026-10-19')
+            with self.subTest(printed=printed):
+                self.assertEqual(group_affiliation(pi), (own, []))
 
     def test_without_a_final_pass_the_roster_institution_is_not_a_second_one(self):
         pi = person('Lena Lead', 'Karolinska Institutet', 'professor',
