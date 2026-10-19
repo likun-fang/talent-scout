@@ -1,7 +1,9 @@
 import argparse
 import datetime
 import json
+import os
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -213,6 +215,18 @@ class GroupRecordTests(unittest.TestCase):
     def test_groups_sort_by_institution_then_pi(self):
         doc = run()
         self.assertEqual([g['institution']['name'] for g in doc['groups']], [TUM, 'University of Amsterdam'])
+
+
+class DeterminismTests(unittest.TestCase):
+    def test_tied_team_pages_resolve_the_same_way_in_every_process(self):
+        # Pages arrive in a set, whose order changes with the process's hash seed.
+        code = ("import sys; sys.path.insert(0, 'scripts'); from group_export import team_page; "
+                "pages = ['https://b.example/team', 'https://a.example/people']; "
+                "people = [{'signals': [{'signal_type': 'lab_member', 'evidence_url': u} for u in pages]} for _ in range(2)]; "
+                "print(team_page(people, {u: {'g'} for u in pages}, 'g'))")
+        chosen = {subprocess.run([sys.executable, '-c', code], cwd=ROOT, capture_output=True, text=True, check=True,
+                                 env={**os.environ, 'PYTHONHASHSEED': str(seed)}).stdout.strip() for seed in range(10)}
+        self.assertEqual(chosen, {'https://a.example/people'})
 
 
 class AlsoAtTests(unittest.TestCase):
