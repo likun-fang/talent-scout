@@ -5,7 +5,8 @@
                   [--persons persons.enriched.jsonl] [--sample 30] [--seed 2026]
 
 (a) Recall: at least 90% of the known groups are in the file, with the same PI (accents and case ignored, same
-surname and first initial) at the same institution (alias registry). Each miss says whether the PI leads a group
+surname and first initial) at the same institution (alias registry); an entry that names several institutions (a PI
+who holds posts at two) counts on any of them. Each miss says whether the PI leads a group
 at another institution, is in the persons file without a group of their own (needs --persons), or is absent.
 (b) Freshness: at most 10% of groups were last verified more than 12 months before --as-of.
 (c) No LinkedIn key or URL anywhere in the file.
@@ -39,11 +40,16 @@ def same_pi(left: str, right: str) -> bool:
     return bool(name_keys(left or '') & name_keys(right or ''))
 
 
+def institutions(item: dict) -> list[str]:
+    return [item['institution']] if isinstance(item['institution'], str) else item['institution']
+
+
 def recall(groups: list[dict], known: list[dict], persons: list[dict] | None) -> tuple[list, list]:
     hits, misses = [], []
     for item in known:
         same = [g for g in groups if same_pi(g['pi']['name'], item['pi'])]
-        here = next((g for g in same if same_institution_name(g['institution']['name'], item['institution'])), None)
+        here = next((g for g in same if any(same_institution_name(g['institution']['name'], name)
+                                            for name in institutions(item))), None)
         if here:
             hits.append((item, here))
         elif same:
@@ -91,7 +97,8 @@ def load_json(path: str, what: str):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('groups')
-    parser.add_argument('--known', required=True, help='{"note": ..., "groups": [{"pi", "institution", "country"}]}')
+    parser.add_argument('--known', required=True,
+                        help='{"note": ..., "groups": [{"pi", "institution" (a name or a list of names), "country"}]}')
     parser.add_argument('--as-of', type=datetime.date.fromisoformat, required=True)
     parser.add_argument('--persons', default=None, help='persons file, to tell a PI without a group from an absent one')
     parser.add_argument('--sample', type=int, default=30)
@@ -101,8 +108,10 @@ def main() -> int:
     if not isinstance(doc, dict) or not isinstance(doc.get('groups'), list):
         raise SystemExit(f'{args.groups}: expected an object with a "groups" list')
     if not isinstance(known, dict) or not isinstance(known.get('groups'), list) or not all(
-            isinstance(k, dict) and k.get('pi') and k.get('institution') for k in known['groups']):
-        raise SystemExit(f'{args.known}: expected {{"groups": [{{"pi": ..., "institution": ...}}]}}')
+            isinstance(k, dict) and k.get('pi') and k.get('institution') and (isinstance(k['institution'], str) or (
+                isinstance(k['institution'], list) and all(isinstance(name, str) and name for name in k['institution'])))
+            for k in known['groups']):
+        raise SystemExit(f'{args.known}: expected {{"groups": [{{"pi": ..., "institution": a name or a list of names}}]}}')
     persons = None
     if args.persons:
         try:
@@ -119,7 +128,7 @@ def main() -> int:
     print(f"(a) {'PASS' if share >= RECALL_MIN else 'FAIL'} recall: {len(hits)}/{len(known['groups'])} = {share:.0%}"
           f" of the known groups (minimum {RECALL_MIN:.0%})")
     for item, reason in misses:
-        print(f"  - {item['pi']} ({item['institution']}): {reason}")
+        print(f"  - {item['pi']} ({' or '.join(institutions(item))}): {reason}")
 
     stale = stale_groups(groups, args.as_of)
     share = len(stale) / len(groups) if groups else 0.0

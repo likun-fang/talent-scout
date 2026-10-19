@@ -48,6 +48,13 @@ class RecallTests(unittest.TestCase):
         self.assertIn('PI present in persons but no group', reasons['Andrew Zisserman'])
         self.assertEqual(reasons['Cordelia Schmid'], 'absent')
 
+    def test_an_entry_may_name_several_institutions_and_a_hit_on_any_counts(self):
+        both = [{'pi': 'Zeynep Akata', 'institution': ['Technical University of Munich', 'Helmholtz Munich'], 'country': 'DE'}]
+        hits, misses = recall(GROUPS, both, None)
+        self.assertEqual((len(hits), misses), (1, []))
+        code, out = CommandLineTests().check([], both)
+        self.assertIn('Zeynep Akata (Technical University of Munich or Helmholtz Munich): not a group', out)
+
     def test_without_persons_a_miss_cannot_tell_roster_from_absent(self):
         _, misses = recall(GROUPS, KNOWN, None)
         self.assertEqual(dict((k['pi'], r) for k, r in misses)['Andrew Zisserman'], 'not a group (no --persons to look further)')

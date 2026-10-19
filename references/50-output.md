@@ -140,7 +140,7 @@ institution and then PI name, country and tag filters, free-text search, and a c
 a correction. It has no person pages, tiers or counts per country.
 
 `check_groups.py` gates publication: recall of the field's known groups in `assets/known-groups/` (same PI by
-surname and first initial at the same institution, at least 90%), groups last verified more than 12 months before
+surname and first initial at the same institution, or at any of several an entry names, at least 90%), groups last verified more than 12 months before
 the as-of date (at most 10%) and LinkedIn keys or URLs (none). It prints a seeded sample of 30 groups for the
 manual spot check and exits 1 when a check fails. With `--persons` a miss says whether the PI is in the persons file
 without a group. A known-groups list stays a draft until the maintainer confirms it.
