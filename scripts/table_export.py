@@ -87,6 +87,14 @@ def filter_window(persons: list[dict], start: datetime.date, end: datetime.date)
                          "hop_depth": min(s.get("hop_depth", 0) for s in qualifying)})
     return kept, rejected
 
+# Tie-break for the row role: the role that says most about the person wins, never set iteration order.
+ROLE_RANK = ['pi', 'last_author', 'first_author', 'founder', 'maintainer', 'inventor', 'team_member', 'coauthor']
+
+
+def rank_known(role: str) -> int:
+    return ROLE_RANK.index(role) if role in ROLE_RANK else len(ROLE_RANK)
+
+
 def row_for(p: dict, domain: str, date: str) -> dict:
     p = apply_final_pass(p)
     sigs = p.get("signals", [])
@@ -94,7 +102,7 @@ def row_for(p: dict, domain: str, date: str) -> dict:
     fits = {s["fit"] for s in sigs if s.get("fit")}
     fit = "" if not fits else "core" if fits == {"core"} else "adjacent" if fits == {"adjacent"} else "mixed"
     roles = [s.get("role") for s in sigs if s.get("role") and s.get("role") != "unknown"]
-    role = max(set(roles), key=roles.count) if roles else "unknown"
+    role = max(sorted(set(roles), key=rank_known), key=roles.count) if roles else "unknown"
     return {
         "name": p.get("name", ""),
         "current_affiliation": p.get("current_affiliation") or newest.get("affiliation_raw", ""),

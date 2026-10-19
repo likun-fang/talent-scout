@@ -17,6 +17,16 @@ def sig(channel, date, strength='high', hop=0, url=None):
             'affiliation_raw': 'TUM', 'hop_depth': hop}
 
 
+class RowRoleTests(unittest.TestCase):
+    def test_a_tie_between_roles_resolves_the_same_way_in_every_process(self):
+        signals = [{**sig('awards-papers', '2025-06'), 'role': role} for role in ('coauthor', 'last_author', 'pi', 'other')]
+        rows = [table_export.row_for({'name': 'X', 'signals': order}, 'd', '2026-10-15')['role']
+                for order in (signals, signals[::-1])]
+        self.assertEqual(rows, ['pi', 'pi'])
+        # The majority still wins over the rank.
+        self.assertEqual(table_export.row_for({'name': 'X', 'signals': signals + signals[:1]}, 'd', '2026-10-15')['role'], 'coauthor')
+
+
 class WindowTests(unittest.TestCase):
     def test_window_start_is_36_months_back_same_day(self):
         cases = {'2026-10-12': '2023-10-12', '2027-01-05': '2024-01-05', '2028-02-29': '2025-02-28', '2026-03-31': '2023-03-31'}

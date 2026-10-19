@@ -212,7 +212,7 @@ def build_data(persons: list[dict], args, geocoder, summaries: dict | None = Non
         # A coauthor-only link says nothing about what the group works on.
         tag_counts = Counter(tag for e in entries if e['group'] == row['group'] and e['group_link'] != 'coauthor'
                              for tag in e['tags'])
-        groups.append({**row, 'institution_key': key,
+        groups.append({**row, 'institution_key': key, 'pi_in_roster': pi is not None,
                        'tags': [[tag, n] for tag, n in tag_counts.most_common()],
                        'topics': [t for t in row['topics'].split(';') if t],
                        'members': [{'name': m.rsplit('(', 1)[0], 'role_class': m.rsplit('(', 1)[1].rstrip(')')}
@@ -638,7 +638,7 @@ function groupView(name, people) {
   return `<div class="card"><h2>${esc(g.pi_name)} ${badge(g.tier)}</h2>
     <div class="sub"><a data-inst="${esc(g.institution_key)}" href="#">${esc(g.institution_key)}</a> · ${esc(g.country)} · ${members.length} ${T().members}${coauthors ? ` (+${coauthors} ${T().coauthors})` : ''} <button class="btn" data-fly="${esc(g.institution_key)}">${T().showOnMap}</button></div>
     <p class="intro">${esc(summaryFor(g, 'group', members))}</p>
-    <dl><dt>${T().pi}</dt><dd><a data-person="${esc(g.pi_name)}" href="#">${esc(g.pi_name)}</a></dd>
+    <dl><dt>${T().pi}</dt><dd>${g.pi_in_roster ? `<a data-person="${esc(g.pi_name)}" href="#">${esc(g.pi_name)}</a>` : esc(g.pi_name)}</dd>
     ${g.homepage ? `<dt>${T().homepage}</dt><dd>${link(g.homepage)}</dd>` : ''}
     ${FACETS.length ? `<dt>${T().tags}</dt><dd>${tagChips((g.tags || []).map(x => x[0]), Object.fromEntries(g.tags || [])) || '<span class="muted">—</span>'}</dd>` : ''}
     <dt>${T().topics}</dt><dd>${g.topics.map(t => `<span class="topic">${esc(t)}</span>`).join('') || '<span class="muted">—</span>'}</dd>

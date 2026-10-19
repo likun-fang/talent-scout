@@ -110,6 +110,17 @@ class BuildDataTests(unittest.TestCase):
         self.assertEqual(data['meta']['window_start'], '2023-10-14')
         self.assertEqual(self.geo.calls.count(('Technical University of Munich', 'DE')), 1)
 
+    def test_group_leader_outside_the_roster_is_named_but_not_linked(self):
+        # The leader was cut from the roster (out of region here); the student's group still shows.
+        far = person('Far Student', 'MIT', 'US', 'phd_student', 'Far Away @ MIT')
+        local = person('Home Student', 'TUM', 'DE', 'phd_student', 'Gone Leader @ Technical University of Munich')
+        data = build_data(self.persons + [far, local], args(), self.geo)
+        groups = {g['pi_name']: g for g in data['groups']}
+        self.assertNotIn('Far Away', groups)
+        self.assertFalse(groups['Gone Leader']['pi_in_roster'])
+        self.assertTrue(groups['Zeynep Akata']['pi_in_roster'])
+        self.assertIn('g.pi_in_roster ?', render_html(data))
+
     def test_spelling_variants_and_sub_units_share_one_marker(self):
         persons = self.persons + [
             person('Lab Member', 'Technical University of Munich, Chair of X', 'DE', 'phd_student', ''),
