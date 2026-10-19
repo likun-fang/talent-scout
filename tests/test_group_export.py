@@ -185,6 +185,14 @@ class GroupRecordTests(unittest.TestCase):
         self.assertEqual((weiss['pi']['homepage'], weiss['homepage']), ('', ''))
         self.assertIn(staff, weiss['evidence_urls'])
 
+    def test_a_programme_page_two_members_share_is_not_the_team_page_either(self):
+        persons = roster()
+        for record in persons[:2]:
+            record['signals'].append(sig(record['name'], TUM, 'DE', signal_type='graduiertenkolleg_member',
+                                         url='https://rtg.example/people', date=''))
+        persons[0]['signals'][0]['evidence_url'] = 'https://tum.example/anna'  # the shared lab page is gone
+        self.assertEqual(by_pi(run(persons))['Anna Meyer']['homepage'], 'https://anna.example')
+
     def test_the_page_read_for_the_pi_is_the_homepage_unless_it_is_a_news_item(self):
         persons = roster()
         persons[5]['signals'][0].pop('homepage')
@@ -223,7 +231,7 @@ class DeterminismTests(unittest.TestCase):
         code = ("import sys; sys.path.insert(0, 'scripts'); from group_export import team_page; "
                 "pages = ['https://b.example/team', 'https://a.example/people']; "
                 "people = [{'signals': [{'signal_type': 'lab_member', 'evidence_url': u} for u in pages]} for _ in range(2)]; "
-                "print(team_page(people, {u: {'g'} for u in pages}, 'g'))")
+                "print(team_page(people, {u: {'g'} for u in pages}, 'g', set()))")
         chosen = {subprocess.run([sys.executable, '-c', code], cwd=ROOT, capture_output=True, text=True, check=True,
                                  env={**os.environ, 'PYTHONHASHSEED': str(seed)}).stdout.strip() for seed in range(10)}
         self.assertEqual(chosen, {'https://a.example/people'})
