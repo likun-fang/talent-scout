@@ -376,6 +376,10 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
             return role_result(role_class, 'medium', 2, 'funding PI (no title seen)', signal.get('snippet') or kind, signal.get('evidence_url', ''))
     if mixed:
         return role_result('unknown', 'low', 1, f'{mixed[0]}: mixed heading proves membership only', mixed[1], mixed[2])
+    if verified:
+        # A page that names a stage the table does not know ("Master's Student", "Guest Scientist") is still
+        # better evidence than publication statistics: do not infer a doctoral student from it.
+        return role_result('unknown', 'low', 0, 'final pass: title not in the title table', verified[0], verified[1])
     return inferred_role(person, run_year)
 
 def enrich(p: dict, codes: set[str], cache: ResponseCache | None = None,
