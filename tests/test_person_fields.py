@@ -278,6 +278,16 @@ class GroupInstitutionTests(unittest.TestCase):
                          ('Sorbonne Univ.', ['Universal Robots']))
         self.assertEqual(ca.title_class('Research Engineer', affiliation='Universal Robots'), 'industry')
 
+    def test_a_past_position_joins_no_group(self):
+        leader = {'name': 'Anna Meyer', 'role_class': 'professor', 'current_affiliation': 'TUM', 'last_verified': '',
+                  'signals': [signal(name_raw='Anna Meyer', signal_type='lab_member', parent='Anna Meyer', role='pi',
+                                     affiliation_raw='TUM')]}
+        former = {'name': 'Ben Ott', 'role_class': 'researcher', 'final_pass_title': 'Former Researcher',
+                  'last_verified': '2026-10-15', 'signals': [signal(name_raw='Ben Ott', signal_type='lab_member',
+                                                                   parent='Anna Meyer', affiliation_raw='TUM')]}
+        grouped = assign_groups([leader, former])
+        self.assertEqual(grouped[1]['group'], '')
+
     def test_sorbonne_univ_is_sorbonne_universite(self):
         from person_fields import same_institution_name
         self.assertTrue(same_institution_name('Sorbonne Univ.', 'Sorbonne Université'))

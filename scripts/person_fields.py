@@ -64,12 +64,37 @@ ACADEMIC_WORDS = '|'.join([ACADEMIC_EMPLOYER, RESEARCH_GMBH,
 # A final-pass title that says the position is over ("Until July 2026, I was a Juniorprofessor ...", "Former Head of
 # ...") shows no current role or affiliation; the provider's affiliation is older than that page. The leading clause
 # decides, brackets aside: "Professor, formerly at ETH" and "Lab Manager (ancien responsable d'équipe)" are current.
-PAST_POSITION = r'\b(?:until|was|former(?:ly)?|previous(?:ly)?|ehemalig\w*|ancien(?:ne)?|voormalig\w*|antigu[oa])\b'
+# "Was" counts only as "was a/an" ("I was appointed" is current) and "until" only with a date before the read.
+PAST_LEAD = r'^\s*(?:former(?:ly)?|previous(?:ly)?|ehemalig\w*|ancien(?:ne)?|voormalig\w*|antigu[oa])\b|\bwas\s+an?\b'
+# until 2026-07 | until 07/2026 | until Jul(y) 2026 | until 2026
+UNTIL = r'\buntil\s+(?:(\d{4})-(\d{1,2})|(\d{1,2})/(\d{4})|([a-z]{3})[a-z]*\.?\s+(\d{4})|(\d{4}))\b'
+MONTHS = {name: number for number, name in enumerate(('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct',
+                                                      'nov', 'dec'), 1)}
+
+
+def until_month(lead: str) -> tuple[int, int] | None:
+    """(year, month) a title says the position runs until; a year alone runs to December."""
+    m = re.search(UNTIL, lead, re.I)
+    if not m:
+        return None
+    if m.group(1):
+        return int(m.group(1)), int(m.group(2))
+    if m.group(4):
+        return int(m.group(4)), int(m.group(3))
+    if m.group(6):
+        return int(m.group(6)), MONTHS.get(m.group(5).casefold(), 12)
+    return int(m.group(7)), 12
 
 
 def past_position(person: dict) -> bool:
+    read = person.get('last_verified') or ''
+    if not re.match(r'\d{4}-\d{2}', read):
+        return False
     lead = re.split(r'[,;:]', re.sub(r'\([^)]*\)', '', person.get('final_pass_title') or ''))[0]
-    return bool(person.get('last_verified') and re.search(PAST_POSITION, lead, re.I))
+    if re.search(PAST_LEAD, lead, re.I):
+        return True
+    until = until_month(lead)
+    return bool(until) and until < (int(read[:4]), int(read[5:7]))
 
 
 def affiliation_for(person: dict) -> str:
@@ -396,6 +421,10 @@ def assign_groups(persons: list[dict]) -> list[dict]:
                    if s.get('signal_type') == 'lab_member' and s.get('parent')}
     results = []
     for person in persons:
+        if past_position(person):
+            results.append({**person, 'group_rule': None, 'group_link': '', 'group': '',
+                            'group_evidence': 'unattached: the final pass read a past position'})
+            continue
         pi = any(s.get('role') == 'pi' for s in person.get('signals', []))
         own = {'_leader': id(person), 'group': group_name(person), 'group_rule': 4,
                'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}", 'group_link': 'team'}
