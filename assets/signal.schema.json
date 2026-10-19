@@ -11,6 +11,10 @@
     "hop_depth"
   ],
   "properties": {
+    "author_position": {
+      "enum": ["first", "middle", "last", ""],
+      "description": "Place in the complete author list of the work, never in the in-region shortlist; it decides the authorship role."
+    },
     "kind": {
       "enum": [
         "person",

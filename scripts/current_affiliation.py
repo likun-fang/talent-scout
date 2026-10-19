@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Callable
 from person_fields import assign_groups, topics_for, same_institution
 from openalex_auth import auth_headers
+from publication_signals import inference_signals
 
 REGIONS = {
     "EU27": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"],
@@ -263,7 +264,7 @@ def title_evidence(person: dict, employment: tuple | None, institution: tuple | 
 
 
 def inferred_role(person: dict, run_year: int) -> dict:
-    signals = person.get('signals', [])
+    signals = inference_signals(person.get('signals', []))
     try:
         first_year_number = int(person.get('first_pub_year') or 0)
         years = run_year - first_year_number if 1 <= first_year_number <= run_year else -1

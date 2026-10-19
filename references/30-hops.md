@@ -6,7 +6,7 @@ page that named the person.
 
 | From | Rule | Evidence to keep |
 |------|------|------------------|
-| `work` | Full author list via OpenAlex (`works?search=<title>`), DBLP, or OpenReview; keep authors whose institution is in region; `role` by position (first / last / coauthor). | work URL + author list page |
+| `work` | Full author list via OpenAlex (`works?search=<title>`), DBLP, or OpenReview; keep authors whose institution is in region, but record `author_position` (first / middle / last) from the complete list, never from the kept subset; the `role` follows it. | work URL + author list page |
 | `org` (lab, department, institute) | (a) Lab or group "people / team / members" page; (b) OpenAlex `authors?filter=last_known_institutions.id:<I>` restricted to the domain topic; (c) for CORDIS projects, the project website team page. | the team page URL |
 | `team` (competition) | Team Description Paper or champion paper (author list via OpenAlex), team website, team GitHub organisation. Note the paper year: alumni are in it. | TDP / paper / team page URL |
 | `company` | "About / team" page for founders and technical leads; OpenAlex works with the company as institution; company GitHub org; patents with company as applicant. | the specific page |

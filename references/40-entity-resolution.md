@@ -46,7 +46,9 @@ matches as separate rows. Manual path: build the table in the conversation, one 
 
 ## Role and person fields
 
-Keep `role` on each signal as the participation role (for example `pi` or `first_author`).
+Keep `role` on each signal as the participation role (for example `pi` or `first_author`). A paper signal's
+`author_position` from the full author list overrides the recorded role at merge time; the majority rules below
+count each work once, however many channels found it.
 `role_class` describes the person. `current_affiliation.py` applies the following rules in order;
 stop at the first match. It uses only the standard library.
 

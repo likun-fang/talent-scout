@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse, datetime, json, re, sys, unicodedata
 from current_affiliation import classify_role, region_codes
 from person_fields import assign_groups, same_institution, topics_for
+from publication_signals import normalize_authorship
 from collections import defaultdict
 
 STRONG = ("orcid", "openalex", "dblp", "openreview", "github", "gepris", "snsf")
@@ -73,6 +74,7 @@ def confidence(group: list[dict]) -> str:
     return "low"
 
 def to_person(group: list[dict], ambiguous_names: set[str], run_year: int | None = None) -> dict:
+    group = [normalize_authorship(s) for s in group]
     name = max((s["name_raw"] for s in group), key=len)
     ids: dict[str, str] = {}
     for s in group:
