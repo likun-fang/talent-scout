@@ -59,7 +59,20 @@ ACADEMIC_WORDS = '|'.join([ACADEMIC_EMPLOYER, RESEARCH_GMBH,
                            r'\b(?:institut\w*|cent(?:er|re)s?|laborator\w*|klinik\w*|mpi|inria|cnrs|supercomputing|academ\w*|polytech\w*|eth|epfl|charit[eé])\b'])
 
 
+# A final-pass title that says the position is over ("Until July 2026, I was a Juniorprofessor ...", "Former Head of
+# ...") shows no current role or affiliation; the provider's affiliation is older than that page. The leading clause
+# decides, brackets aside: "Professor, formerly at ETH" and "Lab Manager (ancien responsable d'équipe)" are current.
+PAST_POSITION = r'\b(?:until|was|former(?:ly)?|previous(?:ly)?|ehemalig\w*|ancien(?:ne)?|voormalig\w*|antigu[oa])\b'
+
+
+def past_position(person: dict) -> bool:
+    lead = re.split(r'[,;:]', re.sub(r'\([^)]*\)', '', person.get('final_pass_title') or ''))[0]
+    return bool(person.get('last_verified') and re.search(PAST_POSITION, lead, re.I))
+
+
 def affiliation_for(person: dict) -> str:
+    if past_position(person):
+        return ''
     if person.get('final_pass_affiliation'):
         return person['final_pass_affiliation']
     if person.get('current_affiliation'):
