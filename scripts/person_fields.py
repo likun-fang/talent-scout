@@ -52,8 +52,10 @@ def tags_for(topics: list[str], texts: list[str], facets: list[dict]) -> list[st
     return found
 
 
-# Employer words. "univ\w*" covers Univ., Universidad, Università, Universitet; Unibertsitatea is the Basque form.
-ACADEMIC_EMPLOYER = r'\b(?:hospital|klinik|clinic|univ\w*|unibertsitate\w*|institute of technology|hochschule|school|college)\b'
+# Employer words: the university forms are spelled out (Univ., Universität, Università, Universidad, the Basque
+# Unibertsitatea) because a bare "univ" prefix also starts company names such as Universal Robots.
+ACADEMIC_EMPLOYER = (r'\b(?:hospital|klinik|clinic|univ|universit\w*|universidad\w*|unibertsitate\w*|institute of technology|'
+                     r'hochschule|school|college)\b')
 RESEARCH_GMBH = r'\b(?:dfki|forschungszentrum|forschungsgesellschaft|fraunhofer|helmholtz|max.planck|leibniz)\b'
 ACADEMIC_WORDS = '|'.join([ACADEMIC_EMPLOYER, RESEARCH_GMBH,
                            r'\b(?:institut\w*|cent(?:er|re)s?|laborator\w*|klinik\w*|mpi|inria|cnrs|supercomputing|academ\w*|polytech\w*|eth|epfl|charit[eé])\b'])

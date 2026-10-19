@@ -272,6 +272,12 @@ class GroupInstitutionTests(unittest.TestCase):
         moved = self.leader(final_pass_affiliation='Google DeepMind', last_verified='2026-10-15', signals=records)
         self.assertEqual(group_affiliation(moved), ('Google DeepMind', []))
 
+    def test_a_company_whose_name_starts_like_university_is_still_a_company(self):
+        from person_fields import group_affiliation
+        self.assertEqual(group_affiliation(self.leader(current_affiliation='Universal Robots; Sorbonne Univ.')),
+                         ('Sorbonne Univ.', ['Universal Robots']))
+        self.assertEqual(ca.title_class('Research Engineer', affiliation='Universal Robots'), 'industry')
+
     def test_sorbonne_univ_is_sorbonne_universite(self):
         from person_fields import same_institution_name
         self.assertTrue(same_institution_name('Sorbonne Univ.', 'Sorbonne Université'))
