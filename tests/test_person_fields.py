@@ -244,3 +244,41 @@ class PersonFieldsTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class GroupInstitutionTests(unittest.TestCase):
+    """A group is named after the leader's academic institution; another organisation is listed as also_at."""
+
+    def leader(self, **fields):
+        return {'name': 'Pat Lead', 'role_class': 'professor', 'signals': [], **fields}
+
+    def test_a_company_next_to_a_university_goes_to_also_at(self):
+        from person_fields import group_affiliation
+        cord = self.leader(final_pass_affiliation='valeo.ai; Sorbonne Univ.', last_verified='2026-10-15')
+        self.assertEqual(group_affiliation(cord), ('Sorbonne Univ.', ['valeo.ai']))
+        grouped = assign_groups([{**cord, 'signals': [signal(role='pi', affiliation_raw='Sorbonne Univ.')]}])
+        self.assertEqual(grouped[0]['group'], 'Pat Lead @ Sorbonne Univ.')
+
+    def test_a_spin_off_in_orcid_gives_way_to_a_newer_university_record(self):
+        from person_fields import group_affiliation
+        records = [signal(affiliation_raw='University of Amsterdam', date='2026-01-01'),
+                   signal(affiliation_raw='Ellogon.AI', date='2026-03-01')]
+        gavves = self.leader(current_affiliation='Ellogon.AI', affiliation_source='orcid employment since 2019', signals=records)
+        self.assertEqual(group_affiliation(gavves), ('University of Amsterdam', ['Ellogon.AI']))
+        older = self.leader(current_affiliation='Ellogon.AI', affiliation_source='orcid employment since 2019',
+                            signals=[signal(affiliation_raw='University of Amsterdam', date='2017-05-01')])
+        self.assertEqual(group_affiliation(older), ('Ellogon.AI', []))
+        # A company the final pass read stays the group's institution: the person moved.
+        moved = self.leader(final_pass_affiliation='Google DeepMind', last_verified='2026-10-15', signals=records)
+        self.assertEqual(group_affiliation(moved), ('Google DeepMind', []))
+
+    def test_sorbonne_univ_is_sorbonne_universite(self):
+        from person_fields import same_institution_name
+        self.assertTrue(same_institution_name('Sorbonne Univ.', 'Sorbonne Université'))
+
+    def test_academic_lists_and_bilingual_names_stay_whole(self):
+        from person_fields import group_affiliation
+        for affiliation in ('MPI for Intelligent Systems / University of Tübingen',
+                            'Universidad del País Vasco / Euskal Herriko Unibertsitatea', 'Technical University of Munich'):
+            with self.subTest(affiliation=affiliation):
+                self.assertEqual(group_affiliation(self.leader(current_affiliation=affiliation)), (affiliation, []))

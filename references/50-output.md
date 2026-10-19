@@ -126,7 +126,8 @@ The public output is a map of research groups, one per field. `group_export.py` 
 persons file, date and region as `table_export.py`; `assets/groups.schema.json` describes every field. There is one
 record per named group, without the `(unattached)` row. Groups, institution names, map positions and direction tags
 are those of the talent map. Members are the people linked by `team` or `project` (`40-entity-resolution.md`);
-coauthor-only links are counted, not named. The homepage is a page that lists two or more of the group's people and
+coauthor-only links are counted, not named. When a group sits at its academic institution while the PI's affiliation also names another
+organisation, such as a company lab, `also_at` lists that organisation. The homepage is a page that lists two or more of the group's people and
 nobody from another group, else the PI's homepage, else the page the final pass read for the PI unless its path marks
 a news item. A training programme's site (from `graduiertenkolleg_member` or `imprs_member` records) and a
 page that lists people of five or more groups (a department list) are never a homepage. `last_verified` is the newest final-pass read among the PI and members, else the newest record date up

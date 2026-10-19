@@ -17,7 +17,7 @@ from collections import Counter
 from pathlib import Path
 from table_export import select_persons, signal_date
 from talent_map import ASSETS, Geocoder, build_data_from, load_facets, load_geo_overrides
-from person_fields import TEAM_SIGNALS, normalized, same_institution_name
+from person_fields import TEAM_SIGNALS, group_affiliation, normalized, same_institution_name
 
 MEMBER_LINKS = ('team', 'project')  # a coauthor-only link is counted, not listed
 # The final pass reads the PI's own or institutional page, but sometimes a news item about the PI (an award, an
@@ -102,6 +102,7 @@ def group_record(group: dict, linked: list[dict], pi: dict | None, place: dict, 
     location = None
     if place.get('lat') is not None:
         location = {'lat': place['lat'], 'lng': place['lng'], 'city': place.get('city', ''), 'source': place['geo_source']}
+    also_at = group_affiliation(pi)[1] if pi else []
     return {
         'id': '-'.join(filter(None, [slug(group['pi_name']), slug(group['institution_key'])])) or 'group',
         'pi': {'name': group['pi_name'], 'role_class': pi.get('role_class', 'unknown') if pi else 'unknown', 'homepage': homepage},
@@ -119,6 +120,7 @@ def group_record(group: dict, linked: list[dict], pi: dict | None, place: dict, 
         'last_verified_from': 'final_pass' if verified else 'record_date' if record_date else '',
         'sources': sorted({s['channel'] for p in linked for s in p['signals'] if s.get('channel')}),
         'as_of': as_of.isoformat(),
+        **({'also_at': also_at} if also_at else {}),
     }
 
 

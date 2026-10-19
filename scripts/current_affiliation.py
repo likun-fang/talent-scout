@@ -21,7 +21,7 @@ import urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
-from person_fields import assign_groups, topics_for, same_institution
+from person_fields import ACADEMIC_EMPLOYER, ACADEMIC_WORDS, RESEARCH_GMBH, assign_groups, topics_for, same_institution
 from openalex_auth import auth_headers
 from publication_signals import inference_signals
 
@@ -200,12 +200,8 @@ COMPANY = (r'\b(?:gmbh|ag|ltd|inc|sas|b\.v\.|research europe)(?:\b|(?<=\.))'
            r'|\b(?-i:SA)(?=\s*(?:,|$))|\b(?:naver|bell)\s+labs\b')
 COMPANY_NAMES = r'\b(?:naver|deepmind|google|facebook|sony|bosch|mistral|aleph alpha|microsoft|nvidia|hugging face)\b'
 COMPANY_SUFFIX = r'\b(?:gmbh|ag|inc|ltd)\b'
-ACADEMIC_EMPLOYER = r'\b(?:hospital|klinik|clinic|university|universität|université|universiteit|institute of technology|hochschule|school|college)\b'
-RESEARCH_GMBH = r'\b(?:dfki|forschungszentrum|forschungsgesellschaft|fraunhofer|helmholtz|max.planck|leibniz)\b'
-# An engineer title is industry only when the employer shows no academic word at all; a research engineer at a
-# university, institute or computing centre is research staff (title rules above).
-ACADEMIC_WORDS = '|'.join([ACADEMIC_EMPLOYER, RESEARCH_GMBH,
-                           r'\b(?:institut\w*|cent(?:er|re)s?|laborator\w*|klinik\w*|mpi|inria|cnrs|supercomputing|academ\w*|polytech\w*|eth|epfl|charit[eé])\b'])
+# An engineer title is industry only when the employer shows no academic word at all (ACADEMIC_WORDS); a research
+# engineer at a university, institute or computing centre is research staff (title rules above).
 # A lab manager or lab head at an academic employer runs the lab, but in some labs the title is a staff role, so the
 # evidence says so; at a company it is a manager's title and decides nothing.
 LAB_MANAGER = r'\b(?:lab(?:oratory)? managers?|lab heads?)\b'

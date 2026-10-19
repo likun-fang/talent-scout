@@ -104,7 +104,10 @@ Funding signals prefixed `erc_`, `dfg_`, `snsf_`, `fwf_`, `swecris_`, `rcn_`, `d
 a doctoral role. Person `topics` is the union of signal topics in input order, deduplicated exactly and
 limited to five; do not paraphrase or case-fold the phrases.
 
-`group` is `<PI name> @ <institution>`, using the leader's displayed institution. Leaders are people with
+`group` is `<PI name> @ <institution>`, using the leader's displayed institution. When that affiliation lists an academic
+institution next to another organisation ("valeo.ai; Sorbonne Univ."), the group carries the academic institution;
+so it does when the leader's affiliation is an ORCID employment at a company and a record dated since that employment
+began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. Leaders are people with
 `role_class` professor/group_leader or a pi/last_author signal. A PI signal anchors its own group. Professors always anchor their own groups and never become members of
 another leader. A group_leader without a PI signal can belong to another leader's team. Apply these rules in order; ambiguity stops the search:
 
