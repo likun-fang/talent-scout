@@ -110,11 +110,32 @@ def affiliation_for(person: dict) -> str:
     return next((s['affiliation_raw'] for s in signals if s.get('affiliation_raw')), '')
 
 
+def roster_institutions(person: dict) -> list[str]:
+    """Academic institutions of final-pass rosters read for this person as their head (lab_member signals with role pi
+    and roster_pi) that differ from the institution the person's own final pass names: a second post, such as a group
+    at another university or institute."""
+    own = person.get('final_pass_affiliation') or ''
+    if not own or past_position(person):
+        return []
+    places = (s.get('affiliation_raw') or '' for s in person.get('signals', [])
+              if s.get('signal_type') == 'lab_member' and s.get('role') == 'pi' and s.get('roster_pi'))
+    return list(dict.fromkeys(place for place in places if place and re.search(ACADEMIC_WORDS, place, re.I)
+                              and re.search(ACADEMIC_WORDS, own, re.I) and not same_institution_name(place, own)))
+
+
 def group_affiliation(person: dict) -> tuple[str, list[str]]:
-    """The institution a group is named after, and the other organisations its leader is at. When the affiliation
-    lists an academic institution next to another organisation ("valeo.ai; Sorbonne Univ."), the group sits at the
-    academic one. So it does when the affiliation is an ORCID employment at a company (a spin-off) and a record dated
-    since that employment began places the leader at a university; a company the final pass read is a move and stays."""
+    """The institution a group is named after, and the other organisations its leader is at."""
+    place, others = own_group_affiliation(person)
+    # The PI's own final pass names the group's institution; a roster read for the PI at another academic institution
+    # is a second post (Lundin: Karolinska, with a group at FIMM Helsinki) and joins also_at.
+    return place, others + [extra for extra in roster_institutions(person) if extra not in others]
+
+
+def own_group_affiliation(person: dict) -> tuple[str, list[str]]:
+    """When the affiliation lists an academic institution next to another organisation ("valeo.ai; Sorbonne Univ."),
+    the group sits at the academic one. So it does when the affiliation is an ORCID employment at a company (a spin-off)
+    and a record dated since that employment began places the leader at a university; a company the final pass read is
+    a move and stays."""
     affiliation = affiliation_for(person)
     items = [item.strip() for item in re.split(r';|\s/\s', affiliation) if item.strip()]
     academic = [item for item in items if re.search(ACADEMIC_WORDS, item, re.I)]
@@ -328,7 +349,8 @@ def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, st
         url = signal.get('evidence_url') or evidence_url(leader)
         # An undated roster still listing someone whom the final pass found at another institution is stale.
         if (signal.get('signal_type') in TEAM_SIGNALS and not signal.get('date') and member.get('final_pass_affiliation')
-                and not same_institution(member, leader)):
+                and not same_institution(member, leader)
+                and not any(same_institution_name(member['final_pass_affiliation'], place) for place in roster_institutions(leader))):
             rejected = f"moved since the roster: {parent} -> {leader['name']}, now {member['final_pass_affiliation']} | {url}"
             continue
         paper = signal.get('channel') in {'awards-papers', 'industry', 'competitions'} or key not in lab_parents
@@ -343,6 +365,22 @@ def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, st
     return '', rejected, ''
 
 
+def roster_head(member: dict, candidates: list[tuple], rule: int) -> dict | None:
+    """A member left ambiguous between several leaders listed on one page joins the head the page was read for (the
+    roster signal's roster_pi), when that head is a candidate. Faculty and group leaders on the page keep their own
+    groups, so the rule never moves them."""
+    if member.get('role_class') in {'professor', 'group_leader'}:
+        return None
+    heads = {parent_name(s['roster_pi']): s.get('evidence_url', '') for s in member.get('signals', [])
+             if s.get('signal_type') == 'lab_member' and s.get('roster_pi')}
+    picked = [candidate for candidate in candidates if parent_name(candidate[0].get('name', '')) in heads]
+    if len(picked) != 1:
+        return None
+    leader, _, kind = picked[0]
+    return {'_leader': id(leader), 'group': group_name(leader), 'group_rule': rule, 'group_link': kind,
+            'group_evidence': f"rule {rule}: roster head {leader['name']} | {heads[parent_name(leader['name'])]}"}
+
+
 def choose(member: dict, candidates: list[tuple], rule: int) -> dict | None:
     """candidates are (leader, evidence, link kind)."""
     if not candidates:
@@ -351,6 +389,9 @@ def choose(member: dict, candidates: list[tuple], rule: int) -> dict | None:
     if len(candidates) > 1:
         candidates = [candidate for candidate in candidates if same_institution(member, candidate[0])]
     if len(candidates) != 1:
+        head = roster_head(member, candidates or original, rule)
+        if head:
+            return head
         names = ', '.join(leader['name'] for leader, *_ in (candidates or original))
         return {'group': '', 'group_rule': rule,
                 'group_evidence': f'rule {rule}: ambiguous: {names} | {evidence_url(member)}'}

@@ -108,7 +108,9 @@ limited to five; do not paraphrase or case-fold the phrases.
 `group` is `<PI name> @ <institution>`, using the leader's displayed institution. When that affiliation lists an academic
 institution next to another organisation ("valeo.ai; Sorbonne Univ."), the group carries the academic institution;
 so it does when the leader's affiliation is an ORCID employment at a company and a record dated since that employment
-began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. Leaders are people with
+began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. When the leader's own final pass names one academic institution and a
+final-pass roster read for the leader as its head names another (Karolinska, and a group at FIMM Helsinki), the group sits
+at the final-pass institution and the roster's institution joins `also_at`; that roster's members are not stale. Leaders are people with
 `role_class` professor/group_leader or a pi/last_author signal. A PI signal anchors its own group. Professors always anchor their own groups and never become members of
 another leader. A group_leader without a PI signal can belong to another leader's team. Apply these rules in order; ambiguity stops the search:
 
@@ -128,7 +130,9 @@ signals link one member to the same leader, the strongest kind counts, in the or
 `group_link` does not change `group`; unattached and ambiguous people carry an empty `group_link`.
 
 For multiple candidates, retain those at the member's institution; if there is still not exactly one, leave
-`group` empty and record `ambiguous: A, B`. An undated roster that still lists a person whom the final pass placed at
+`group` empty and record `ambiguous: A, B`. A final-pass roster signal names the head the page was read for
+(`roster_pi`): a member who is neither professor nor group_leader and stays ambiguous among leaders that include that head
+joins the head, with the evidence `roster head <name> | <URL>`; the other faculty on the page keep their own groups. An undated roster that still lists a person whom the final pass placed at
 another institution is stale: the link is rejected as `moved since the roster` and later fallbacks do not override
 it. A rule-1 parent from awards-papers / industry / competitions,
 or a parent that is not used by any pool signal of type lab_member, is treated as paper evidence: require
