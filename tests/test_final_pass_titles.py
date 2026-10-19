@@ -151,3 +151,40 @@ class UnchangedTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PastPositionTests(unittest.TestCase):
+    """A read page that says the position is over leaves no current role, affiliation or group."""
+    SILBERER = ('Until July 2026, I was a Juniorprofessor (Assistant Professor) of Computational Linguistics '
+                'at the IMS, University of Stuttgart.')
+
+    def person(self, title, **fields):
+        return {'name': 'Cara Silver', 'final_pass_title': title, 'final_pass_url': 'https://sites.example/cara',
+                'last_verified': '2026-10-15', 'current_affiliation': 'University of Stuttgart', 'country': 'DE',
+                'affiliation_source': 'evidence 2023', 'first_pub_year': 2012, 'notes': '',
+                'signals': [{'name_raw': 'Cara Silver', 'signal_type': 'dfg_project', 'role': 'pi', 'date': '2023',
+                             'affiliation_raw': 'University of Stuttgart', 'country': 'DE', 'evidence_url': 'https://gepris.example/1'}],
+                **fields}
+
+    def test_a_title_that_says_until_former_or_was_is_not_a_current_role(self):
+        for title in (self.SILBERER, 'Former Head of the Vision Group', 'Previously Research Director (DR1)'):
+            with self.subTest(title=title):
+                result = ca.classify_role(self.person(title), 2026)
+                self.assertEqual((result['role_class'], result['role_confidence']), ('unknown', 'low'))
+                self.assertIn('rule 0: final pass: the title names a past position', result['role_evidence'])
+
+    def test_the_provider_affiliation_is_not_current_either_so_there_is_no_group_or_country(self):
+        from person_fields import affiliation_for, assign_groups
+        from table_export import country_for
+        silberer = self.person(self.SILBERER)
+        applied = ca.apply_final_pass({**silberer, 'final_pass_affiliation': 'University of Stuttgart', 'final_pass_country': 'DE'})
+        self.assertEqual((applied['current_affiliation'], applied['country']), ('', ''))
+        self.assertIn('past position', applied['affiliation_source'])
+        self.assertEqual((affiliation_for(silberer), country_for(silberer)), ('', ''))
+        self.assertEqual(assign_groups([silberer])[0]['group'], '')
+
+    def test_a_current_title_with_a_former_post_beside_it_is_untouched(self):
+        for title, role in (('Juniorprofessor', 'professor'), ('Professor, formerly at ETH Zurich', 'professor'),
+                            ('I was a Juniorprofessor until July 2026', 'unknown')):
+            with self.subTest(title=title):
+                self.assertEqual(ca.classify_role(self.person(title), 2026)['role_class'], role)

@@ -74,7 +74,9 @@ Select the person's current position line or current appointment section before 
 the whole page to the title classifier: it can contain former appointments, degrees and supervisors' titles.
 For example, a current `Professeure des Universités` followed by `Postes précédents` / `Maîtresse de Conférences`
 supports the current professorship only. Record section context in notes; a fetch timestamp does not make an old
-appointment current. If current status cannot be separated, leave the verified title unset and mark `needs review`.
+appointment current. If current status cannot be separated, leave the verified title unset and mark `needs review`. When the page's own
+statement is that the position has ended ("Until July 2026, I was …"), copy that sentence as `final_pass_title`
+with no affiliation: it removes the current affiliation and the group (`40-entity-resolution.md`).
 When language versions use different labels, preserve both excerpts and flag a classification discrepancy rather
 than selecting whichever translation produces a higher tier. Register membership flags are not role verification.
 

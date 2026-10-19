@@ -21,7 +21,8 @@ import urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
-from person_fields import ACADEMIC_EMPLOYER, ACADEMIC_WORDS, RESEARCH_GMBH, assign_groups, topics_for, same_institution
+from person_fields import (ACADEMIC_EMPLOYER, ACADEMIC_WORDS, RESEARCH_GMBH, assign_groups, past_position, topics_for,
+                           same_institution)
 from openalex_auth import auth_headers
 from publication_signals import inference_signals
 
@@ -319,10 +320,14 @@ def final_pass_title(person: dict) -> tuple | None:
 
 
 def apply_final_pass(person: dict) -> dict:
-    """Apply reviewed affiliation without mutating signals or losing the provider provenance."""
-    if not person.get('final_pass_affiliation'):
+    """Apply reviewed affiliation without mutating signals or losing the provider provenance. A read title that
+    names a past position leaves no current affiliation."""
+    past = past_position(person)
+    if not person.get('final_pass_affiliation') and not past:
         return dict(person)
     source = f"final pass {person.get('last_verified', '')} {person.get('final_pass_url', '')}".strip()
+    if past:
+        source += ': past position'
     notes = person.get('notes', '')
     if person.get('affiliation_source') != source:
         newest = max(person.get('signals', []), key=lambda s: date_value(s.get('date')), default={})
@@ -331,8 +336,8 @@ def apply_final_pass(person: dict) -> dict:
         provenance = f"source affiliation: {old} ({old_source})"
         if old and provenance not in notes:
             notes = '; '.join(filter(None, [notes, provenance]))
-    return {**person, 'current_affiliation': person['final_pass_affiliation'],
-            'country': person.get('final_pass_country') or '', 'affiliation_source': source, 'notes': notes}
+    return {**person, 'current_affiliation': '' if past else person['final_pass_affiliation'],
+            'country': '' if past else person.get('final_pass_country') or '', 'affiliation_source': source, 'notes': notes}
 
 
 def company_evidence(person: dict, institution: tuple | None) -> tuple | None:
@@ -366,6 +371,8 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
                   institution: tuple | None = None) -> dict:
     """First matching rule wins. Classification is pure and never dates a verification."""
     verified = final_pass_title(person)
+    if verified and past_position(person):
+        return role_result('unknown', 'low', 0, 'final pass: the title names a past position', verified[0], verified[1])
     company = company_evidence(person, institution)
     entries = title_evidence(person, employment, institution)
     country = person.get('final_pass_country') or person.get('country') or ''
