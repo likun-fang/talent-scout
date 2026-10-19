@@ -182,9 +182,15 @@ class PastPositionTests(unittest.TestCase):
         self.assertIn('past position', applied['affiliation_source'])
         self.assertEqual((affiliation_for(silberer), country_for(silberer)), ('', ''))
         self.assertEqual(assign_groups([silberer])[0]['group'], '')
+        from table_export import row_for
+        self.assertEqual(row_for(silberer, 'multimodal AI', '2026-10-15')['current_affiliation'], '')
 
     def test_a_current_title_with_a_former_post_beside_it_is_untouched(self):
         for title, role in (('Juniorprofessor', 'professor'), ('Professor, formerly at ETH Zurich', 'professor'),
-                            ('I was a Juniorprofessor until July 2026', 'unknown')):
+                            ('I was appointed Professor at TUM in 2024', 'professor'),
+                            ('Professor until July 2027', 'professor'), ('Professor until 2026', 'professor'),
+                            ('I was a Juniorprofessor until July 2026', 'unknown'), ('Professor until 2026-07', 'unknown'),
+                            ('Professor until Jul 2026', 'unknown'), ('Professor until 07/2026', 'unknown'),
+                            ('I was\na Professor', 'unknown')):
             with self.subTest(title=title):
                 self.assertEqual(ca.classify_role(self.person(title), 2026)['role_class'], role)
