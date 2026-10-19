@@ -110,7 +110,9 @@ institution next to another organisation ("valeo.ai; Sorbonne Univ."), the group
 so it does when the leader's affiliation is an ORCID employment at a company and a record dated since that employment
 began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. When the leader's own final pass names one academic institution and a
 final-pass roster read for the leader as its head names another (Karolinska, and a group at FIMM Helsinki), the group sits
-at the final-pass institution and the roster's institution joins `also_at`; that roster's members are not stale. Leaders are people with
+at the final-pass institution and the roster's institution joins `also_at`; that roster's members are not stale. Two
+names count as two institutions only when they share no distinctive word, so a spelling or a unit of the same one
+("KIT - Karlsruher Institut für Technologie", "EPFL Neuro-X Institute") adds nothing. Leaders are people with
 `role_class` professor/group_leader or a pi/last_author signal. A PI signal anchors its own group. Professors always anchor their own groups and never become members of
 another leader. A group_leader without a PI signal can belong to another leader's team. Apply these rules in order; ambiguity stops the search:
 

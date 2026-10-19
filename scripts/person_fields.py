@@ -110,6 +110,22 @@ def affiliation_for(person: dict) -> str:
     return next((s['affiliation_raw'] for s in signals if s.get('affiliation_raw')), '')
 
 
+# Words any institution's name may carry; the stems of the others tell two institutions apart.
+GENERIC_INSTITUTION_WORDS = {'unive', 'insti', 'cente', 'centr', 'schoo', 'depar', 'facul', 'scien', 'techn', 'resea',
+                             'natio', 'appli', 'colle', 'hospi', 'labor', 'group', 'and', 'for', 'the', 'und', 'des',
+                             'der', 'von', 'van', 'del', 'della'}
+
+
+def distinct_institutions(left: str, right: str) -> bool:
+    """Two names that share no distinctive word, compared by five-letter stems: "FIMM, University of Helsinki" and
+    "Karolinska Institutet" are two institutions, while "KIT - Karlsruher Institut für Technologie" and "Karlsruhe
+    Institute of Technology" are spellings of one. Two institutions of one city read as one, so the test errs towards
+    missing a second post rather than inventing one."""
+    def stems(name: str) -> set[str]:
+        return {w[:5] for w in re.findall(r'\w+', normalized(name)) if len(w) >= 3} - GENERIC_INSTITUTION_WORDS
+    return bool(stems(left)) and bool(stems(right)) and not stems(left) & stems(right)
+
+
 def roster_institutions(person: dict) -> list[str]:
     """Academic institutions of final-pass rosters read for this person as their head (lab_member signals with role pi
     and roster_pi) that differ from the institution the person's own final pass names: a second post, such as a group
@@ -120,7 +136,8 @@ def roster_institutions(person: dict) -> list[str]:
     places = (s.get('affiliation_raw') or '' for s in person.get('signals', [])
               if s.get('signal_type') == 'lab_member' and s.get('role') == 'pi' and s.get('roster_pi'))
     return list(dict.fromkeys(place for place in places if place and re.search(ACADEMIC_WORDS, place, re.I)
-                              and re.search(ACADEMIC_WORDS, own, re.I) and not same_institution_name(place, own)))
+                              and re.search(ACADEMIC_WORDS, own, re.I) and not same_institution_name(place, own)
+                              and distinct_institutions(place, own)))
 
 
 def group_affiliation(person: dict) -> tuple[str, list[str]]:
@@ -350,7 +367,9 @@ def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, st
         # An undated roster still listing someone whom the final pass found at another institution is stale.
         if (signal.get('signal_type') in TEAM_SIGNALS and not signal.get('date') and member.get('final_pass_affiliation')
                 and not same_institution(member, leader)
-                and not any(same_institution_name(member['final_pass_affiliation'], place) for place in roster_institutions(leader))):
+                # A member placed at the leader's second institution (a roster read there) has not moved away.
+                and not any(not distinct_institutions(member['final_pass_affiliation'], place)
+                            for place in roster_institutions(leader))):
             rejected = f"moved since the roster: {parent} -> {leader['name']}, now {member['final_pass_affiliation']} | {url}"
             continue
         paper = signal.get('channel') in {'awards-papers', 'industry', 'competitions'} or key not in lab_parents
