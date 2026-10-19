@@ -71,6 +71,18 @@ class PageTests(unittest.TestCase):
         self.assertEqual(html.count('filtersChanged()'), 4)  # the definition, search, country and each facet select
 
 
+class SharedLabTests(unittest.TestCase):
+    def test_groups_of_one_lab_are_drawn_once_as_a_lab_with_their_pi_groups_inside(self):
+        lab = {'homepage': 'https://vgg.example/people', 'groups': ['anna-meyer-tum', 'ben-ott-tum']}
+        html = render_html(doc({**record('Anna Meyer', 'TUM'), 'lab': lab}, {**record('Ben Ott', 'TUM'), 'lab': lab},
+                               record('Cara Lin', 'TUM')))
+        self.assertEqual([g.get('lab') for g in payload(html)['groups']], [lab, lab, None])
+        # The list draws a lab once, with each of its PI groups as a row inside; a card links the lab's other groups.
+        self.assertIn('function labBlock(', html)
+        self.assertIn("lab: 'lab'", html)
+        self.assertIn("lab: '实验室'", html)
+
+
 class CommandLineTests(unittest.TestCase):
     def test_main_writes_index_html_and_rejects_a_file_that_is_not_groups_json(self):
         with tempfile.TemporaryDirectory() as tmp:

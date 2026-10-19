@@ -62,6 +62,8 @@ aside{border-left:1px solid var(--line);background:var(--panel);overflow:auto;pa
 .sub{color:var(--muted);font-size:12.5px;margin-bottom:6px}
 .inst{padding:8px 4px 2px;font-weight:600;cursor:pointer;border-bottom:1px solid var(--line)}
 .inst .m{font-weight:400;color:var(--muted);font-size:12.5px}
+.lab{margin-left:14px;border-left:2px solid var(--line);padding-left:4px}
+.lab>.m{display:block;padding:6px 4px 2px;font-size:12.5px;color:var(--muted)}
 .row{padding:6px 4px 6px 14px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:4px}
 .row:hover,.inst:hover{background:var(--hover)}
 .row .t{font-weight:500}
@@ -116,7 +118,7 @@ const I18N = {
   en: {
     title: d => `Research groups · ${d}`, search: 'search PI, institution, member, topic', allCountries: 'all countries', reset: 'reset',
     about: 'About this map', all: 'all', showing: (n, total) => `showing ${n} of ${total} groups`, back: '← back', list: 'All groups',
-    showOnMap: 'show on map', approx: 'approximate position', noMatch: 'nothing matches', homepage: 'homepage', piPage: 'PI page', tags: 'direction tags',
+    showOnMap: 'show on map', approx: 'approximate position', noMatch: 'nothing matches', homepage: 'homepage', lab: 'lab', piPage: 'PI page', tags: 'direction tags',
     topics: 'topics', funding: 'funding records', openSource: 'open source', sources: 'found through', lastVerified: 'last verified',
     fromPage: 'page read', fromRecord: 'date of the newest record, no page read', never: 'not verified', members: 'members', evidence: 'evidence links',
     coauthors: n => `and ${n} coauthor${n === 1 ? '' : 's'} of shared papers, not listed`, project: 'project', correction: 'Report a correction',
@@ -133,7 +135,7 @@ const I18N = {
   zh: {
     title: d => `研究课题组 · ${d}`, search: '搜索负责人、机构、成员、方向', allCountries: '所有国家', reset: '重置',
     about: '关于本图', all: '全部', showing: (n, total) => `显示 ${n} / ${total} 个课题组`, back: '← 返回', list: '全部课题组',
-    showOnMap: '在地图上显示', approx: '位置为近似', noMatch: '没有匹配结果', homepage: '主页', piPage: '负责人页面', tags: '方向标签',
+    showOnMap: '在地图上显示', approx: '位置为近似', noMatch: '没有匹配结果', homepage: '主页', lab: '实验室', piPage: '负责人页面', tags: '方向标签',
     topics: '方向', funding: '资助记录', openSource: '开源', sources: '发现渠道', lastVerified: '最近核实',
     fromPage: '读过页面', fromRecord: '最新记录日期，未读页面', never: '未核实', members: '成员', evidence: '证据链接',
     coauthors: n => `另有 ${n} 位合著者（只共同发表过论文，不列出）`, project: '项目', correction: '报告错误',
@@ -242,15 +244,23 @@ function groupRow(g) {
   return `<div class="row" data-group="${esc(g.id)}"><span class="t">${esc(g.pi.name)}</span> <span class="role">${esc(roleLabel(g.pi.role_class))}</span>
     ${g.tags.length ? `<div>${tagChips(g.tags.slice(0, 6))}</div>` : ''}${g.topics.length ? `<div class="k">${esc(g.topics.slice(0, 3).join(' · '))}</div>` : ''}</div>`;
 }
+// Groups that share a homepage are PI groups of one lab: the list draws the lab once, with each group as a row inside.
+function labBlock(g, groups) {
+  const inLab = groups.filter(x => x.lab && x.lab.homepage === g.lab.homepage);
+  return `<div class="lab"><span class="m">${esc(T().lab)} · ${link(g.lab.homepage)}</span>${inLab.map(groupRow).join('')}</div>`;
+}
 function listView(groups) {
   let html = '', current = null;
+  const drawn = new Set();
   for (const g of groups) {
+    if (g.lab && drawn.has(g.lab.homepage)) continue;
     if (g.institution.name !== current) {
       current = g.institution.name;
       const loc = g.institution.location || {};
       html += `<div class="inst" data-inst="${esc(current)}">${esc(current)} <span class="m">${esc(g.institution.country)}${loc.city ? ' · ' + esc(loc.city) : ''}</span></div>`;
     }
-    html += groupRow(g);
+    if (g.lab) drawn.add(g.lab.homepage);
+    html += g.lab ? labBlock(g, groups) : groupRow(g);
   }
   return `<div class="card">${html || `<span class="muted">${T().noMatch}</span>`}</div>`;
 }
@@ -266,6 +276,7 @@ function card(g) {
     <div class="sub"><a data-inst="${esc(g.institution.name)}" href="#">${esc(g.institution.name)}</a> · ${esc(g.institution.country)}${loc.city ? ' · ' + esc(loc.city) : ''}${loc.source === 'country centroid' ? ' · ' + t.approx : ''}
       ${g.institution.location ? `<button class="btn" data-fly="${esc(g.institution.name)}">${t.showOnMap}</button>` : ''}</div>
     <dl>${g.homepage ? `<dt>${t.homepage}</dt><dd>${link(g.homepage)}</dd>` : ''}
+    ${g.lab ? `<dt>${t.lab}</dt><dd>${g.lab.groups.filter(id => id !== g.id).map(byId).filter(Boolean).map(o => `<a href="#" data-group="${esc(o.id)}">${esc(o.pi.name)}</a>`).join(', ')}</dd>` : ''}
     ${g.pi.homepage && g.pi.homepage !== g.homepage ? `<dt>${t.piPage}</dt><dd>${link(g.pi.homepage)}</dd>` : ''}
     ${FACETS.length ? `<dt>${t.tags}</dt><dd>${tagChips(g.tags) || '<span class="muted">—</span>'}</dd>` : ''}
     <dt>${t.topics}</dt><dd>${g.topics.map(x => `<span class="topic">${esc(x)}</span>`).join('') || '<span class="muted">—</span>'}</dd>

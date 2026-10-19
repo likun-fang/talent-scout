@@ -126,6 +126,20 @@ def group_record(group: dict, linked: list[dict], pi: dict | None, place: dict, 
     }
 
 
+def label_labs(records: list[dict]) -> None:
+    """Groups that share a homepage (a trailing slash and a fragment aside) are PI groups of one lab, such as a
+    multi-PI lab page: each carries the same lab label and stays a group of its own."""
+    by_page = {}
+    for record in records:
+        if record.get('homepage'):
+            key = urllib.parse.urlsplit(record['homepage'])._replace(fragment='').geturl().rstrip('/')
+            by_page.setdefault(key, []).append(record)
+    for shared in by_page.values():
+        if len(shared) > 1:
+            for record in shared:
+                record['lab'] = {'homepage': shared[0]['homepage'], 'groups': [r['id'] for r in shared]}
+
+
 def export(persons: list[dict], args, geocoder, facets: list[dict]) -> dict:
     # Tiers and the row cut never reach groups.json; the selection needs both settings all the same.
     options = argparse.Namespace(**{**vars(args), 'region_core': 'DE+CH', 'max_rows': 0})
@@ -151,6 +165,7 @@ def export(persons: list[dict], args, geocoder, facets: list[dict]) -> dict:
         if seen[record['id']] > 1:
             record['id'] += f"-{seen[record['id']]}"
         records.append(record)
+    label_labs(records)
     doc = {'meta': {'domain': args.domain, 'as_of': args.date.isoformat(), 'region': args.region,
                     'window_start': data['meta']['window_start'], 'facets': data['meta']['facets']},
            'groups': records}
