@@ -145,6 +145,13 @@ class BuildDataTests(unittest.TestCase):
         self.assertEqual((place['country'], place['person_count'], place['group_count']), ('FR', 0, 1))
         self.assertIsNotNone(place['lat'])
 
+    def test_an_institution_only_a_group_names_takes_the_country_of_the_records_that_name_it(self):
+        founder = person('Eli Founder', 'Example AI', 'NL', 'industry', 'Eli Founder @ Technical University of Munich',
+                         signals=[sig('Eli Founder', 'Technical University of Munich', 'DE')])
+        data = build_data([founder], args(), self.geo)
+        place = next(i for i in data['institutions'] if i['name'] == 'Technical University of Munich')
+        self.assertEqual(place['country'], 'DE')
+
     def test_summaries_sidecar_attaches_to_groups_and_persons(self):
         summaries = {'groups': {'Zeynep Akata @ Technical University of Munich': {'en': 'Explainable multimodal models.', 'zh': '可解释多模态模型。'}},
                      'persons': {'A Student': {'en': 'Works on captioning.'}}}
