@@ -177,13 +177,16 @@ DOCTORAL_SCHOOL = r'\b(?:imprs\w*|max planck research school|graduate school|doc
 # Add country-specific titles without widening the existing English/German rules.
 # These are appointments/stages, not degree names (doctorat/doctorado/Dr.). The French
 # maître de conférences is the tenured faculty rank below professeur (the associate
-# professor); chargé and directeur de recherche are CNRS research posts and do not prove
-# leadership of a particular group. "Ius promovendi" is the right to supervise doctorates,
-# not the promovendus stage. Preserve the original title in the evidence.
+# professor). The directeur de recherche (CNRS, INRAE, IGN, Inria, FNRS) is the research-track
+# equivalent of professeur des universités; in English it reads "Research Director (DR1)".
+# A bare English Research Director is also a company manager's title, so only a DR grade
+# makes it one. Chargé de recherche and chercheur titulaire are permanent researcher posts.
+# "Ius promovendi" is the right to supervise doctorates, not the promovendus stage.
+# Preserve the original title in the evidence.
 LOCAL_TITLE_RULES = (
     ('phd_student', r'\b(?:doctorant(?:e)?s?|doctorand[oa]s?|(?<!ius )promovend(?:us|a|i|ae))\b'),
-    ('researcher', r'\b(?:charg[eé](?:e)?s? de recherche|direct(?:eur|rice)s? de recherche|investigador(?:a)?(?:es|as)? postdoctoral(?:es)?|onderzoekers?)\b'),
-    ('professor', r'\b(?:ma[iî]tre(?:sse)?s? de conf[eé]rences|professeur(?:e)?s? des universit[eé]s|catedr[aá]tic[oa]s? de universidad|(?:profesor(?:a)?(?:es|as)? )?titular(?:es)? de universidad|profesor(?:a)?(?:es|as)? agregad[oa]s?|hoogleraren|hoogleraar)\b'),
+    ('researcher', r'\b(?:charg[eé](?:e)?s? de recherche|chercheu(?:r|se)s? titulaires?|investigador(?:a)?(?:es|as)? postdoctoral(?:es)?|onderzoekers?)\b'),
+    ('professor', r'\b(?:ma[iî]tre(?:sse)?s? de conf[eé]rences|professeur(?:e)?s? des universit[eé]s|direct(?:eur|rice)s? de recherche|(?:research directors?|senior researchers?)(?=[\s\S]*\b(?:dr ?[12]|drce ?[12]?)\b)|catedr[aá]tic[oa]s? de universidad|(?:profesor(?:a)?(?:es|as)? )?titular(?:es)? de universidad|profesor(?:a)?(?:es|as)? agregad[oa]s?|hoogleraren|hoogleraar)\b'),
     ('group_leader', r"\b(?:responsables? d['’][eé]quipe|chef(?:fe)?s? d['’][eé]quipe|jef[ea]s? de grupo|groepsleiders?)\b"),
 )
 LOCAL_PAST_TITLE = r'\b(?:former|previous|ancien(?:ne)?s?|ex|voormalig(?:e)?|antigu[oa]s?)\b'
@@ -202,7 +205,10 @@ RESEARCH_GMBH = r'\b(?:dfki|forschungszentrum|forschungsgesellschaft|fraunhofer|
 # An engineer title is industry only when the employer shows no academic word at all; a research engineer at a
 # university, institute or computing centre is research staff (title rules above).
 ACADEMIC_WORDS = '|'.join([ACADEMIC_EMPLOYER, RESEARCH_GMBH,
-                           r'\b(?:institut\w*|cent(?:er|re)s?|laborator\w*|mpi|inria|cnrs|supercomputing|academ\w*|polytech\w*|eth|epfl|charit[eé])\b'])
+                           r'\b(?:institut\w*|cent(?:er|re)s?|laborator\w*|klinik\w*|mpi|inria|cnrs|supercomputing|academ\w*|polytech\w*|eth|epfl|charit[eé])\b'])
+# A lab manager or lab head at an academic employer runs the lab, but in some labs the title is a staff role, so the
+# evidence says so; at a company it is a manager's title and decides nothing.
+LAB_MANAGER = r'\b(?:lab(?:oratory)? managers?|lab heads?)\b'
 # A founder or C-level title is an industry role; a professorial title next to it still wins (precedence above).
 FOUNDER = r'\b(?:co-?founders?|founders?|chief (?:executive|technology|operating|scientific) officer|ceo|cto|coo|cso)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_', 'fwf_', 'swecris_', 'rcn_', 'dff_', 'fris_', 'aei_')
@@ -235,6 +241,8 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '', c
     # the title says nothing, and at a company the employer rule has already decided.
     if not matches and re.search(r'\bresearch engineers?\b', own, re.I) and re.search(ACADEMIC_WORDS, affiliation or '', re.I):
         matches = ['researcher']
+    if re.search(LAB_MANAGER, own, re.I) and re.search(ACADEMIC_WORDS, affiliation or '', re.I):
+        matches.append('group_leader')
     joined = re.search(MIXED, own, re.I)
     if local_matches:
         joined = joined or re.search(LOCAL_MIXED, own, re.I)
@@ -261,6 +269,11 @@ def role_result(role_class: str, confidence: str, rule: int, source: str, excerp
         caveat += ' (honorary)'
     if role_class == 'industry' and rule in (0, 1) and re.search(r'\bengineers?\b', excerpt, re.I):
         caveat += ' (engineer at a non-academic employer)'
+    # Only when the lab-manager title alone makes the leader: not another leadership title, not a supervisor's title.
+    own = re.sub(SUPERVISOR, '', excerpt, flags=re.I)
+    if role_class == 'group_leader' and rule in (0, 1) and re.search(LAB_MANAGER, own, re.I) and title_class(
+            re.sub(LAB_MANAGER, '', own, flags=re.I)) != 'group_leader':
+        caveat += ' (lab manager: may be administrative)'
     return {'role_class': role_class, 'role_confidence': confidence,
             'role_evidence': f'rule {rule}: {source}{caveat} | {excerpt} | {url}'}
 

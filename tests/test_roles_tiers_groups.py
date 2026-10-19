@@ -193,10 +193,12 @@ class LocalTitleTests(unittest.TestCase):
         titles = {
             'phd_student': ['Doctorant', 'Doctorante', 'Doctorants', 'Doctorando', 'Doctoranda',
                             'Doctorandas', 'Promovendus', 'Promovenda', 'Promovendi'],
-            'researcher': ['Chargé de recherche', 'Chargée de recherche', 'Directrice de recherche',
+            'researcher': ['Chargé de recherche', 'Chargée de recherche', 'Chercheur titulaire',
                            'Investigadora postdoctoral', 'Onderzoeker'],
-            # Maître de conférences is the tenured faculty rank below professeur, the French associate professor.
+            # Maître de conférences is the tenured faculty rank below professeur, the French associate professor;
+            # directeur de recherche is the research-track equivalent of professeur des universités.
             'professor': ['Maître de conférences', 'Maîtresse de conférences', 'Maitre de Conférences (HDR)',
+                          'Directrice de recherche', 'Directeur de recherche',
                           'Professeur des universités', 'Profesora titular de universidad',
                           'Catedrático de universidad', 'Hoogleraar', 'Hoogleraren'],
             'group_leader': ["Responsable d’équipe", "Chef d'équipe", 'Jefa de grupo', 'Groepsleider'],
