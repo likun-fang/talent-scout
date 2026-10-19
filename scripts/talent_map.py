@@ -214,7 +214,8 @@ def build_data_from(selection: tuple, args, geocoder, summaries: dict | None = N
         if row['group'] == '(unattached)':
             continue
         pi = by_name.get(row['pi_name'])
-        key = pi['institution_key'] if pi and pi['institution_key'] else canonical_institution(row['institution'], aliases)
+        # The group's own institution: a PI's affiliation can list a company first ("valeo.ai; Sorbonne Univ.").
+        key = canonical_institution(row['institution'], aliases) or (pi['institution_key'] if pi else '')
         # A coauthor-only link says nothing about what the group works on.
         tag_counts = Counter(tag for e in entries if e['group'] == row['group'] and e['group_link'] != 'coauthor'
                              for tag in e['tags'])
@@ -244,8 +245,13 @@ def build_data_from(selection: tuple, args, geocoder, summaries: dict | None = N
         if entry['group'] in group_institution and not entry['institution_key']:
             entry['institution_key'] = group_institution[entry['group']]
     institutions = []
-    for key, members in sorted(Counter(e['institution_key'] for e in entries if e['institution_key']).items()):
-        people = [e for e in entries if e['institution_key'] == key]
+    keys = Counter(e['institution_key'] for e in entries if e['institution_key'])
+    for group in groups:  # a group named after its academic institution can be the only record of that institution
+        if group['institution_key']:
+            keys.setdefault(group['institution_key'], 0)
+    for key, members in sorted(keys.items()):
+        named = {g['group'] for g in groups if g['institution_key'] == key}
+        people = [e for e in entries if e['institution_key'] == key] or [e for e in entries if e['group'] in named]
         country = Counter(e['country'] for e in people if e['country']).most_common(1)
         country = country[0][0] if country else ''
         located = geocoder.locate(key, country) or country_centroid(country, key)

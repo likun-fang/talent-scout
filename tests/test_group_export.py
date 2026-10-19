@@ -215,6 +215,16 @@ class GroupRecordTests(unittest.TestCase):
         self.assertEqual([g['institution']['name'] for g in doc['groups']], [TUM, 'University of Amsterdam'])
 
 
+class AlsoAtTests(unittest.TestCase):
+    def test_a_company_next_to_a_university_is_also_at_and_the_group_sits_at_the_university(self):
+        cord = person('Mat Cord', 'valeo.ai; Sorbonne Univ.', 'FR', 'professor', 'Mat Cord @ Sorbonne Univ.', 'team',
+                      signals=[sig('Mat Cord', 'Sorbonne Univ.', 'FR', url='https://valeo.example/team')])
+        doc = run(roster() + [cord])
+        record = by_pi(doc)['Mat Cord']
+        self.assertEqual((record['institution']['name'], record['also_at']), ('Sorbonne Université', ['valeo.ai']))
+        self.assertNotIn('also_at', by_pi(doc)['Anna Meyer'])
+
+
 class ExclusionTests(unittest.TestCase):
     def test_no_tier_merge_note_or_evidence_fields_anywhere(self):
         keys = {key for key, _ in walk(run())}

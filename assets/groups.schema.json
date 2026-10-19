@@ -118,7 +118,8 @@
         "last_verified": {"$ref": "#/$defs/date"},
         "last_verified_from": {"enum": ["final_pass", "record_date", ""], "description": "final_pass: a page read; record_date: the newest record up to as_of"},
         "sources": {"type": "array", "items": {"type": "string"}, "description": "Channels the records came from"},
-        "as_of": {"$ref": "#/$defs/day"}
+        "as_of": {"$ref": "#/$defs/day"},
+        "also_at": {"type": "array", "items": {"type": "string"}, "description": "Other organisations the PI is at, such as a company lab, when the group sits at the academic institution"}
       }
     }
   }
