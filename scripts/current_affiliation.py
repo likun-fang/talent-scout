@@ -21,7 +21,7 @@ import urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
-from person_fields import (ACADEMIC_EMPLOYER, ACADEMIC_WORDS, RESEARCH_GMBH, assign_groups, past_position, topics_for,
+from person_fields import (ACADEMIC_EMPLOYER, ACADEMIC_WORDS, PAST_LEAD, RESEARCH_GMBH, assign_groups, past_position, topics_for,
                            same_institution)
 from openalex_auth import auth_headers
 from publication_signals import inference_signals
@@ -180,8 +180,9 @@ DOCTORAL_SCHOOL = r'\b(?:imprs\w*|max planck research school|graduate school|doc
 # maître de conférences is the tenured faculty rank below professeur (the associate
 # professor). The directeur de recherche (CNRS, INRAE, IGN, Inria, FNRS) is the research-track
 # equivalent of professeur des universités; in English it reads "Research Director (DR1)".
-# A bare English Research Director is also a company manager's title, so only a DR grade
-# makes it one. Chargé de recherche and chercheur titulaire are permanent researcher posts.
+# A bare English Research Director is also a company manager's title, so only a DR grade or an
+# affiliation at one of the public research bodies that use the grade (RESEARCH_BODY, not a company
+# with the same acronym) makes it one. Chargé de recherche and chercheur titulaire are permanent researcher posts.
 # "Ius promovendi" is the right to supervise doctorates, not the promovendus stage.
 # Preserve the original title in the evidence.
 LOCAL_TITLE_RULES = (
@@ -190,6 +191,10 @@ LOCAL_TITLE_RULES = (
     ('professor', r'\b(?:ma[iî]tre(?:sse)?s? de conf[eé]rences|professeur(?:e)?s? des universit[eé]s|direct(?:eur|rice)s? de recherche|(?:research directors?|senior researchers?)(?=[\s\S]*\b(?:dr ?[12]|drce ?[12]?)\b)|catedr[aá]tic[oa]s? de universidad|(?:profesor(?:a)?(?:es|as)? )?titular(?:es)? de universidad|profesor(?:a)?(?:es|as)? agregad[oa]s?|hoogleraren|hoogleraar)\b'),
     ('group_leader', r"\b(?:responsables? d['’][eé]quipe|chef(?:fe)?s? d['’][eé]quipe|jef[ea]s? de grupo|groepsleiders?)\b"),
 )
+RESEARCH_DIRECTOR = r'(?<!junior )\bresearch directors?\b'
+# IGN and CEA are also company names ("IGN Entertainment"): they count as a list item of their own or spelled out.
+RESEARCH_BODY = (r'\b(?:inria|cnrs|inrae|fnrs)\b|\b(?:ign|cea)\b(?=\s*(?:$|[-–,;/()]))'
+                 r"|commissariat [àa] l.[ée]nergie atomique|institut national de l.information g[ée]ographique")
 LOCAL_PAST_TITLE = r'\b(?:former|previous|ancien(?:ne)?s?|ex|voormalig(?:e)?|antigu[oa]s?)\b'
 LOCAL_MIXED = r'\s(?:et|y|en)\s'
 MIXED = r'\s(?:and|und|&|/|or|oder)\s|,\s|/'
@@ -231,6 +236,12 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '', c
         matches.append('professor')
     local_matches = [] if re.search(LOCAL_PAST_TITLE, own, re.I) else [
         role_class for role_class, pattern in LOCAL_TITLE_RULES if re.search(pattern, own, re.I)]
+    # Without the read date an end ("until 2022") cannot be placed, so a title that names one is not promoted here.
+    flat = ' '.join(own.split())
+    if (re.search(RESEARCH_DIRECTOR, flat, re.I) and not re.search(LOCAL_PAST_TITLE + '|' + PAST_LEAD + r'|\buntil\b', flat, re.I)
+            and re.search(RESEARCH_BODY, affiliation or '', re.I)
+            and not re.search(COMPANY + '|' + COMPANY_NAMES, affiliation, re.I)):
+        local_matches.append('professor')
     matches = list(dict.fromkeys(matches + local_matches))
     if not matches and re.search(r'^\s*scholars?\s*$', own, re.I) and re.search(DOCTORAL_SCHOOL, title + ' ' + affiliation, re.I):
         matches = ['phd_student']
