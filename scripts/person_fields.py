@@ -52,6 +52,13 @@ def tags_for(topics: list[str], texts: list[str], facets: list[dict]) -> list[st
     return found
 
 
+# Employer words. "univ\w*" covers Univ., Universidad, Università, Universitet; Unibertsitatea is the Basque form.
+ACADEMIC_EMPLOYER = r'\b(?:hospital|klinik|clinic|univ\w*|unibertsitate\w*|institute of technology|hochschule|school|college)\b'
+RESEARCH_GMBH = r'\b(?:dfki|forschungszentrum|forschungsgesellschaft|fraunhofer|helmholtz|max.planck|leibniz)\b'
+ACADEMIC_WORDS = '|'.join([ACADEMIC_EMPLOYER, RESEARCH_GMBH,
+                           r'\b(?:institut\w*|cent(?:er|re)s?|laborator\w*|klinik\w*|mpi|inria|cnrs|supercomputing|academ\w*|polytech\w*|eth|epfl|charit[eé])\b'])
+
+
 def affiliation_for(person: dict) -> str:
     if person.get('final_pass_affiliation'):
         return person['final_pass_affiliation']
@@ -61,6 +68,32 @@ def affiliation_for(person: dict) -> str:
         return person['affiliation_raw']
     signals = sorted(person.get('signals', []), key=lambda s: s.get('date') or '', reverse=True)
     return next((s['affiliation_raw'] for s in signals if s.get('affiliation_raw')), '')
+
+
+def group_affiliation(person: dict) -> tuple[str, list[str]]:
+    """The institution a group is named after, and the other organisations its leader is at. When the affiliation
+    lists an academic institution next to another organisation ("valeo.ai; Sorbonne Univ."), the group sits at the
+    academic one. So it does when the affiliation is an ORCID employment at a company (a spin-off) and a record dated
+    since that employment began places the leader at a university; a company the final pass read is a move and stays."""
+    affiliation = affiliation_for(person)
+    items = [item.strip() for item in re.split(r';|\s/\s', affiliation) if item.strip()]
+    academic = [item for item in items if re.search(ACADEMIC_WORDS, item, re.I)]
+    if academic and len(academic) < len(items):
+        return '; '.join(academic), [item for item in items if item not in academic]
+    since = re.match(r'orcid employment since (\d{4})', person.get('affiliation_source') or '')
+    if items and not academic and since and not person.get('final_pass_affiliation'):
+        records = sorted((s for s in person.get('signals', []) if (s.get('date') or '')[:4] >= since.group(1)
+                          and re.search(ACADEMIC_WORDS, s.get('affiliation_raw') or '', re.I)),
+                         key=lambda s: s['date'], reverse=True)
+        if records:
+            place = next(item.strip() for item in re.split(r';|\s/\s', records[0]['affiliation_raw'])
+                         if re.search(ACADEMIC_WORDS, item, re.I))
+            return place, [affiliation]
+    return affiliation, []
+
+
+def group_name(leader: dict) -> str:
+    return f"{leader['name']} @ {group_affiliation(leader)[0]}"
 
 
 def normalized(value: str) -> str:
@@ -282,7 +315,7 @@ def choose(member: dict, candidates: list[tuple], rule: int) -> dict | None:
         return {'group': '', 'group_rule': rule,
                 'group_evidence': f'rule {rule}: ambiguous: {names} | {evidence_url(member)}'}
     leader, match, kind = candidates[0]
-    return {'_leader': id(leader), 'group': f"{leader['name']} @ {affiliation_for(leader)}", 'group_rule': rule,
+    return {'_leader': id(leader), 'group': group_name(leader), 'group_rule': rule,
             'group_evidence': f'rule {rule}: {match}', 'group_link': kind}
 
 
@@ -349,7 +382,7 @@ def assign_groups(persons: list[dict]) -> list[dict]:
     results = []
     for person in persons:
         pi = any(s.get('role') == 'pi' for s in person.get('signals', []))
-        own = {'_leader': id(person), 'group': f"{person['name']} @ {affiliation_for(person)}", 'group_rule': 4,
+        own = {'_leader': id(person), 'group': group_name(person), 'group_rule': 4,
                'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}", 'group_link': 'team'}
         match = own if (pi or person.get('role_class') == 'professor') and affiliation_for(person) else None
         if match is None:
@@ -377,7 +410,7 @@ def assign_groups(persons: list[dict]) -> list[dict]:
     incoming = {p.get('_leader') for p in results if p.get('_leader')}
     for original, result in zip(persons, results):
         if id(original) in incoming and result['group_evidence'] == 'unattached':
-            result.update(_leader=id(original), group=f"{original['name']} @ {affiliation_for(original)}", group_rule=4,
+            result.update(_leader=id(original), group=group_name(original), group_rule=4,
                           group_evidence=f"rule 4: linked leader self {original['name']} | {evidence_url(original)}", group_link='team')
     resolved = []
     for index, result in enumerate(results):

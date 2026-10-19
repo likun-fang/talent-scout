@@ -135,6 +135,16 @@ class BuildDataTests(unittest.TestCase):
         self.assertEqual(member['institution_key'], 'Technical University of Munich')
         self.assertEqual(member['current_affiliation'], 'Technical University of Munich, Chair of X')
 
+    def test_a_group_marker_follows_the_group_institution_not_the_first_listed_affiliation(self):
+        cord = person('Mat Cord', 'valeo.ai; Sorbonne Univ.', 'FR', 'professor', 'Mat Cord @ Sorbonne Univ.')
+        data = build_data(self.persons + [cord], args(), self.geo)
+        group = next(g for g in data['groups'] if g['pi_name'] == 'Mat Cord')
+        self.assertEqual(group['institution_key'], 'Sorbonne Université')  # through the alias registry
+        # Nobody's own affiliation names it, so the institution exists through the group and is placed all the same.
+        place = next(i for i in data['institutions'] if i['name'] == 'Sorbonne Université')
+        self.assertEqual((place['country'], place['person_count'], place['group_count']), ('FR', 0, 1))
+        self.assertIsNotNone(place['lat'])
+
     def test_summaries_sidecar_attaches_to_groups_and_persons(self):
         summaries = {'groups': {'Zeynep Akata @ Technical University of Munich': {'en': 'Explainable multimodal models.', 'zh': '可解释多模态模型。'}},
                      'persons': {'A Student': {'en': 'Works on captioning.'}}}
