@@ -151,9 +151,10 @@ class IndustryTests(unittest.TestCase):
                       'Site Lead', 'Head of Digital Humanities', 'Nachwuchsgruppenleiterin']:
             self.assertEqual(ca.classify_role(person('A', role_title=title), 2026)['role_class'], 'group_leader', title)
         for title in ['senior researcher and lecturer', 'clinical radiologist and imaging scientist',
-                      'clinical scientist', 'chargée de recherche', 'maître de conférences']:
+                      'clinical scientist', 'chargée de recherche']:
             r = ca.classify_role(person('A', role_title=title), 2026)
             self.assertEqual((r['role_class'], r['role_confidence']), ('researcher', 'high'), title)
+        self.assertEqual(ca.classify_role(person('A', role_title='maître de conférences'), 2026)['role_class'], 'professor')
         for title in ['Honorarprofessor', 'Honorary Professor']:
             r = ca.classify_role(person('A', role_title=title), 2026)
             self.assertEqual(r['role_class'], 'professor')

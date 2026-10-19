@@ -64,7 +64,7 @@ class TitleRuleTests(unittest.TestCase):
                  'Forskare': 'researcher', 'Ricercatore a tempo determinato': 'researcher',
                  'Ricercatrice a tempo determinato': 'researcher', 'Oberarzt': 'researcher', 'Oberärztin': 'researcher',
                  'Lecturer in Autonomous Systems': 'researcher', 'Senior Lecturer': 'researcher',
-                 'Universitetslektor': 'researcher', 'Physician Scientist': 'researcher',
+                 'Universitetslektor': 'professor', 'Biträdande universitetslektor': 'researcher', 'Physician Scientist': 'researcher',
                  'Research Students': 'phd_student', 'Doctoral Assistant': 'phd_student',
                  'MSc; PhD-student': 'phd_student', 'Medical Doctoral Thesis': 'phd_student',
                  'Chairholder': 'professor', 'Hochschullehrer*in': 'professor', 'Hochschullehrerin': 'professor',

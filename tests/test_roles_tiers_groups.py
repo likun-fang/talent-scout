@@ -193,10 +193,11 @@ class LocalTitleTests(unittest.TestCase):
         titles = {
             'phd_student': ['Doctorant', 'Doctorante', 'Doctorants', 'Doctorando', 'Doctoranda',
                             'Doctorandas', 'Promovendus', 'Promovenda', 'Promovendi'],
-            'researcher': ['Maître de conférences', 'Maîtresse de conférences',
-                           'Chargé de recherche', 'Chargée de recherche', 'Directrice de recherche',
+            'researcher': ['Chargé de recherche', 'Chargée de recherche', 'Directrice de recherche',
                            'Investigadora postdoctoral', 'Onderzoeker'],
-            'professor': ['Professeur des universités', 'Profesora titular de universidad',
+            # Maître de conférences is the tenured faculty rank below professeur, the French associate professor.
+            'professor': ['Maître de conférences', 'Maîtresse de conférences', 'Maitre de Conférences (HDR)',
+                          'Professeur des universités', 'Profesora titular de universidad',
                           'Catedrático de universidad', 'Hoogleraar', 'Hoogleraren'],
             'group_leader': ["Responsable d’équipe", "Chef d'équipe", 'Jefa de grupo', 'Groepsleider'],
         }
@@ -227,7 +228,7 @@ class LocalTitleTests(unittest.TestCase):
 
     def test_local_title_evidence_and_existing_precedence_are_preserved(self):
         from current_affiliation import classify_role, title_class
-        title = 'Maître de conférences'
+        title = 'Chargée de recherche'
         result = classify_role({'signals': [signal(role_title=title)]}, 2026)
         self.assertEqual((result['role_class'], result['role_confidence']), ('researcher', 'high'))
         self.assertIn(title, result['role_evidence'])

@@ -154,11 +154,15 @@ def inst_tokens(value: str) -> set[str]:
 # "Wissenschaftliche Mitarbeiterinnen") are a main source of role_title.
 TITLE_RULES = (
     ('phd_student', r'\b(?:ph\.?d\.?[ -](?:students?|candidates?|researchers?|fellows?)|doctoral (?:students?|researchers?|candidates?|assistants?|thes[ei]s)|research students?|(?:industri)?doktorand\w*|dissertation|promovierende\w*)\b'),
-    # Lecturer ranks (Swedish universitetslektor, a lecturer outside GB/IE) prove a staff position, not leadership
-    # of a group; in GB and IE they are faculty ranks (FACULTY_RANKS below).
-    ('researcher', r'\b(?:post[ -]?do[ck]\w*|research and teaching associates?|senior scientists?|senior researchers?|advanced researchers?|researchers?|imaging scientists?|clinical scientists?|physician scientists?|research scientists?|wissenschaftliche\w* mitarbeiter\w*|scientific staff|research associates?|staff scientists?|oberassistent\w*|ober[aä]rzt\w*|research fellows?|(?:senior |associate |assistant |university )?lecturers?|universitetslektor\w*|forskare|ricerca(?:tore|trice|tori|trici) a tempo determinato)\b'),
-    ('professor', r'\b(?:honorarprofessor\w*|honorary professors?|professors?|professorin\w*|prof\.|chair of|chair ?holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|hochschullehrer\W?\w*|faculty members?)\b|\bprof\.|^\s*faculty(?:\s*\(w[123]\))?\s*$'),
-    ('group_leader', r'\b(?:research junior group leads?|jrg leaders?|junior research group leaders?|site leads?|group leaders?|group heads?|principal researchers?|heads? of (?:the )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department)|heads? of [\w][\w\s,-]{0,60}|principal investigators?|nachwuchsgruppenleiter\w*|team lead(?:er)?s?|lab directors?)\b|^\s*(?:pi|heads?)\s*$'),
+    # A lecturer outside GB/IE proves a staff position, not leadership of a group; in GB and IE lecturers are faculty
+    # ranks (FACULTY_RANKS below). The Swedish universitetslektor is a tenured faculty rank (professor rule); the
+    # biträdande (assistant) lektor is the tenure-track stage below it. A research engineer at an academic employer is
+    # research staff; "Mitarbeitende" is the gender-neutral plural of Mitarbeiter on German staff pages.
+    ('researcher', r'\b(?:post[ -]?do[ck]\w*|research and teaching associates?|senior scientists?|senior researchers?|advanced researchers?|researchers?|imaging scientists?|clinical scientists?|physician scientists?|research scientists?|wissenschaftliche\w* mitarbeit\w*|scientific staff|research associates?|staff scientists?|oberassistent\w*|ober[aä]rzt\w*|research fellows?|(?:senior |associate |assistant |university )?lecturers?|bitr(?:ädande|\.)? (?:universitets)?lektor\w*|forskare|ricerca(?:tore|trice|tori|trici) a tempo determinato)\b'),
+    # A qualified "profesor" (Spanish spelling, also a typo) is a rank; bare Profesor/Professeur can be a school
+    # teacher and stays unclassified. "Professorship <field>" names the holder of a chair.
+    ('professor', r'\b(?:honorarprofessor\w*|honorary professors?|professors?|(?:associate|assistant|full) profesors?|professorships?|professorin\w*|prof\.|chair of|chair ?holders?|chaired|professor and chair|lehrstuhl\w*|juniorprofessor\w*|hochschullehrer\W?\w*|faculty members?|(?<!biträdande )(?<!bitr\. )(?<!bitr )universitetslektor\w*)\b|\bprof\.|^\s*faculty(?:\s*\(w[123]\))?\s*$'),
+    ('group_leader', r'\b(?:research junior group leads?|jrg leaders?|junior research group leaders?|site leads?|group leaders?|group heads?|group managers?|principal researchers?|heads? (?:of )?(?:the |a )?[\w\s,-]{0,60}?(?:lab\w*|group|team|unit|chair|institute|department|division)|heads? of [\w][\w\s,-]{0,60}|principal investigators?|nachwuchsgruppenleiter\w*|team lead(?:er)?s?|lab directors?)\b|^\s*(?:pi|heads?)\s*$'),
 )
 # In GB and IE, Lecturer, Senior Lecturer and Reader are the permanent faculty ranks below Professor (the US assistant
 # and associate professor), so there they count as professor. External, guest and visiting lecturers, the teaching-only
@@ -171,13 +175,15 @@ NOT_FACULTY = r'\b(?:external|guest|visiting|associate|assistant|research)\s+lec
 # researchers scholars); elsewhere it is a visitor or fellowship label.
 DOCTORAL_SCHOOL = r'\b(?:imprs\w*|max planck research school|graduate school|doctoral (?:school|program\w*))\b'
 # Add country-specific titles without widening the existing English/German rules.
-# These are appointments/stages, not degree names (doctorat/doctorado/Dr.). French
-# maître de conférences and directeur de recherche do not prove a full professorship
-# or leadership of a particular group; preserve the original title in the evidence.
+# These are appointments/stages, not degree names (doctorat/doctorado/Dr.). The French
+# maître de conférences is the tenured faculty rank below professeur (the associate
+# professor); chargé and directeur de recherche are CNRS research posts and do not prove
+# leadership of a particular group. "Ius promovendi" is the right to supervise doctorates,
+# not the promovendus stage. Preserve the original title in the evidence.
 LOCAL_TITLE_RULES = (
-    ('phd_student', r'\b(?:doctorant(?:e)?s?|doctorand[oa]s?|promovend(?:us|a|i|ae))\b'),
-    ('researcher', r'\b(?:ma[iî]tre(?:sse)?s? de conf[eé]rences|charg[eé](?:e)?s? de recherche|direct(?:eur|rice)s? de recherche|investigador(?:a)?(?:es|as)? postdoctoral(?:es)?|onderzoekers?)\b'),
-    ('professor', r'\b(?:professeur(?:e)?s? des universit[eé]s|catedr[aá]tic[oa]s? de universidad|(?:profesor(?:a)?(?:es|as)? )?titular(?:es)? de universidad|profesor(?:a)?(?:es|as)? agregad[oa]s?|hoogleraren|hoogleraar)\b'),
+    ('phd_student', r'\b(?:doctorant(?:e)?s?|doctorand[oa]s?|(?<!ius )promovend(?:us|a|i|ae))\b'),
+    ('researcher', r'\b(?:charg[eé](?:e)?s? de recherche|direct(?:eur|rice)s? de recherche|investigador(?:a)?(?:es|as)? postdoctoral(?:es)?|onderzoekers?)\b'),
+    ('professor', r'\b(?:ma[iî]tre(?:sse)?s? de conf[eé]rences|professeur(?:e)?s? des universit[eé]s|catedr[aá]tic[oa]s? de universidad|(?:profesor(?:a)?(?:es|as)? )?titular(?:es)? de universidad|profesor(?:a)?(?:es|as)? agregad[oa]s?|hoogleraren|hoogleraar)\b'),
     ('group_leader', r"\b(?:responsables? d['’][eé]quipe|chef(?:fe)?s? d['’][eé]quipe|jef[ea]s? de grupo|groepsleiders?)\b"),
 )
 LOCAL_PAST_TITLE = r'\b(?:former|previous|ancien(?:ne)?s?|ex|voormalig(?:e)?|antigu[oa]s?)\b'
@@ -193,6 +199,10 @@ COMPANY_NAMES = r'\b(?:naver|deepmind|google|facebook|sony|bosch|mistral|aleph a
 COMPANY_SUFFIX = r'\b(?:gmbh|ag|inc|ltd)\b'
 ACADEMIC_EMPLOYER = r'\b(?:hospital|klinik|clinic|university|universität|université|universiteit|institute of technology|hochschule|school|college)\b'
 RESEARCH_GMBH = r'\b(?:dfki|forschungszentrum|forschungsgesellschaft|fraunhofer|helmholtz|max.planck|leibniz)\b'
+# An engineer title is industry only when the employer shows no academic word at all; a research engineer at a
+# university, institute or computing centre is research staff (title rules above).
+ACADEMIC_WORDS = '|'.join([ACADEMIC_EMPLOYER, RESEARCH_GMBH,
+                           r'\b(?:institut\w*|cent(?:er|re)s?|laborator\w*|mpi|inria|cnrs|supercomputing|academ\w*|polytech\w*|eth|epfl|charit[eé])\b'])
 # A founder or C-level title is an industry role; a professorial title next to it still wins (precedence above).
 FOUNDER = r'\b(?:co-?founders?|founders?|chief (?:executive|technology|operating|scientific) officer|ceo|cto|coo|cso)\b'
 FUNDING_PREFIXES = ('erc_', 'dfg_', 'snsf_', 'fwf_', 'swecris_', 'rcn_', 'dff_', 'fris_', 'aei_')
@@ -221,6 +231,10 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '', c
     matches = list(dict.fromkeys(matches + local_matches))
     if not matches and re.search(r'^\s*scholars?\s*$', own, re.I) and re.search(DOCTORAL_SCHOOL, title + ' ' + affiliation, re.I):
         matches = ['phd_student']
+    # A research engineer is research staff at a university, institute or computing centre; without an employer
+    # the title says nothing, and at a company the employer rule has already decided.
+    if not matches and re.search(r'\bresearch engineers?\b', own, re.I) and re.search(ACADEMIC_WORDS, affiliation or '', re.I):
+        matches = ['researcher']
     joined = re.search(MIXED, own, re.I)
     if local_matches:
         joined = joined or re.search(LOCAL_MIXED, own, re.I)
@@ -236,13 +250,17 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '', c
     if re.search(r'\b(?:gmbh|ag|ltd|inc)\b', title, re.I) or re.search(FOUNDER, own, re.I) or (
             institution_type == 'company' and re.search(r'\b(?:engineer|software)\b', title, re.I)):
         return 'industry'
+    if re.search(r'\bengineers?\b', own, re.I) and affiliation and not re.search(ACADEMIC_WORDS, affiliation, re.I):
+        return 'industry'  # provider institution types are often wrong for small companies; the name decides
     return ''
 
 
 def role_result(role_class: str, confidence: str, rule: int, source: str, excerpt: str, url: str) -> dict:
-    caveat = ' (DE: may be PhD student)' if re.search(r'wissenschaftlicher mitarbeiter|scientific staff|research and teaching associate', excerpt, re.I) else ''
+    caveat = ' (DE: may be PhD student)' if re.search(r'wissenschaftliche\w* mitarbeit\w*|scientific staff|research and teaching associate', excerpt, re.I) else ''
     if re.search(r'\b(?:honorarprofessor\w*|honorary professor)\b', excerpt, re.I):
         caveat += ' (honorary)'
+    if role_class == 'industry' and rule in (0, 1) and re.search(r'\bengineers?\b', excerpt, re.I):
+        caveat += ' (engineer at a non-academic employer)'
     return {'role_class': role_class, 'role_confidence': confidence,
             'role_evidence': f'rule {rule}: {source}{caveat} | {excerpt} | {url}'}
 
