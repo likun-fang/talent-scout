@@ -1,11 +1,14 @@
 {
  "note": "draft 2026-10-19, to be confirmed by the maintainer",
  "domain": "multimodal AI",
- "description": "Groups any good map of the field must contain; check_groups.py measures recall against this list.",
+ "description": "Groups any good map of the field must contain; check_groups.py measures recall against this list. An entry may name several institutions when the PI holds posts at both.",
  "groups": [
   {
    "pi": "Zeynep Akata",
-   "institution": "Technical University of Munich",
+   "institution": [
+    "Technical University of Munich",
+    "Helmholtz Munich"
+   ],
    "country": "DE"
   },
   {
