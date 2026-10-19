@@ -161,6 +161,28 @@ class GroupRecordTests(unittest.TestCase):
         persons[5]['final_pass_url'] = 'https://lab.example/people'  # a department page lists both groups
         self.assertEqual(by_pi(run(persons))['Anna Meyer']['homepage'], 'https://anna.example')
 
+    def test_a_department_list_or_a_programme_site_is_not_a_homepage_but_a_shared_lab_page_is(self):
+        persons = roster()
+        others = [person(f'Lead{i} Person', TUM, 'DE', 'professor', f'Lead{i} Person @ {TUM}', 'team',
+                         signals=[sig(f'Lead{i} Person', TUM, 'DE', url=f'https://x.example/{i}')]) for i in range(4)]
+        # The VGG side: one lab page that three PIs' groups share is still each PI's homepage.
+        lab = 'https://robots.example/vgg/people.html'
+        for record in (persons[0], others[0], others[1]):
+            record['signals'][0]['homepage'] = lab
+        # A research training group's site comes from programme signals and is never a homepage.
+        persons[0]['signals'].insert(0, sig('Anna Meyer', TUM, 'DE', signal_type='graduiertenkolleg_member',
+                                             url='https://rtg.example/people', homepage='https://rtg.example/'))
+        # The KTH TMH side: a staff list the final pass read for people of five groups is a department list.
+        staff = 'https://kth.example/tmh/staff'
+        persons[5]['signals'][0].pop('homepage')
+        for record in [persons[5]] + others:
+            record.update(final_pass_url=staff, last_verified='2026-10-15')
+        doc = run(persons + others)
+        self.assertEqual(by_pi(doc)['Anna Meyer']['pi']['homepage'], lab)
+        weiss = by_pi(doc)['Jörg Weiß']
+        self.assertEqual((weiss['pi']['homepage'], weiss['homepage']), ('', ''))
+        self.assertIn(staff, weiss['evidence_urls'])
+
     def test_the_page_read_for_the_pi_is_the_homepage_unless_it_is_a_news_item(self):
         persons = roster()
         persons[5]['signals'][0].pop('homepage')
