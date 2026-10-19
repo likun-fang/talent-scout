@@ -247,6 +247,23 @@ class AlsoAtTests(unittest.TestCase):
         self.assertNotIn('also_at', by_pi(doc)['Anna Meyer'])
 
 
+class SharedLabTests(unittest.TestCase):
+    def test_groups_that_share_a_homepage_carry_one_lab_label_and_stay_separate_groups(self):
+        records = [{'id': 'a', 'homepage': 'https://vgg.example/people/'}, {'id': 'b', 'homepage': 'https://vgg.example/people#staff'},
+                   {'id': 'c', 'homepage': 'https://other.example/'}, {'id': 'd', 'homepage': ''}, {'id': 'e', 'homepage': ''}]
+        group_export.label_labs(records)
+        lab = {'homepage': 'https://vgg.example/people/', 'groups': ['a', 'b']}
+        self.assertEqual([r.get('lab') for r in records], [lab, lab, None, None, None])
+
+    def test_a_lab_label_validates_against_the_schema(self):
+        schema = json.loads((ROOT / 'assets/groups.schema.json').read_text(encoding='utf-8'))
+        doc = run()
+        doc['groups'][0]['lab'] = {'homepage': 'https://lab.example/team', 'groups': [doc['groups'][0]['id'], 'other']}
+        self.assertEqual(validate(doc, schema), [])
+        doc['groups'][0]['lab']['size'] = 2
+        self.assertTrue(any('unexpected key size' in e for e in validate(doc, schema)))
+
+
 class ExclusionTests(unittest.TestCase):
     def test_no_tier_merge_note_or_evidence_fields_anywhere(self):
         keys = {key for key, _ in walk(run())}

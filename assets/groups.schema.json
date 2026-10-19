@@ -119,7 +119,17 @@
         "last_verified_from": {"enum": ["final_pass", "record_date", ""], "description": "final_pass: a page read; record_date: the newest record up to as_of"},
         "sources": {"type": "array", "items": {"type": "string"}, "description": "Channels the records came from"},
         "as_of": {"$ref": "#/$defs/day"},
-        "also_at": {"type": "array", "items": {"type": "string"}, "description": "Other organisations the PI is at, such as a company lab, when the group sits at the academic institution"}
+        "also_at": {"type": "array", "items": {"type": "string"}, "description": "Other organisations the PI is at, such as a company lab, when the group sits at the academic institution"},
+        "lab": {
+          "type": "object",
+          "required": ["homepage", "groups"],
+          "additionalProperties": false,
+          "description": "Present when several groups share one homepage: the PI groups of one lab, each still a group of its own",
+          "properties": {
+            "homepage": {"type": "string", "description": "The shared homepage"},
+            "groups": {"type": "array", "items": {"type": "string"}, "description": "Ids of the groups that share it, this one included"}
+          }
+        }
       }
     }
   }
