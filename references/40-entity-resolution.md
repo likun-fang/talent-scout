@@ -63,8 +63,9 @@ stop at the first match. It uses only the standard library.
 | 1 | engineer, software, research engineer with institution type company; or a title containing GmbH/AG/Ltd/Inc | industry | high |
 | 2 | `erc_*`, `dfg_*`, `snsf_*`, `fwf_*`, `swecris_*`, `rcn_*`, `dff_*`, `fris_*`, `aei_*` signal with `role: pi` and no title seen. A grant proves the person leads a project, not an appointment. Personal grants name the holder's own stage: `snsf_ambizione`, `dfg_walter_benjamin`, `snsf_postdoc_mobility`, `snsf_swiss_postdoc`, `fwf_esprit` → researcher; `snsf_doc_ch`, `snsf_doc_mobility` → phd_student | group_leader, or the personal-grant stage | medium |
 | before titles (rule 3) | Current company employer; a literal professorial title remains professor and mixed headings remain unknown. Research institutes organised as a GmbH (DFKI, Forschungszentrum Jülich, Fraunhofer, Helmholtz, Max Planck, Leibniz) are not companies. A founder or C-level title (Founder, Co-Founder, CEO, CTO, COO, CSO) is industry on its own; a professorial title next to it still wins | industry | high for a dated final-pass page; medium for provider/name evidence |
-| 4 | Run year minus `first_pub_year` is 0–5 and strictly more than half of all signals have `role: first_author` | phd_student | low |
-| 4 | Run year minus `first_pub_year` is at least 10 and strictly more than half of all signals have `role: last_author` or `pi` | group_leader | low |
+| 0 | A `final_pass_title` was read but matched no title, employer or funding rule ("Master's Student", "Guest Scientist", "Project Member"): the page named a stage the table does not know, which is still better evidence than publication statistics, so inference does not run. Evidence says `final pass: title not in the title table` and keeps the title | unknown | low |
+| 4 | No read title; run year minus `first_pub_year` is 0–5 and strictly more than half of all signals have `role: first_author` | phd_student | low |
+| 4 | No read title; run year minus `first_pub_year` is at least 10 and strictly more than half of all signals have `role: last_author` or `pi` | group_leader | low |
 | 4 | All other cases, including a missing/invalid publication year or no majority | unknown | low |
 
 The employer check runs before title mapping and funding inference. Use the first available affiliation in
