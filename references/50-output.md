@@ -133,6 +133,11 @@ to `--date`; `last_verified_from` says which. A record carries no tier, score, m
 lines. The export stops when a LinkedIn key or URL sits on a record the map is built from (notes aside, they log
 searches) or would reach the output.
 
+`group_map.py` renders `groups.json` as one static page, `index.html`: one marker per institution, a list ordered by
+institution and then PI name, country and tag filters, free-text search, and a card per group with a link to report
+a correction. It has no person pages, tiers or counts per country.
+
 ```sh
 python3 "$SKILL_ROOT/scripts/group_export.py" "$RUN_DIR/persons.enriched.jsonl" --domain "multimodal AI" --date 2026-10-15 --out "$RUN_DIR/site"
+python3 "$SKILL_ROOT/scripts/group_map.py" "$RUN_DIR/site/groups.json" --out "$RUN_DIR/site/index.html"
 ```
