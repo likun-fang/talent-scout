@@ -193,10 +193,16 @@ def load_facets(path: str | None) -> list[dict]:
 
 
 def build_data(persons: list[dict], args, geocoder, summaries: dict | None = None, facets: list[dict] | None = None) -> dict:
+    return build_data_from(select_persons(persons, args), args, geocoder, summaries, facets)
+
+
+def build_data_from(selection: tuple, args, geocoder, summaries: dict | None = None, facets: list[dict] | None = None) -> dict:
+    """build_data for a caller that already ran select_persons and keeps the selected records; `persons` in the
+    result follows their order."""
     aliases = load_aliases()
     summaries = summaries or {}
     facets = facets or []
-    selected, outside, rejected, cut, no_qualifying = select_persons(persons, args)
+    selected, outside, rejected, cut, no_qualifying = selection
     date = args.date.isoformat()
     entries = [person_entry(p, row_for(p, args.domain, date), aliases) for p in selected]
     for person, entry in zip(selected, entries):
