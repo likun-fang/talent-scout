@@ -23,6 +23,10 @@ MEMBER_LINKS = ('team', 'project')  # a coauthor-only link is counted, not liste
 # The final pass reads the PI's own or institutional page, but sometimes a news item about the PI (an award, an
 # appointment); such a page verifies the group and stays in the evidence, but it is not a homepage.
 NEWS_PATH = r'/(?:news|aktuell\w*|press\w*|actualit\w*|nieuws|notizie|noticias|blog|events?)/'
+# A page that lists people of this many groups is a department or institute list, not anyone's homepage. Multi-PI
+# labs (VGG, LMB, AImageLab in the multimodal run) share one page across 2-3 groups; department lists start near 5.
+DEPARTMENT_GROUPS = 5
+PROGRAMME_SIGNALS = {'graduiertenkolleg_member', 'imprs_member'}  # their pages present a training programme
 
 
 def linkedin_hits(value, path: str = '$') -> list[str]:
@@ -49,8 +53,9 @@ def slug(text: str) -> str:
 
 
 def pages(person: dict) -> set[str]:
-    """Pages that list the person: roster pages and the page the final pass read."""
+    """Pages that list or present the person: roster pages, homepages and the page the final pass read."""
     urls = {s.get('evidence_url') for s in person['signals'] if s.get('signal_type') in TEAM_SIGNALS}
+    urls |= {s.get('homepage') for s in person['signals']}
     return {url for url in urls | {person.get('final_pass_url')} if url}
 
 
@@ -59,6 +64,15 @@ def team_page(people: list[dict], page_groups: dict, group: str) -> str:
     A page that lists people of several groups is a department or institute page."""
     counts = Counter(url for person in people for url in pages(person) if page_groups.get(url) == {group})
     return next((url for url, n in counts.most_common() if n >= 2), '')
+
+
+def pi_homepage(pi: dict, page_groups: dict, programme_pages: set[str]) -> str:
+    """The PI's own page: a homepage the records carry, else the page the final pass read unless it is a news item.
+    A training programme's site or a department list is nobody's homepage."""
+    read = pi.get('final_pass_url') or ''
+    candidates = [s['homepage'] for s in pi['signals'] if s.get('homepage')] + ([] if re.search(NEWS_PATH, read, re.I) else [read])
+    return next((url for url in candidates if url and url not in programme_pages
+                 and len(page_groups.get(url, ())) < DEPARTMENT_GROUPS), '')
 
 
 def newest_record_date(people: list[dict], as_of: datetime.date) -> str:
@@ -76,12 +90,12 @@ def institution_ids(pi_record: dict | None, name: str) -> dict:
     return {}
 
 
-def group_record(group: dict, linked: list[dict], pi: dict | None, pi_record: dict | None, place: dict,
-                 page_groups: dict, as_of: datetime.date) -> dict:
+def group_record(group: dict, linked: list[dict], pi: dict | None, place: dict, page_groups: dict,
+                 programme_pages: set[str], as_of: datetime.date) -> dict:
+    """`linked` and `pi` are the selected person records, as table_export.select_persons returns them."""
     members = sorted((p for p in linked if p['name'] != group['pi_name'] and p.get('group_link') in MEMBER_LINKS),
                      key=lambda p: normalized(p['name']))
-    read = pi.get('final_pass_url', '') if pi else ''
-    pi_homepage = (pi.get('homepage') or ('' if re.search(NEWS_PATH, read, re.I) else read)) if pi else ''
+    homepage = pi_homepage(pi, page_groups, programme_pages) if pi else ''
     named = ([pi] if pi else []) + members
     verified = max((p['last_verified'] for p in named if p.get('last_verified')), default='')
     record_date = '' if verified else newest_record_date(named or linked, as_of)
@@ -90,10 +104,10 @@ def group_record(group: dict, linked: list[dict], pi: dict | None, pi_record: di
         location = {'lat': place['lat'], 'lng': place['lng'], 'city': place.get('city', ''), 'source': place['geo_source']}
     return {
         'id': '-'.join(filter(None, [slug(group['pi_name']), slug(group['institution_key'])])) or 'group',
-        'pi': {'name': group['pi_name'], 'role_class': pi['role_class'] if pi else 'unknown', 'homepage': pi_homepage},
+        'pi': {'name': group['pi_name'], 'role_class': pi.get('role_class', 'unknown') if pi else 'unknown', 'homepage': homepage},
         'institution': {'name': group['institution_key'], 'country': place.get('country', ''),
-                        'ids': institution_ids(pi_record, group['institution_key']), 'location': location},
-        'homepage': team_page(named, page_groups, group['group']) or pi_homepage,
+                        'ids': institution_ids(pi, group['institution_key']), 'location': location},
+        'homepage': team_page(named, page_groups, group['group']) or homepage,
         'tags': [tag for tag, _ in group['tags']],
         'topics': group['topics'],
         'members': [{'name': p['name'], 'role_class': p['role_class'], 'link': p['group_link']} for p in members],
@@ -115,19 +129,20 @@ def export(persons: list[dict], args, geocoder, facets: list[dict]) -> dict:
     data = build_data_from(selection, options, geocoder, facets=facets)
     selected = selection[0]  # the records behind data['persons'], in the same order
     index = {p['name']: i for i, p in enumerate(data['persons'])}  # one record per name, as the talent map picks a PI
-    by_name = {name: data['persons'][i] for name, i in index.items()}
     places = {i['name']: i for i in data['institutions']}
     linked, page_groups = {}, {}
-    for person in data['persons']:
-        linked.setdefault(person['group'], []).append(person)
-        for url in pages(person) if person['group'] else ():
+    for person in selected:
+        linked.setdefault(person.get('group', ''), []).append(person)
+        for url in pages(person) if person.get('group') else ():
             page_groups.setdefault(url, set()).add(person['group'])
+    programme_pages = {url for person in selected for s in person['signals'] if s.get('signal_type') in PROGRAMME_SIGNALS
+                       for url in (s.get('homepage'), s.get('evidence_url')) if url}
     groups = sorted(data['groups'], key=lambda g: (normalized(g['institution_key']), normalized(g['pi_name']), g['group']))
     records, seen = [], Counter()
     for group in groups:
-        record = group_record(group, linked.get(group['group'], []), by_name.get(group['pi_name']),
+        record = group_record(group, linked.get(group['group'], []),
                               selected[index[group['pi_name']]] if group['pi_name'] in index else None,
-                              places.get(group['institution_key'], {}), page_groups, args.date)
+                              places.get(group['institution_key'], {}), page_groups, programme_pages, args.date)
         seen[record['id']] += 1
         if seen[record['id']] > 1:
             record['id'] += f"-{seen[record['id']]}"
@@ -138,8 +153,8 @@ def export(persons: list[dict], args, geocoder, facets: list[dict]) -> dict:
     # The map is built from the PIs' records and everyone linked to a group (coauthors feed topics and evidence).
     # Notes are left out: they log searches, LinkedIn searches that were not used among them, and feed no field.
     exported = {g['group'] for g in groups}
-    used = {i for i, p in enumerate(data['persons']) if p['group'] in exported} | {index[g['pi_name']] for g in groups
-                                                                                if g['pi_name'] in index}
+    used = {i for i, p in enumerate(selected) if p.get('group') in exported} | {index[g['pi_name']] for g in groups
+                                                                             if g['pi_name'] in index}
     found = [f"{selected[i].get('name')}: {hit}" for i in sorted(used)
              for hit in linkedin_hits({key: value for key, value in selected[i].items() if key != 'notes'})]
     found += [f"{r['id']} ({r['pi']['name']}): {hit}" for r in records for hit in linkedin_hits(r)]

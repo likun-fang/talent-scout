@@ -128,7 +128,8 @@ record per named group, without the `(unattached)` row. Groups, institution name
 are those of the talent map. Members are the people linked by `team` or `project` (`40-entity-resolution.md`);
 coauthor-only links are counted, not named. The homepage is a page that lists two or more of the group's people and
 nobody from another group, else the PI's homepage, else the page the final pass read for the PI unless its path marks
-a news item. `last_verified` is the newest final-pass read among the PI and members, else the newest record date up
+a news item. A training programme's site (from `graduiertenkolleg_member` or `imprs_member` records) and a
+page that lists people of five or more groups (a department list) are never a homepage. `last_verified` is the newest final-pass read among the PI and members, else the newest record date up
 to `--date`; `last_verified_from` says which. A record carries no tier, score, merge confidence, notes or evidence
 lines. The export stops when a LinkedIn key or URL sits on a record the map is built from (notes aside, they log
 searches) or would reach the output.
