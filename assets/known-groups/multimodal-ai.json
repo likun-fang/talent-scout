@@ -1,0 +1,107 @@
+{
+ "note": "draft 2026-10-19, to be confirmed by the maintainer",
+ "domain": "multimodal AI",
+ "description": "Groups any good map of the field must contain; check_groups.py measures recall against this list.",
+ "groups": [
+  {
+   "pi": "Zeynep Akata",
+   "institution": "Technical University of Munich",
+   "country": "DE"
+  },
+  {
+   "pi": "Cees Snoek",
+   "institution": "University of Amsterdam",
+   "country": "NL"
+  },
+  {
+   "pi": "Andrew Zisserman",
+   "institution": "University of Oxford",
+   "country": "GB"
+  },
+  {
+   "pi": "Andrea Vedaldi",
+   "institution": "University of Oxford",
+   "country": "GB"
+  },
+  {
+   "pi": "Cordelia Schmid",
+   "institution": "Inria",
+   "country": "FR"
+  },
+  {
+   "pi": "Matthieu Cord",
+   "institution": "Sorbonne Université",
+   "country": "FR"
+  },
+  {
+   "pi": "Tinne Tuytelaars",
+   "institution": "KU Leuven",
+   "country": "BE"
+  },
+  {
+   "pi": "Bernt Schiele",
+   "institution": "Max Planck Institute for Informatics",
+   "country": "DE"
+  },
+  {
+   "pi": "Hilde Kuehne",
+   "institution": "University of Tübingen",
+   "country": "DE"
+  },
+  {
+   "pi": "Thomas Brox",
+   "institution": "University of Freiburg",
+   "country": "DE"
+  },
+  {
+   "pi": "Matthias Niessner",
+   "institution": "Technical University of Munich",
+   "country": "DE"
+  },
+  {
+   "pi": "Iryna Gurevych",
+   "institution": "TU Darmstadt",
+   "country": "DE"
+  },
+  {
+   "pi": "Desmond Elliott",
+   "institution": "University of Copenhagen",
+   "country": "DK"
+  },
+  {
+   "pi": "Marcus Rohrbach",
+   "institution": "TU Darmstadt",
+   "country": "DE"
+  },
+  {
+   "pi": "Dima Damen",
+   "institution": "University of Bristol",
+   "country": "GB"
+  },
+  {
+   "pi": "Rita Cucchiara",
+   "institution": "University of Modena and Reggio Emilia",
+   "country": "IT"
+  },
+  {
+   "pi": "Elisa Ricci",
+   "institution": "University of Trento",
+   "country": "IT"
+  },
+  {
+   "pi": "Serge Belongie",
+   "institution": "University of Copenhagen",
+   "country": "DK"
+  },
+  {
+   "pi": "Raquel Fernández",
+   "institution": "University of Amsterdam",
+   "country": "NL"
+  },
+  {
+   "pi": "Diane Larlus",
+   "institution": "NAVER Labs Europe",
+   "country": "FR"
+  }
+ ]
+}
