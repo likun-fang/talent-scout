@@ -110,7 +110,7 @@ another leader. A group_leader without a PI signal can belong to another leader'
 | group rule | link evidence |
 |------------|---------------|
 | 1 | A signal `parent` equals a leader's name/name_raw/homepage, or the signal parent of a professor/group_leader, or the affiliation_raw of a professor/group_leader when the member's signal is a roster signal (a grant record whose parent is the university names an employer, not a team). PI/last_author alone cannot anchor the shared-team branch. A leader's own authorship signal (first/last author, coauthor) does not make its parent the leader's team: a grant's publication parent belongs to the grant's PI (`role: pi`), a PI-name parent to that PI, a team page to the people listed on it. Compare after casefold, accent removal and stripping academic titles. A person-name parent spelled differently (same surname, same first initial: "George Drettakis" for "Georges Drettakis") matches only when member and leader are at the same institution, and the evidence says `name variant` |
-| 2 | Member and leader homepages share a non-generic host. Personal github.io subdomains and lab domains count; sites.google.com, github.com, personnel directories and institution roots do not. A www-prefixed lab subdomain can count; a shared team page cannot bypass the professor/group_leader requirement through its host |
+| 2 | Member and leader homepages share a non-generic host and the two are at the same institution (a company or consortium site hosts pages for several employers' staff). Personal github.io subdomains and lab domains count; sites.google.com, github.com, personnel directories and institution roots do not. A www-prefixed lab subdomain can count; a shared team page cannot bypass the professor/group_leader requirement through its host |
 | 3 | An open-source member repository's GitHub organization matches any leader evidence URL/homepage organization |
 | 4 | Same current institution and shared parent (professor/group_leader anchor) or a shared-paper last author, with matching signal institutions; leader self anchors also record rule 4 |
 | none | Empty group and `group_evidence: unattached` |
@@ -128,10 +128,12 @@ another institution is stale: the link is rejected as `moved since the roster` a
 it. A rule-1 parent from awards-papers / industry / competitions,
 or a parent that is not used by any pool signal of type lab_member, is treated as paper evidence: require
 `same_institution` even for a unique leader. Otherwise record `coauthor only, different institution` and leave
-it unattached; later fallbacks do not override that rejection. Other unique team links, homepage-host and
+it unattached; later fallbacks do not override that rejection. Other unique team links and
 repository-organization links may cross institutions. Preserve that distinction when reviewing moves. Resolve a linked
-leader's own membership to its final PI and record the chain; cyclic or unresolved leader chains remain
-ambiguous. An isolated last-author signal without a linked member does not invent a team.
+leader's own membership to its final PI and record the chain, unless any link on the way is `coauthor`: sharing a
+paper is not a transitive team relation, so the member keeps the direct association and the evidence says
+`coauthor chain stopped at direct association`. A chain that passes through a `project` link keeps `project` as the
+member's `group_link`. Cyclic or unresolved leader chains remain ambiguous. An isolated last-author signal without a linked member does not invent a team.
 
 Compare institution names using only the first `||` segment, casefold, accent removal and removal of "university
 of" in its translations (`University`, `Universität`, `Università di`, `Universidad de`, `Universiteit`, `the`, `of`,

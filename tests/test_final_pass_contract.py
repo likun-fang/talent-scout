@@ -246,11 +246,14 @@ class GroupResolutionTests(unittest.TestCase):
 
     def test_member_of_nested_leader_uses_resolved_group_with_chain_evidence(self):
         lead = person('PI', role='pi')
-        junior = {**person('Junior', parent='PI'), 'role_class': 'group_leader'}
-        student = person('Student', parent='Junior')
+        junior = {**person('Junior', parent='PI', signal_type='lab_member'), 'role_class': 'group_leader'}
+        student = person('Student', parent='Junior', signal_type='lab_member')
         results = assign_groups([lead, junior, student])
         self.assertEqual([p['group'] for p in results], ['PI @ EPFL'] * 3)
         self.assertIn('via Junior', results[-1]['group_evidence'])
+        # A paper shared with Junior is not membership of PI's team.
+        results = assign_groups([lead, junior, person('Student', parent='Junior')])
+        self.assertEqual((results[-1]['group'], results[-1]['group_link']), ('Junior @ EPFL', 'coauthor'))
 
 
 class ReviewedHeadingTests(unittest.TestCase):

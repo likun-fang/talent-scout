@@ -85,6 +85,13 @@ def institution_aliases() -> dict[str, str]:
             for canonical, variants in aliases.items() for alias in [canonical, *variants]}
 
 
+@lru_cache(maxsize=1)
+def institution_alias_spellings() -> set[str]:
+    path = Path(__file__).resolve().parents[1] / 'assets/institution-aliases.yaml'
+    registry = json.loads(path.read_text(encoding='utf-8'))
+    return {normalized(alias) for canonical, variants in registry.items() for alias in [canonical, *variants]}
+
+
 INSTITUTION_WORDS = (r'universit|hochschule|institut|school|college|cent(?:er|re)|laborator|polytech|academ|akademie|'
                      r'\beth\b|\bepfl\b|\bmpi\b|max.planck|inria|gmbh|\bag\b|\binc\b|\bltd\b|\blabs?\b|research|'
                      r'hospital|klinik|clinic|charit|foundation|stiftung')
@@ -105,8 +112,9 @@ def institution_names(value: str) -> tuple[set[str], set[str]]:
     for part in re.split(r';|\s/\s', (value or '').split('||', 1)[0]):
         candidates = [part]
         if ',' in part:
-            head, tail = part.rsplit(',', 1)
-            candidates += [segment for segment in (head, tail) if re.search(INSTITUTION_WORDS, normalized(segment))]
+            # "Chair of Robotics, KIT, Karlsruhe": a short alias such as KIT has no institution word of its own.
+            candidates += [segment for segment in part.split(',') if re.search(INSTITUTION_WORDS, normalized(segment))
+                           or normalized(segment) in institution_alias_spellings()]
         for candidate in candidates:
             name = institution_name(candidate)
             if name in UMBRELLA:
@@ -308,6 +316,8 @@ def github_org(url: str) -> str:
 
 
 def domain_link(member: dict, leader: dict) -> str:
+    if not same_institution(member, leader):
+        return ''  # A company or consortium site hosts pages for several employers' staff.
     if leader.get('role_class') not in {'professor', 'group_leader'} and shared_parent_link(member, leader):
         return ''  # The same team page cannot bypass the team-anchor requirement through its host.
     shared = personal_hosts(member) & personal_hosts(leader)
@@ -386,8 +396,16 @@ def assign_groups(persons: list[dict]) -> list[dict]:
                 names = ', '.join(results[i]['name'] for i in path)
                 updated.update(group='', group_link='', group_evidence=f"rule {result['group_rule']}: ambiguous: {names} (leader chain unresolved) | {evidence_url(persons[index])}")
             elif result['group'] != results[current]['group']:
+                kinds = [results[i].get('group_link', '') for i in path[:-1]]
+                # Sharing a paper is not a transitive team relation: a coauthor stays with the direct association.
+                if 'coauthor' in kinds:
+                    updated['group_evidence'] += ' | coauthor chain stopped at direct association'
+                    resolved.append(updated)
+                    continue
                 via = '; '.join(f"via {results[i]['name']}: {results[i]['group_evidence']}" for i in path[1:])
-                updated.update(group=results[current]['group'], group_evidence=f"{result['group_evidence']} | {via}")
+                # A member of a project collaborator's team reaches the PI only through that project.
+                updated.update(group=results[current]['group'], group_link='project' if 'project' in kinds else result['group_link'],
+                               group_evidence=f"{result['group_evidence']} | {via}")
         resolved.append(updated)
     return resolved
 
