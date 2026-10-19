@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "groups.json",
+  "description": "Research groups of one field, written by scripts/group_export.py. One record per group (PI, institution, homepage); people appear only as names with a role under their group. No tiers, scores or LinkedIn data.",
+  "type": "object",
+  "required": ["meta", "groups"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["domain", "as_of", "region", "window_start", "facets"],
+      "additionalProperties": false,
+      "properties": {
+        "domain": {"type": "string"},
+        "as_of": {"$ref": "#/$defs/day"},
+        "region": {"type": "string"},
+        "window_start": {"$ref": "#/$defs/day"},
+        "facets": {"type": "array", "items": {"$ref": "#/$defs/facet"}}
+      }
+    },
+    "groups": {"type": "array", "items": {"$ref": "#/$defs/group"}}
+  },
+  "$defs": {
+    "day": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "date": {"type": "string", "pattern": "^(\\d{4}(-\\d{2}(-\\d{2})?)?)?$", "description": "YYYY, YYYY-MM or YYYY-MM-DD as the source gives it; empty when unknown"},
+    "url": {"type": "string", "pattern": "^https?://"},
+    "optional_url": {"type": "string", "pattern": "^(https?://.*)?$"},
+    "role_class": {"enum": ["professor", "group_leader", "researcher", "phd_student", "industry", "unknown"]},
+    "label": {"type": "object", "description": "Display text by language code (en, zh)"},
+    "facet": {
+      "type": "object",
+      "required": ["id", "label", "tags"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "label": {"$ref": "#/$defs/label"},
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "additionalProperties": false,
+            "properties": {"id": {"type": "string"}, "label": {"$ref": "#/$defs/label"}}
+          }
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "required": ["id", "pi", "institution", "homepage", "tags", "topics", "members", "coauthors_count", "active_funding",
+                   "open_source", "evidence_urls", "last_verified", "last_verified_from", "sources", "as_of"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "Slug of the PI name and the institution"},
+        "pi": {
+          "type": "object",
+          "required": ["name", "role_class", "homepage"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"type": "string"},
+            "role_class": {"$ref": "#/$defs/role_class"},
+            "homepage": {"$ref": "#/$defs/optional_url", "description": "The PI's homepage as the records give it, else the page the final pass read for the PI unless it is a news item"}
+          }
+        },
+        "institution": {
+          "type": "object",
+          "required": ["name", "country", "ids", "location"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {"type": "string", "description": "Canonical name, as the talent map keys institutions"},
+            "country": {"type": "string", "pattern": "^([A-Z]{2})?$"},
+            "ids": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {"openalex": {"$ref": "#/$defs/url"}, "ror": {"$ref": "#/$defs/url"}}
+            },
+            "location": {
+              "type": ["object", "null"],
+              "required": ["lat", "lng", "city", "source"],
+              "additionalProperties": false,
+              "properties": {
+                "lat": {"type": "number"},
+                "lng": {"type": "number"},
+                "city": {"type": "string"},
+                "source": {"type": "string", "description": "manual (assets/geo-overrides.json), ror:<id> (a ROR name search) or country centroid (approximate)"}
+              }
+            }
+          }
+        },
+        "homepage": {"$ref": "#/$defs/optional_url", "description": "A page that lists two or more of the group's people and nobody from another group (roster or final-pass page), else the PI homepage"},
+        "tags": {"type": "array", "items": {"type": "string"}, "description": "Facet tag ids of the PI and members, coauthor-only links excluded"},
+        "topics": {"type": "array", "items": {"type": "string"}},
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "role_class", "link"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {"type": "string"},
+              "role_class": {"$ref": "#/$defs/role_class"},
+              "link": {"enum": ["team", "project"]}
+            }
+          }
+        },
+        "coauthors_count": {"type": "integer", "minimum": 0},
+        "active_funding": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "date"],
+            "additionalProperties": false,
+            "properties": {"type": {"type": "string"}, "date": {"$ref": "#/$defs/date"}}
+          }
+        },
+        "open_source": {"type": "array", "items": {"$ref": "#/$defs/url"}},
+        "evidence_urls": {"type": "array", "items": {"$ref": "#/$defs/url"}, "description": "Record URLs of everyone linked to the group, then the pages the final pass read for the PI and members"},
+        "last_verified": {"$ref": "#/$defs/date"},
+        "last_verified_from": {"enum": ["final_pass", "record_date", ""], "description": "final_pass: a page read; record_date: the newest record up to as_of"},
+        "sources": {"type": "array", "items": {"type": "string"}, "description": "Channels the records came from"},
+        "as_of": {"$ref": "#/$defs/day"}
+      }
+    }
+  }
+}

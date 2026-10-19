@@ -119,3 +119,20 @@ The script writes both person files, both group files, the out-of-region and exc
 and appends every `signals/*.coverage.md` to roster Coverage. It does not rewrite `persons.jsonl`.
 
 Before writing either CSV or Markdown table, fold line breaks and runs of whitespace in every cell to a single space. Source signals and person `topics` are not rewritten; this is export formatting only. Markdown escapes cell pipes to preserve their displayed content.
+
+## Group map
+
+The public output is a map of research groups, one per field. `group_export.py` writes `groups.json` from the same
+persons file, date and region as `table_export.py`; `assets/groups.schema.json` describes every field. There is one
+record per named group, without the `(unattached)` row. Groups, institution names, map positions and direction tags
+are those of the talent map. Members are the people linked by `team` or `project` (`40-entity-resolution.md`);
+coauthor-only links are counted, not named. The homepage is a page that lists two or more of the group's people and
+nobody from another group, else the PI's homepage, else the page the final pass read for the PI unless its path marks
+a news item. `last_verified` is the newest final-pass read among the PI and members, else the newest record date up
+to `--date`; `last_verified_from` says which. A record carries no tier, score, merge confidence, notes or evidence
+lines. The export stops when a LinkedIn key or URL sits on a record the map is built from (notes aside, they log
+searches) or would reach the output.
+
+```sh
+python3 "$SKILL_ROOT/scripts/group_export.py" "$RUN_DIR/persons.enriched.jsonl" --domain "multimodal AI" --date 2026-10-15 --out "$RUN_DIR/site"
+```
