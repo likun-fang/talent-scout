@@ -105,7 +105,8 @@ def row_for(p: dict, domain: str, date: str) -> dict:
     role = max(sorted(set(roles), key=rank_known), key=roles.count) if roles else "unknown"
     return {
         "name": p.get("name", ""),
-        "current_affiliation": p.get("current_affiliation") or newest.get("affiliation_raw", ""),
+        # A past position read in the final pass leaves no current affiliation; older records do not refill it.
+        "current_affiliation": "" if past_position(p) else p.get("current_affiliation") or newest.get("affiliation_raw", ""),
         "country": country_for(p),
         "role": role,
         "domain": domain,
