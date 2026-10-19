@@ -74,14 +74,36 @@ class FrenchResearchPostTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(read(title, affiliation, 'FR')['role_class'], 'professor')
 
+    def test_a_research_director_at_a_public_research_body_is_the_directeur_de_recherche(self):
+        for title, affiliation, country in (('Inria Research Director', 'Inria Paris, WILLOW project team', 'FR'),
+                                            ('Research Director', 'CNRS, LIP6', 'FR'), ('Research Director', 'INRAE', 'FR'),
+                                            ('Research Director', 'IGN, LASTIG', 'FR'), ('Research Director', 'CEA-List', 'FR'),
+                                            ('Research Director', 'FNRS, Université de Liège', 'BE'),
+                                            ('Research\nDirector', 'CNRS', 'FR'), ('Research Director', 'CEA', 'FR'),
+                                            ('Research Director', "Institut national de l'information géographique", 'FR')):
+            with self.subTest(title=title, affiliation=affiliation):
+                self.assertEqual(read(title, affiliation, country)['role_class'], 'professor')
+
+    def test_a_research_director_title_that_is_past_junior_or_at_a_company_decides_nothing(self):
+        for title, affiliation in (('Previously Research Director', 'Inria'), ('Formerly Research Director', 'CNRS'),
+                                   ('I was a Research Director until 2022', 'Inria'), ('Junior\nresearch director', 'IGN'),
+                                   ('Junior  research director', 'Inria'), ('Research Director until 2022', 'Inria'),
+                                   ('Inria Research Director until July 2022', 'Inria Paris'),
+                                   ('Research Director at IGN Entertainment', 'IGN Entertainment Inc.'),
+                                   ('Research Director', 'IGN Entertainment'), ('Research Director', 'CEA Industries')):
+            with self.subTest(title=title, affiliation=affiliation):
+                self.assertEqual(ca.title_class(title, affiliation=affiliation), '')
+        self.assertEqual(read('Research Director at IGN Entertainment', 'IGN Entertainment Inc.', 'US')['role_class'], 'industry')
+
     def test_other_permanent_posts_are_researchers_and_a_bare_research_director_decides_nothing(self):
         for title in ('Chercheur Titulaire', 'Chercheuse titulaire', 'Chargée de recherche',
                       'Research fellow (Chargé de recherche)', 'Senior Researcher'):
             with self.subTest(title=title):
                 self.assertEqual(read(title, 'GIPSA-lab', 'FR')['role_class'], 'researcher')
-        for title in ('Research Director', 'Junior research director'):
-            with self.subTest(title=title):
-                self.assertEqual(read(title, 'IGN', 'FR')['role_class'], 'unknown')
+        for title, affiliation in (('Research Director', 'GIPSA-lab'), ('Research Director', 'Valeo'),
+                                   ('Junior research director', 'IGN')):
+            with self.subTest(title=title, affiliation=affiliation):
+                self.assertEqual(read(title, affiliation, 'FR')['role_class'], 'unknown')
 
 
 class LabManagerTests(unittest.TestCase):
