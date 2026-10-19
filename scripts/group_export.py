@@ -63,7 +63,8 @@ def team_page(people: list[dict], page_groups: dict, group: str) -> str:
     """A page that lists two or more of the group's people and nobody from another group: the group's own page.
     A page that lists people of several groups is a department or institute page."""
     counts = Counter(url for person in people for url in pages(person) if page_groups.get(url) == {group})
-    return next((url for url, n in counts.most_common() if n >= 2), '')
+    # Ties go to the first URL in sort order: the pages come from sets, whose order changes from run to run.
+    return next((url for url, n in sorted(counts.items(), key=lambda item: (-item[1], item[0])) if n >= 2), '')
 
 
 def pi_homepage(pi: dict, page_groups: dict, programme_pages: set[str]) -> str:
