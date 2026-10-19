@@ -63,6 +63,50 @@ class ProfessorialTitleTests(unittest.TestCase):
                 self.assertEqual(read(title, 'KTH', 'SE')['role_class'], 'researcher')
 
 
+class FrenchResearchPostTests(unittest.TestCase):
+    def test_directeur_de_recherche_is_the_research_track_professor(self):
+        for title, affiliation in (('Directrice de recherche', 'Inria Saclay'), ('Directeur de recherche CNRS', 'CNRS'),
+                                   ('research director (DR1)', 'IGN'), ('Research Director DR1', 'INRIA'),
+                                   ('Senior Researcher (DR2)', 'Inria'), ('Research Director, DRCE', 'CNRS'),
+                                   ('Research Director - DR1', 'CNRS'), ('Senior Researcher (CNRS DR2)', 'CNRS'),
+                                   ('Senior Researcher\n(DR2)', 'CNRS'),
+                                   ('Senior researcher (Directrice de recherche)', 'CNRS')):
+            with self.subTest(title=title):
+                self.assertEqual(read(title, affiliation, 'FR')['role_class'], 'professor')
+
+    def test_other_permanent_posts_are_researchers_and_a_bare_research_director_decides_nothing(self):
+        for title in ('Chercheur Titulaire', 'Chercheuse titulaire', 'Chargée de recherche',
+                      'Research fellow (Chargé de recherche)', 'Senior Researcher'):
+            with self.subTest(title=title):
+                self.assertEqual(read(title, 'GIPSA-lab', 'FR')['role_class'], 'researcher')
+        for title in ('Research Director', 'Junior research director'):
+            with self.subTest(title=title):
+                self.assertEqual(read(title, 'IGN', 'FR')['role_class'], 'unknown')
+
+
+class LabManagerTests(unittest.TestCase):
+    def test_a_lab_manager_at_an_academic_employer_leads_the_lab_with_a_caveat(self):
+        for title, affiliation in (('Lab Manager', 'University of Hamburg'), ('Laboratory Manager', 'Inria Lyon'),
+                                   ('Lab Head', 'Max Planck Institute for Intelligent Systems'),
+                                   ('Lab Head AI, PostDoc', 'TUM Klinikum Rechts der Isar, Klinik für RadioOnkologie'),
+                                   ('Lab Head AI, PostDoc', 'TUM Klinikum Rechts der Isar'),
+                                   ('Lab Manager (ancien responsable d’équipe)', 'CNRS')):
+            with self.subTest(title=title):
+                result = read(title, affiliation)
+                self.assertEqual(result['role_class'], 'group_leader')
+                self.assertIn('(lab manager: may be administrative)', result['role_evidence'])
+
+    def test_a_lab_manager_elsewhere_decides_nothing(self):
+        for affiliation in ('Synthesia', ''):
+            with self.subTest(affiliation=affiliation):
+                self.assertEqual(read('Lab Manager', affiliation, 'GB')['role_class'], 'unknown')
+        # The caveat belongs to the lab-manager reading only, not to another leadership title or a supervisor's.
+        for title in ('Professor and Lab Manager', 'Group Leader and Lab Manager',
+                      'Group Leader in the lab of Lab Manager Jane Doe'):
+            with self.subTest(title=title):
+                self.assertNotIn('may be administrative', read(title, 'University of Hamburg')['role_evidence'])
+
+
 class EngineerTests(unittest.TestCase):
     def test_an_engineer_at_a_non_academic_employer_is_industry(self):
         for title, affiliation, country in (('AI Engineer', 'TKH AI Technology', None), ('CV Engineer', 'DeepScenario', 'DE'),
