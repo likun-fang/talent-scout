@@ -18,7 +18,7 @@ import argparse, datetime, hashlib, json, re, sys, urllib.parse, urllib.request
 from collections import Counter
 from pathlib import Path
 from table_export import select_persons, row_for, group_rows, window_start, signal_date
-from person_fields import facet_texts, tags_for
+from person_fields import facet_texts, same_institution_name, tags_for
 
 ASSETS = Path(__file__).resolve().parents[1] / 'assets'
 ROR_API = 'https://api.ror.org/v2/organizations?query='
@@ -252,7 +252,12 @@ def build_data_from(selection: tuple, args, geocoder, summaries: dict | None = N
     for key, members in sorted(keys.items()):
         named = {g['group'] for g in groups if g['institution_key'] == key}
         people = [e for e in entries if e['institution_key'] == key] or [e for e in entries if e['group'] in named]
-        country = Counter(e['country'] for e in people if e['country']).most_common(1)
+        # An institution only a group names takes its country from the records that name it, not from the PI's
+        # other employer.
+        countries = [e['country'] for e in people if e['country']] if members else [
+            s['country'] for e in people for s in e['signals']
+            if s.get('country') and same_institution_name(s.get('affiliation_raw', ''), key)]
+        country = Counter(countries or [e['country'] for e in people if e['country']]).most_common(1)
         country = country[0][0] if country else ''
         located = geocoder.locate(key, country) or country_centroid(country, key)
         lat, lng, city, source = located if located else (None, None, '', 'not located')
