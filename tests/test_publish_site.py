@@ -44,9 +44,10 @@ class Fixture:
         self.known = self.root / 'known.json'
         self.known.write_text(json.dumps({'groups': known}), encoding='utf-8')
         self.docs = self.root / 'docs'
+        self.removals = self.root / 'removals.json'  # absent unless a test writes it
 
     def publish(self, slug='multimodal-ai'):
-        return publish(self.run, slug, self.docs, self.known)
+        return publish(self.run, slug, self.docs, self.known, self.removals)
 
 
 KNOWN = [{'pi': 'Anna Meyer', 'institution': 'TUM'}]
@@ -58,7 +59,7 @@ class PublishTests(unittest.TestCase):
             site = Fixture(tmp, groups_doc(group('Anna Meyer', 'TUM'), group('Cara Lin', 'TUM', members=[])), KNOWN)
             site.publish()
             self.assertEqual(sorted(p.relative_to(site.docs).as_posix() for p in site.docs.rglob('*') if p.is_file()),
-                             ['about.html', 'index.html', 'multimodal-ai/groups.json', 'multimodal-ai/index.html'])
+                             ['.nojekyll', 'about.html', 'index.html', 'multimodal-ai/groups.json', 'multimodal-ai/index.html'])
             page = (site.docs / 'multimodal-ai' / 'index.html').read_text(encoding='utf-8')
             self.assertIn(f'const CORRECTION_URL = {json.dumps(ISSUES)};', page)
             self.assertIn('const ABOUT_URL = "../about.html";', page)
@@ -80,6 +81,7 @@ class PublishTests(unittest.TestCase):
             finally:
                 publish_site.RECALL_MIN, publish_site.STALE_MAX = old
             doc = json.loads((site.docs / 'multimodal-ai' / 'groups.json').read_text(encoding='utf-8'))
+            self.assertEqual(doc['meta']['removals'], 0)
             self.assertEqual(doc['meta']['checks'], {'recall': {'found': 1, 'known': 2}, 'stale': {'groups': 1, 'of': 2,
                              'verified_since': '2025-10-15'}, 'banned_source_hits': 0, 'sample': 2})
             schema = json.loads((ROOT / 'assets/groups.schema.json').read_text(encoding='utf-8'))
@@ -188,8 +190,85 @@ class RefusalTests(unittest.TestCase):
     def test_a_run_without_site_groups_json_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(SystemExit) as stop:
-                publish(Path(tmp), 'multimodal-ai', Path(tmp) / 'docs', Path(tmp) / 'known.json')
+                publish(Path(tmp), 'multimodal-ai', Path(tmp) / 'docs', Path(tmp) / 'known.json', Path(tmp) / 'removals.json')
             self.assertIn('groups.json', str(stop.exception))
+
+
+class RemovalTests(unittest.TestCase):
+    def published(self, site):
+        return json.loads((site.docs / 'multimodal-ai' / 'groups.json').read_text(encoding='utf-8'))
+
+    def fixture(self, tmp, removals):
+        lab = {'homepage': 'https://lab.example', 'groups': ['anna-meyer-tum', 'cara-lin-tum']}
+        anna = group('Anna Meyer', 'TUM', lab=lab, members=[
+            {'name': 'Ben Ott', 'role_class': 'phd_student', 'link': 'team'},
+            {'name': 'Dana Roe', 'role_class': 'researcher', 'link': 'team'}],
+            evidence_urls=['https://lab.example', 'https://lab.example/people/ben-ott'])
+        site = Fixture(tmp, groups_doc(anna, group('Cara Lin', 'TUM', lab=lab, members=[])), KNOWN)
+        if removals is not None:
+            site.removals.write_text(removals if isinstance(removals, str) else json.dumps(removals), encoding='utf-8')
+        return site
+
+    def test_a_person_is_removed_from_the_named_group_with_the_urls_that_carry_the_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = self.fixture(tmp, [{'issue': 12, 'person': 'Ben Ott', 'group': 'anna-meyer-tum', 'scope': 'person'}])
+            site.publish()
+            doc = self.published(site)
+            anna = doc['groups'][0]
+            self.assertEqual([m['name'] for m in anna['members']], ['Dana Roe'])
+            self.assertEqual(anna['evidence_urls'], ['https://lab.example'])
+            self.assertEqual(doc['meta']['removals'], 1)
+            for path in site.docs.rglob('*'):
+                if path.is_file():
+                    self.assertNotIn('Ben Ott', path.read_text(encoding='utf-8'))
+
+    def test_a_whole_group_is_removed_and_its_lab_partner_stands_alone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = self.fixture(tmp, [{'issue': 13, 'person': 'Cara Lin', 'group': 'cara-lin-tum', 'scope': 'group'}])
+            site.publish()
+            doc = self.published(site)
+            self.assertEqual([g['id'] for g in doc['groups']], ['anna-meyer-tum'])
+            self.assertNotIn('lab', doc['groups'][0])
+            self.assertEqual(doc['meta']['removals'], 1)
+            self.assertNotIn('Cara Lin', (site.docs / 'multimodal-ai' / 'index.html').read_text(encoding='utf-8'))
+
+    def test_a_pi_who_removes_themself_takes_the_group_with_them(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = self.fixture(tmp, [{'issue': 14, 'person': 'Cara Lin', 'group': 'cara-lin-tum', 'scope': 'person'}])
+            site.publish()
+            self.assertEqual([g['id'] for g in self.published(site)['groups']], ['anna-meyer-tum'])
+
+    def test_a_malformed_or_unreadable_removals_file_stops_the_publication(self):
+        for removals in ('{not json', {'issue': 1}, [{'issue': 'x', 'person': 'Ben Ott', 'group': 'g', 'scope': 'person'}],
+                         [{'issue': 1, 'person': 'Ben Ott', 'group': 'g', 'scope': 'everything'}],
+                         [{'issue': 1, 'person': '', 'group': 'g', 'scope': 'person'}]):
+            with self.subTest(removals=removals), tempfile.TemporaryDirectory() as tmp:
+                site = self.fixture(tmp, removals)
+                with self.assertRaises(SystemExit) as stop:
+                    site.publish()
+                self.assertIn('removals', str(stop.exception))
+                self.assertFalse(site.docs.exists())
+
+    def test_an_absent_removals_file_publishes_with_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = self.fixture(tmp, None)
+            site.publish()
+            doc = self.published(site)
+            self.assertEqual(doc['meta']['removals'], 0)
+            self.assertEqual(len(doc['groups']), 2)
+
+
+class SiteFolderTests(unittest.TestCase):
+    def test_a_file_the_publisher_did_not_write_stops_the_publication(self):
+        for stray in ('landscape.md', 'runs/2026-10-12-pilot.md', 'multimodal-ai/notes.txt'):
+            with self.subTest(stray=stray), tempfile.TemporaryDirectory() as tmp:
+                site = Fixture(tmp, groups_doc(group('Anna Meyer', 'TUM')), KNOWN)
+                site.publish()
+                (site.docs / stray).parent.mkdir(parents=True, exist_ok=True)
+                (site.docs / stray).write_text('x', encoding='utf-8')
+                with self.assertRaises(SystemExit) as stop:
+                    site.publish()
+                self.assertIn(stray, str(stop.exception))
 
 
 class WriteTests(unittest.TestCase):
@@ -239,7 +318,7 @@ class CommandLineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             site = Fixture(tmp, groups_doc(group('Anna Meyer', 'TUM')), KNOWN)
             old, sys.argv = sys.argv, ['publish_site.py', str(site.run), 'multimodal-ai', '--out', str(site.docs),
-                                       '--known', str(site.known)]
+                                       '--known', str(site.known), '--removals', str(site.removals)]
             try:
                 publish_site.main()
             finally:
