@@ -63,17 +63,24 @@ def strip_comment(text: str) -> str:
             start = False
     return text.rstrip()
 
+# Plain forms YAML 1.1 reads as booleans, nulls, numbers, dates or times; outside the four the loader resolves, a pack
+# quotes them, so the value means the same to YAML and to this loader.
+YAML_TYPED = re.compile(r'(?i)^(y|n|yes|no|on|off|true|false|null|~|[-+]?(0x[0-9a-f_]+|0o?[0-7_]+|[0-9][0-9_]*(\.[0-9_]*)?'
+                        r'(e[-+]?[0-9]+)?|\.[0-9_]+(e[-+]?[0-9]+)?|\.inf|\.nan)|\d{4}-\d{1,2}-\d{1,2}([t ].*)?|[0-9]+(:[0-5]?[0-9])+)$')
+
+
 def scalar(token: str):
     if token in ('', '~', 'null'):
         return None
     if token in ('true', 'false'):
         return token == 'true'
-    if re.fullmatch(r'-?\d+', token):
+    if re.fullmatch(r'-?(0|[1-9]\d*)', token):
         return int(token)
-    if re.fullmatch(r'-?\d+\.\d+', token):
+    if re.fullmatch(r'-?(0|[1-9]\d*)\.\d+', token):
         return float(token)
+    if YAML_TYPED.match(token):
+        raise ValueError(f'{token!r} reads as a typed value in YAML: quote it')
     return token
-
 
 def quoted(text: str, pos: int) -> tuple[str, int]:
     """A quoted scalar starting at pos; returns its value and the position after it."""
@@ -103,13 +110,13 @@ def quoted(text: str, pos: int) -> tuple[str, int]:
 
 def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
     """A flow value at pos: {…}, […], a quoted scalar, or a plain scalar ending at one of stops."""
-    while text[pos:pos + 1] == ' ':
+    while text[pos:pos + 1] in (' ', '\t'):
         pos += 1
     if text[pos:pos + 1] in ('{', '['):
         closing, mapping = ('}', True) if text[pos] == '{' else (']', False)
         result, pos = ({} if mapping else []), pos + 1
         while True:
-            while text[pos:pos + 1] == ' ':
+            while text[pos:pos + 1] in (' ', '\t'):
                 pos += 1
             if text[pos:pos + 1] == closing:
                 return result, pos + 1
@@ -117,7 +124,9 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
                 raise ValueError(f'unclosed {"mapping" if mapping else "sequence"}')
             if mapping:
                 key, pos = flow(text, pos, ':,' + closing)
-                while text[pos:pos + 1] == ' ':
+                if not isinstance(key, str):
+                    raise ValueError(f'a key must be text, not {key!r}')
+                while text[pos:pos + 1] in (' ', '\t'):
                     pos += 1
                 if text[pos:pos + 1] != ':':
                     raise ValueError(f'expected ":" after key {key!r}')
@@ -130,7 +139,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
                     raise ValueError(f'empty entry at column {pos + 1}')
                 value, pos = flow(text, pos, ',' + closing)
                 result.append(value)
-            while text[pos:pos + 1] == ' ':
+            while text[pos:pos + 1] in (' ', '\t'):
                 pos += 1
             if text[pos:pos + 1] == ',':
                 pos += 1
@@ -138,8 +147,9 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
                 raise ValueError(f'expected "," or "{closing}" at column {pos + 1}')
     if text[pos:pos + 1] in ('"', "'"):
         return quoted(text, pos)
-    if text[pos:pos + 1] in ('&', '*', '!'):
-        raise ValueError(f'{text[pos]!r} (an anchor, alias or tag) is outside the YAML subset')
+    if text[pos:pos + 1] in ('&', '*', '!', '?', '|', '>', '%', '@', '`') or (
+            text[pos:pos + 1] == '-' and text[pos + 1:pos + 2] in ('', ' ', '\t', ',', ']', '}')):
+        raise ValueError(f'{text[pos]!r} (an indicator: anchor, alias, tag, key, block or item) is outside the YAML subset')
     end = pos
     while end < len(text):
         # A ":" ends a plain key only before a space, a flow indicator or the end; "https://x" stays one scalar.
@@ -157,7 +167,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
 
 
 def inline(text: str):
-    if re.fullmatch(r'[|>][-+]?\d*', text) or text.startswith(('&', '*', '!')):
+    if re.fullmatch(r'[|>][-+]?\d*', text) or text.startswith(('&', '*', '!', '?', '%', '@', '`', '- ')):
         raise ValueError(f'{text[:2]!r} is outside the YAML subset')
     if text[0] not in '{["\'' and (': ' in text or text.endswith(':')):
         raise ValueError(f'a plain value with ": " needs quotes: {text[:40]!r}')
@@ -175,8 +185,8 @@ def load_yaml(text: str):
     for number, raw in enumerate(text.splitlines(), 1):
         content = strip_comment(raw)
         if content.strip():
-            if '\t' in raw[:len(raw) - len(raw.lstrip())]:
-                raise ValueError(f'line {number}: a tab in the indentation')
+            if '\t' in content:
+                raise ValueError(f'line {number}: a tab is outside the YAML subset; packs use spaces')
             lines.append([number, len(content) - len(content.lstrip()), content.strip()])
 
     def node(i: int, indent: int):
@@ -200,7 +210,12 @@ def load_yaml(text: str):
             if not match:
                 raise ValueError(f'line {number}: expected "key: value", got {content[:40]!r}')
             key = match.group(1)
-            key = quoted(key, 0)[0] if key[0] in '"\'' else key
+            try:
+                key = quoted(key, 0)[0] if key[0] in '"\'' else scalar(key)
+            except ValueError as exc:
+                raise ValueError(f'line {number}: {exc}') from None
+            if not isinstance(key, str):
+                raise ValueError(f'line {number}: a key must be text, not {key!r}')
             if key in result:
                 raise ValueError(f'line {number}: duplicate key {key!r}')
             try:
@@ -320,6 +335,12 @@ def check_pack(slug: str, root: Path = SKILL_ROOT) -> tuple[list[str], list[str]
     facets_file = data.get('facets_file') or ''
     if facets_file != f'assets/facets/{slug}.json':
         errors.append(f'facets_file {facets_file!r} is not assets/facets/{slug}.json')
+    for name in (f'assets/facets/{slug}.json', f'assets/known-groups/{slug}.json'):
+        try:
+            text = (root / name).read_text(encoding='utf-8')
+        except OSError:
+            continue
+        errors += [f'personal data: {what} in {name}' for pattern, what in PERSONAL if re.search(pattern, text, re.I)]
     facets, problem = json_list(root / f'assets/facets/{slug}.json', 'facets')
     if facets is None:
         errors.append(f'facets file assets/facets/{slug}.json: {problem}')
