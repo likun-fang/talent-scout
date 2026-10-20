@@ -290,6 +290,9 @@ class RemovalTests(unittest.TestCase):
                     'https://lab.example/john_o-connor', 'https://lab.example/JohnOConnor'):
             with self.subTest(url=url):
                 self.assertTrue(publish_site.name_in_url("John O'Connor", url))
+        self.assertTrue(publish_site.name_in_url('Søren Nielsen', 'https://lab.example/people/S%C3%B8ren%20Nielsen'))
+        self.assertTrue(publish_site.name_in_url('John R. Smith', 'https://lab.example/people/John%20R.%20Smith'))
+        self.assertFalse(publish_site.name_in_url('Søren Nielsen', 'https://lab.example/people/søren-nielsens'))
         self.assertFalse(publish_site.name_in_url("John O'Connor", 'https://lab.example/john-oconnors-lab-x'.replace('oconnors', 'oconnorson')))
 
     def test_only_the_removed_pi_is_exempt_from_recall_even_when_the_group_was_removed_before(self):
@@ -302,6 +305,15 @@ class RemovalTests(unittest.TestCase):
                 site.publish()
             self.assertIn('recall 0/1', str(stop.exception))
             self.assertIn('Anton Meyer', str(stop.exception))
+
+    def test_a_removal_under_the_umlaut_spelling_exempts_the_known_group_spelled_out(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Fixture(tmp, groups_doc(group('Hilde Kühne', 'TUM'), group('Cara Lin', 'TUM')),
+                           [{'pi': 'Hilde Kuehne', 'institution': 'TUM'}])
+            site.removals.write_text(json.dumps([{'issue': 15, 'person': 'Hilde Kühne', 'group': 'hilde-kuhne-tum',
+                                                  'scope': 'group'}]), encoding='utf-8')
+            site.publish()
+            self.assertEqual(self.published(site)['meta']['checks']['recall'], {'found': 0, 'known': 0})
 
     def test_a_malformed_or_unreadable_removals_file_stops_the_publication(self):
         for removals in ('{not json', {'issue': 1}, [{'issue': 'x', 'person': 'Ben Ott', 'group': 'g', 'scope': 'person'}],

@@ -25,7 +25,7 @@ Standard library only.
 from __future__ import annotations
 import argparse, datetime, html, json, os, re, sys, tempfile, urllib.parse
 from pathlib import Path
-from check_groups import RECALL_MIN, STALE_MAX, recall, stale_groups
+from check_groups import RECALL_MIN, STALE_MAX, UMLAUTS, recall, stale_groups
 from group_export import linkedin_hits
 from group_map import render_html
 from person_fields import normalized
@@ -160,19 +160,24 @@ APOSTROPHES = re.compile(r"['’`´]")
 
 def name_in_url(name: str, url: str) -> bool:
     """A URL that spells the name anywhere, host, path or query, decoded: "ben-ott.example", "/people/Ben%20Ott",
-    "?name=Ben+Ott", "ben_ott.html", "/john-oconnor" or "/john_o-connor" for John O'Connor. Apostrophes in the URL are
-    dropped, and any one separator or none may stand between the words of the name; the spelling must stand as a whole
-    ("/ruben-otto" does not spell Ben Ott)."""
-    words = re.findall(r'[a-z0-9]+', normalized(name))  # "O'Connor" gives "o", "connor", joined below like any words
+    "?name=Ben+Ott", "ben_ott.html", "/john-oconnor" or "/john_o-connor" for John O'Connor, "/S%C3%B8ren%20Nielsen",
+    "/John%20R.%20Smith". Apostrophes in the URL are dropped, and up to three separators or none may stand between the
+    words of the name; the spelling must stand as a whole ("/ruben-otto" does not spell Ben Ott)."""
+    words = re.findall(r'[^\W_]+', normalized(name))  # "O'Connor" gives "o", "connor", joined below like any words
     if len(words) < 2:
         return False
     text = APOSTROPHES.sub('', normalized(urllib.parse.unquote_plus(url)))
-    spelling = r'[-_. ]?'.join(re.escape(word) for word in words)
-    return bool(re.search(rf'(?<![a-z0-9]){spelling}(?![a-z0-9])', text))
+    spelling = r'[\W_]{0,3}'.join(re.escape(word) for word in words)
+    return bool(re.search(rf'(?<![^\W_]){spelling}(?![^\W_])', text))
+
+
+def name_spellings(name: str) -> set[str]:
+    """The name folded, also with German umlauts written out (Kühne, Kuehne), as the recall check spells it."""
+    return {' '.join(re.findall(r'[^\W_]+', normalized(spelling))) for spelling in (name, name.translate(UMLAUTS))}
 
 
 def same_name(left: str, right: str) -> bool:
-    return ' '.join(normalized(left).split()) == ' '.join(normalized(right).split())
+    return bool(name_spellings(left) & name_spellings(right))
 
 
 def without_person(group: dict, name: str) -> dict:
