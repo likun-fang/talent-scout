@@ -35,11 +35,12 @@ SLUG = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
 EMAIL = re.compile(r'(?:"[^"\n]+"|[\w.+%-]+)@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')
 # A path on the machine that built the run, or into a run directory. Inside a web URL the same words follow a host or
 # another path segment and do not count, so data values that are web URLs are checked for email addresses only.
-LOCAL_PATH = re.compile(r'file://|(?<![\w/.%-])(?:~/|\.\.?/|/(?:Users|home|private|tmp|var|Volumes|mnt|opt|root)/'
-                        r'|[A-Za-z]:\\|runs/)')
+# Any absolute path of two segments, a drive or network path, a home or relative path, or a run directory.
+LOCAL_PATH = re.compile(r'file://|\\\\[\w.$-]+\\|(?<![\w/.%-])(?:~/|\.\.?/|/[\w.$-]+/[\w.$-]+|[A-Za-z]:[\\/]|runs/)')
 WEB_URL = re.compile(r'^https?://\S+$', re.I)
 # The pages link each other relatively ("../about.html"), so a page is checked for absolute and run paths only.
-PAGE_PATH = re.compile(r'file://|(?<![\w/.%-])(?:/(?:Users|home|private|tmp|var|Volumes|mnt|opt|root)/|[A-Za-z]:\\|runs/)')
+PAGE_PATH = re.compile(r'file://|\\\\[\w.$-]+\\|(?<![\w/.%-])(?:/(?:Users|home|private|tmp|var|Volumes|mnt|opt|root|srv)/'
+                       r'|[A-Za-z]:[\\/]|runs/)')
 
 
 def private_text(text: str) -> list[str]:
@@ -346,9 +347,9 @@ def write_all(files: dict[Path, str]) -> None:
         for path, text in files.items():
             path.parent.mkdir(parents=True, exist_ok=True)
             handle, name = tempfile.mkstemp(dir=path.parent, prefix='.publish-')
+            staged[path] = name  # registered before the write, so a failed write is cleaned up too
             with os.fdopen(handle, 'w', encoding='utf-8') as temporary:
                 temporary.write(text)
-            staged[path] = name
         for path, name in staged.items():
             os.replace(name, path)
             replaced.append(path)

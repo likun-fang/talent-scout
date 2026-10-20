@@ -169,7 +169,8 @@ class RefusalTests(unittest.TestCase):
     def test_an_email_address_or_a_local_path_stops_the_publication(self):
         for topic in ('write to anna.meyer@tum.de', '/Users/someone/projects/x', 'runs/multimodal-ai-2026-10-14/site',
                       'file:///tmp/x.html', '../runs/private/site', '/Volumes/Private/run/site', '"anna meyer"@tum.de',
-                      'line one\n/Users/alice/private', '~/projects/x', 'mailto:anna@tum.de'):
+                      'line one\n/Users/alice/private', '~/projects/x', 'mailto:anna@tum.de', '/srv/private/run/site',
+                      'C:/work/private/run/site', '\\\\server\\private\\run'):
             with self.subTest(topic=topic):
                 self.assertIn('private', self.refused(groups_doc(group('Anna Meyer', 'TUM', topics=[topic]))))
 
@@ -207,6 +208,24 @@ class WriteTests(unittest.TestCase):
             finally:
                 publish_site.os.replace = original
             self.assertEqual({p: p.read_bytes() for p in site.docs.rglob('*') if p.is_file()}, before)
+
+
+    def test_a_failed_staging_write_leaves_no_temporary_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Fixture(tmp, groups_doc(group('Anna Meyer', 'TUM')), KNOWN)
+            original = publish_site.os.fdopen
+
+            def failing_fdopen(*args, **kwargs):
+                handle = original(*args, **kwargs)
+                handle.write = lambda text: (_ for _ in ()).throw(OSError('disk full'))
+                return handle
+            publish_site.os.fdopen = failing_fdopen
+            try:
+                with self.assertRaises(SystemExit):
+                    site.publish()
+            finally:
+                publish_site.os.fdopen = original
+            self.assertEqual([p.name for p in site.docs.rglob('.publish-*')], [])
 
 
 class CommandLineTests(unittest.TestCase):
