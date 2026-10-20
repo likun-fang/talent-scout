@@ -150,7 +150,7 @@ def person_entry(person: dict, row: dict, aliases: dict) -> dict:
              'signals': [trimmed_signal(s) for s in signals],
              'group_evidence': person.get('group_evidence', ''), 'group_rule': person.get('group_rule'),
              'group_link': person.get('group_link', '')}
-    for key in ('final_pass_title', 'final_pass_affiliation', 'final_pass_country', 'final_pass_url', 'linkedin_headline'):
+    for key in ('final_pass_title', 'final_pass_affiliation', 'final_pass_country', 'final_pass_url'):
         if person.get(key):
             entry[key] = person[key]
     return entry

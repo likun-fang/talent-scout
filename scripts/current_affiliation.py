@@ -325,9 +325,9 @@ def inferred_role(person: dict, run_year: int) -> dict:
 
 def final_pass_title(person: dict) -> tuple | None:
     """Rule 0: a title read from the person's own or institutional page in the final pass, with its URL
-    and the read date. `linkedin_headline` / `linkedin_url` are accepted as the same adapter."""
-    title = person.get('final_pass_title') or person.get('linkedin_headline')
-    url = person.get('final_pass_url') or person.get('linkedin_url', '')
+    and the read date."""
+    title = person.get('final_pass_title')
+    url = person.get('final_pass_url', '')
     if person.get('last_verified') and title:
         return (title, url)
     return None

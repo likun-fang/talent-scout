@@ -268,7 +268,7 @@ def write_groups(persons: list[dict], out: str, start: datetime.date, end: datet
 def select_persons(persons: list[dict], args) -> tuple:
     persons = [apply_final_pass(p) for p in persons]
     persons = [{**p, **classify_role(p, args.date.year)} if p.get('final_pass_affiliation') or
-               p.get('final_pass_title') or p.get('linkedin_headline') else p for p in persons]
+               p.get('final_pass_title') else p for p in persons]
     if any(p.get('final_pass_affiliation') or p.get('final_pass_title') for p in persons):
         persons = assign_groups(persons)
     start = window_start(args.date, args.window_months)
