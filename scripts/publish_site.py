@@ -25,7 +25,7 @@ Standard library only.
 from __future__ import annotations
 import argparse, datetime, html, json, os, re, sys, tempfile, urllib.parse
 from pathlib import Path
-from check_groups import RECALL_MIN, STALE_MAX, recall, stale_groups
+from check_groups import RECALL_MIN, STALE_MAX, recall, same_pi, stale_groups
 from group_export import linkedin_hits
 from group_map import render_html
 from person_fields import normalized
@@ -156,42 +156,60 @@ def load_removals(path: Path) -> list[dict]:
 
 
 def name_in_url(name: str, url: str) -> bool:
-    """A URL whose path spells the name ("/people/ben-ott", "ben_ott.html")."""
+    """A URL that spells the name anywhere, host, path or query, decoded: "ben-ott.example", "/people/Ben%20Ott",
+    "?name=Ben+Ott", "ben_ott.html". The spelling must stand as a whole ("/ruben-otto" does not spell Ben Ott)."""
     words = re.findall(r'[a-z0-9]+', normalized(name))
-    path = normalized(urllib.parse.unquote(urllib.parse.urlsplit(url).path))
-    return len(words) > 1 and any(joiner.join(words) in path for joiner in ('-', '_', '.', ''))
+    if len(words) < 2:
+        return False
+    text = normalized(urllib.parse.unquote_plus(url))
+    spellings = '|'.join(re.escape(joiner.join(words)) for joiner in ('-', '_', '.', ' ', ''))
+    return bool(re.search(rf'(?<![a-z0-9])(?:{spellings})(?![a-z0-9])', text))
 
 
-def apply_removals(doc: dict, entries: list[dict]) -> tuple[dict, int]:
-    """The field without the removed people and groups, and how many requests applied to it. A person leaves the named
-    group with the URLs that spell their name; a PI who asks to be removed takes the group along, since the group is
-    shown under the PI's name. A lab whose partner groups are gone stops being drawn as a lab."""
-    same = lambda left, right: ' '.join(normalized(left).split()) == ' '.join(normalized(right).split())
-    groups, applied = {g['id']: g for g in doc['groups']}, 0
+def same_name(left: str, right: str) -> bool:
+    return ' '.join(normalized(left).split()) == ' '.join(normalized(right).split())
+
+
+def without_person(group: dict, name: str) -> dict:
+    """The group without the person as a member and without every link that spells their name."""
+    kept = lambda urls: [u for u in urls if not name_in_url(name, u)]
+    group = {**group, 'members': [m for m in group['members'] if not same_name(m['name'], name)],
+             'evidence_urls': kept(group.get('evidence_urls', [])), 'open_source': kept(group.get('open_source', []))}
+    if name_in_url(name, group.get('homepage') or ''):
+        group['homepage'] = ''
+    if name_in_url(name, group['pi'].get('homepage') or ''):
+        group['pi'] = {**group['pi'], 'homepage': ''}
+    if group.get('lab') and name_in_url(name, group['lab'].get('homepage') or ''):
+        group = {key: value for key, value in group.items() if key != 'lab'}
+    return group
+
+
+def apply_removals(doc: dict, entries: list[dict]) -> tuple[dict, int, list[str]]:
+    """The field without the removed people and groups, how many requests changed it, and the PIs whose groups went.
+    A removed person leaves every group of the field, with every link that spells their name, since the request is
+    about them rather than one card; a group request, or a PI's own request, removes the group, which is shown under
+    the PI's name. A lab whose partner groups are gone stops being drawn as a lab."""
+    groups, applied, removed_pis = list(doc['groups']), 0, []
     for entry in entries:
-        group = groups.get(entry['group'])
-        if group is None:
-            continue  # a request for a group of another field
-        if entry['scope'] == 'group' or same(entry['person'], group['pi']['name']):
-            del groups[entry['group']]
-            applied += 1
-            continue
-        kept = [m for m in group['members'] if not same(m['name'], entry['person'])]
-        if len(kept) < len(group['members']):
-            urls = lambda key: [u for u in group.get(key, []) if not name_in_url(entry['person'], u)]
-            groups[entry['group']] = {**group, 'members': kept, 'evidence_urls': urls('evidence_urls'),
-                                      'open_source': urls('open_source')}
-            applied += 1
-    result = []
-    for group in groups.values():
+        before = json.dumps(groups, sort_keys=True)
+        name = entry['person'].strip()
+        drop = {g['id'] for g in groups if (entry['scope'] == 'group' and g['id'] == entry['group'])
+                or (name and same_name(g['pi']['name'], name))}
+        removed_pis += [g['pi']['name'] for g in groups if g['id'] in drop]
+        groups = [g for g in groups if g['id'] not in drop]
+        if name:
+            groups = [without_person(g, name) for g in groups]
+        applied += json.dumps(groups, sort_keys=True) != before
+    ids, result = {g['id'] for g in groups}, []
+    for group in groups:
         lab = group.get('lab')
         if lab:
-            partners = [gid for gid in lab['groups'] if gid in groups]
+            partners = [gid for gid in lab['groups'] if gid in ids]
             group = {key: value for key, value in group.items() if key != 'lab'}
             if len(partners) > 1:
                 group['lab'] = {**lab, 'groups': partners}
         result.append(group)
-    return {**doc, 'groups': result}, applied
+    return {**doc, 'groups': result}, applied, removed_pis
 
 
 def stray_files(out: Path, slug: str) -> list[str]:
@@ -400,14 +418,16 @@ def publish(run_dir: Path, slug: str, out: Path, known_path: Path, removals_path
     known = load_json(known_path, 'known groups')
     if not isinstance(known, dict) or not isinstance(known.get('groups'), list):
         raise SystemExit(f'{known_path}: expected {{"groups": [{{"pi": ..., "institution": ...}}]}}')
-    doc, removed = apply_removals(doc, load_removals(removals_path))
+    doc, removed, removed_pis = apply_removals(doc, load_removals(removals_path))
+    # A known group whose PI asked to be removed is no longer expected on the map.
+    known_groups = [item for item in known['groups'] if not any(same_pi(item['pi'], pi) for pi in removed_pis)]
     notes = notes_fields(doc)
     if notes:
         raise SystemExit(f'not published: notes fields stay in the run: {notes[:5]}')
     found = private_values(doc)
     if found:
         raise SystemExit(f'not published: private text (email addresses or local paths) in the data: {found[:5]}')
-    doc = {**doc, 'meta': {**doc['meta'], 'checks': checks(doc, known['groups']), 'removals': removed}}
+    doc = {**doc, 'meta': {**doc['meta'], 'checks': checks(doc, known_groups), 'removals': removed}}
     data = json.dumps(doc, ensure_ascii=False, indent=1) + '\n'
     fields = published_fields(out, slug, doc)
     files = {out / slug / 'groups.json': data,
