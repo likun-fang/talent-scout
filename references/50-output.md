@@ -139,7 +139,10 @@ searches) or would reach the output.
 
 `group_map.py` renders `groups.json` as one static page, `index.html`: one marker per institution, a list ordered by
 institution and then PI name, country and tag filters, free-text search, and a card per group with a link to report
-a correction. It has no person pages, tiers or counts per country.
+a correction. A card without members says "members not yet collected", and a group without a homepage shows the PI
+page in its place. It has no person pages, tiers or counts per country. `--correction-url` sets the correction form
+(the card appends `group=<id>`) and `--about-url` the about link; a run's own page keeps the placeholder form and the
+in-page about section.
 
 `check_groups.py` gates publication: recall of the field's known groups in `assets/known-groups/` (same PI by
 surname and first initial at the same institution, or at any of several an entry names, at least 90%), groups last verified more than 12 months before
@@ -152,3 +155,11 @@ python3 "$SKILL_ROOT/scripts/group_export.py" "$RUN_DIR/persons.enriched.jsonl" 
 python3 "$SKILL_ROOT/scripts/group_map.py" "$RUN_DIR/site/groups.json" --out "$RUN_DIR/site/index.html"
 python3 "$SKILL_ROOT/scripts/check_groups.py" "$RUN_DIR/site/groups.json" --known "$SKILL_ROOT/assets/known-groups/multimodal-ai.json" --as-of 2026-10-15 --persons "$RUN_DIR/persons.enriched.jsonl"
 ```
+
+`publish_site.py <run_dir> <slug> --out docs` publishes a field to the site GitHub Pages serves from `docs/`. It
+refuses, writing nothing, when a check of `check_groups.py` fails, when `groups.json` carries a LinkedIn key or URL or
+a `notes` field, or when the data or a page names an email address or a local or run path. It writes
+`docs/<slug>/groups.json` with the check values in `meta.checks`, renders `docs/<slug>/index.html` with the
+repository's correction form and `../about.html`, and rewrites `docs/index.html` (one line per field) and
+`docs/about.html` (what the maps are, sources, method with each field's check values, corrections and removal) from
+every published field. Files under `docs/` are generated and change only through a pull request.

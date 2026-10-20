@@ -12,6 +12,8 @@
 - Record no sensitive categories (health, politics, religion, ethnicity, nationality beyond what
   an affiliation country implies).
 - Every stored fact carries its public URL so the subject's own public record can be re-checked.
+- A published map links a correction form and a removal form. A removal request needs no reason and is honoured at
+  the next publication: the person, or the whole group when its PI asks, is left out of that field's map.
 - Exclude junior / school-level competitions and anyone evidently a minor.
 - Keep `run.meta.json` with the run; it states purpose, date, scope, window and sources, which is the
   minimum a data controller needs to document processing of public data under legitimate interest. Page records

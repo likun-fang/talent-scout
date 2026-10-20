@@ -1,0 +1,31 @@
+name: Remove an entry from a group map
+description: Remove yourself, or a whole group, from the research group maps.
+title: "Removal: "
+labels: ["removal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        No explanation is needed. The removal is made at the next publication. This issue is public.
+  - type: input
+    id: name
+    attributes:
+      label: Name as shown on the map
+    validations:
+      required: true
+  - type: input
+    id: group
+    attributes:
+      label: Group
+      description: The group id from the card, or the PI's name and institution.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: What to remove
+      options:
+        - Remove me from this group
+        - Remove the whole group (I am its PI)
+    validations:
+      required: true
