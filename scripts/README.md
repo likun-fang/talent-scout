@@ -5,7 +5,7 @@ OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows r
 | script | stage | input → output |
 |--------|-------|----------------|
 | `openalex_lookup.py` | 1, 3, 4 | `--topic "<phrase>"` → top 10 topics to choose from; `--topics T1,T2` → venues (repository source types dropped, name blacklist as supplement) / institutions / lead authors in region; `--title "<paper>"` → authors with institutions; `--author <id>` → record with ORCID |
-| `visit_page.py` | final pass | public URL (or `--batch` file) → timestamped page text or LinkedIn excerpts, access status; optional Playwright rendering for JS-only lab pages |
+| `visit_page.py` | final pass | public URL (or `--batch` file) → timestamped page text and access status; refuses LinkedIn; optional Playwright rendering for JS-only lab pages |
 | `current_affiliation.py` | 4 | `persons.jsonl` → same records with current affiliation from ORCID / OpenAlex / newest evidence, with the stale-ORCID override, role classification, topics, group and tier |
 | `merge_persons.py` | 4 | `signals.jsonl` → `persons.jsonl` using the key ladder; emits role fields, topics, group and tier; never merges on name alone |
 | `table_export.py` | 5 | `persons.jsonl` → region-filtered `roster.csv` + `roster.md` + `groups.csv` + `groups.md` (+ Coverage and evidence, `.out-of-region.json`, `.excluded-signals.json`), sorted by tier before `--max-rows` |
@@ -36,19 +36,14 @@ Static HTML/text (no extra dependencies):
 python3 scripts/visit_page.py 'https://example.org/person' --out runs/demo/pages/person.json
 ```
 
-One serial LinkedIn batch for unresolved exported profiles, 5 s apart, stopping at the first authwall / 999 / 429:
+Several pages in one serial batch, 5 s apart, one record file each:
 
 ```sh
-python3 scripts/visit_page.py --batch runs/demo/linkedin-urls.txt --out-dir runs/demo/pages/linkedin/ --delay 5
+python3 scripts/visit_page.py --batch runs/demo/team-pages.txt --out-dir runs/demo/pages/ --delay 5
 ```
 
-LinkedIn records keep only the headline and the Experience / Education / Publications / Projects excerpts
-(`sections`), plus URL, status and `retrieved_at`; page text and links are dropped unless `--full-text` is given.
+The reader refuses LinkedIn URLs, and a page that redirects to LinkedIn keeps no text (status `outside_sources`).
 A refused page is recorded with its status and exit code 2, never treated as a successful lookup.
-Each section has a boolean in `section_truncated`, keyed by the same section name as `sections`;
-this preserves the existing lists of lines in `sections`. A line cap or page/byte cap before a section's
-end marks it true; reaching the next heading or public-profile boundary marks it false. A readable
-public profile may still be incomplete even when this flag is false.
 
 Refused or empty pages climb a keyless ladder automatically (plain HTTP with a browser User-Agent → Wayback capture →
 Jina Reader → local browser); `attempts` lists every step, `fetch_via` the one that worked, `--ladder http` turns it
@@ -70,8 +65,7 @@ python3 -m venv .venv-browser
 ```
 
 `--channel chrome` uses installed Google Chrome in a new, unauthenticated context; or run
-`.venv-browser/bin/python -m playwright install chromium` and omit `--channel`. The reader refuses LinkedIn URLs
-in browser mode because a headless browser lands on the authwall. It never loads browser cookies, logs in,
+`.venv-browser/bin/python -m playwright install chromium` and omit `--channel`. It never loads browser cookies, logs in,
 clicks buttons or submits forms, and it rejects localhost, private and link-local addresses.
 
 JSON includes `status`, `requested_url`, `final_url`, `retrieved_at`, `title`, `text` (or `sections`), `links`,
@@ -116,8 +110,7 @@ GmbH (DFKI, Forschungszentrum Jülich, Fraunhofer, Helmholtz, Max Planck, Leibni
 academic/healthcare terms unless GmbH/AG/Inc/Ltd is explicit; bare Meta/FAIR/Apple/Amazon and generic Labs
 do not qualify. SA is case-sensitive and must end the affiliation or precede a comma.
 `role_evidence` records the rule, verbatim excerpt and URL, including the German research-assistant caveat.
-See the exact mapping and the optional `linkedin_headline`/`linkedin_url` final-pass input adapter in
-`references/40-entity-resolution.md`. Provider enrichment never claims a final-pass verification.
+See the exact mapping in `references/40-entity-resolution.md`. Provider enrichment never claims a final-pass verification.
 `last_verified` remains empty unless a final-pass reader explicitly supplied an actual read date.
 
 The last six roster columns are `role_class, role_confidence, tier, topics, group, role_evidence`; there are 25 columns total. Person topics are
