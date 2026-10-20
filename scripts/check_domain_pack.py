@@ -30,20 +30,23 @@ PERSONAL = ((r'linkedin\.', 'a LinkedIn URL'), (r'\bA5\d{9}\b', 'an OpenAlex aut
 
 def strip_comment(text: str) -> str:
     """Cut a # comment; a # inside a quoted scalar or glued to a word ("#awards") stays. A quote opens a scalar only
-    where a scalar can start, so the apostrophe in a plain "Akata's lab" is text."""
-    quote, previous = None, ' '
+    where a scalar can start, so the apostrophe in a plain "Akata's lab" is text; \\" does not close a "…" scalar."""
+    quote, previous, escaped = None, ' ', False
     for i, ch in enumerate(text):
         if quote:
-            if ch == quote:
+            if escaped:
+                escaped = False
+            elif ch == '\\' and quote == '"':
+                escaped = True
+            elif ch == quote:
                 quote = None
-        elif ch in '"\'' and previous in ' :-[{,':
+            previous = ch
+            continue
+        if ch in '"\'' and previous in ' :-[{,':
             quote = ch
         elif ch == '#' and previous in ' \t':
             return text[:i].rstrip()
-        if not (quote is None and ch in ' \t'):
-            previous = ch if ch not in ' \t' else previous
-        else:
-            previous = ' '
+        previous = ' ' if ch in ' \t' else ch
     return text.rstrip()
 
 
@@ -93,14 +96,14 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
         closing, mapping = ('}', True) if text[pos] == '{' else (']', False)
         result, pos = ({} if mapping else []), pos + 1
         while True:
-            while text[pos:pos + 1] in (' ', ','):
+            while text[pos:pos + 1] == ' ':
                 pos += 1
             if text[pos:pos + 1] == closing:
                 return result, pos + 1
             if pos >= len(text):
                 raise ValueError(f'unclosed {"mapping" if mapping else "sequence"}')
             if mapping:
-                key, pos = flow(text, pos, ':')
+                key, pos = flow(text, pos, ':,' + closing)
                 if text[pos:pos + 1] != ':':
                     raise ValueError(f'expected ":" after key {key!r}')
                 value, pos = flow(text, pos + 1, ',' + closing)
@@ -108,14 +111,24 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
             else:
                 value, pos = flow(text, pos, ',' + closing)
                 result.append(value)
+            while text[pos:pos + 1] == ' ':
+                pos += 1
+            if text[pos:pos + 1] == ',':
+                pos += 1
+            elif text[pos:pos + 1] != closing:
+                raise ValueError(f'expected "," or "{closing}" at column {pos + 1}')
     if text[pos:pos + 1] in ('"', "'"):
         return quoted(text, pos)
+    if text[pos:pos + 1] in ('&', '*', '!'):
+        raise ValueError(f'{text[pos]!r} (an anchor, alias or tag) is outside the YAML subset')
     end = pos
-    while end < len(text) and text[end] not in stops:
-        # A ":" ends a plain key only before a space or the end; "https://x" stays one scalar.
-        if text[end] == ':' and ':' in stops and text[end + 1:end + 2] not in ('', ' '):
-            end += 1
-            continue
+    while end < len(text):
+        # A ":" ends a plain key only before a space, a flow indicator or the end; "https://x" stays one scalar.
+        if text[end] == ':' and ':' in stops:
+            if text[end + 1:end + 2] in ('', ' ', ',', '}', ']'):
+                break
+        elif text[end] in stops:
+            break
         end += 1
     return scalar(text[pos:end].strip()), end
 
@@ -144,9 +157,13 @@ def load_yaml(text: str):
     def node(i: int, indent: int):
         return sequence(i, indent) if lines[i][2].startswith('-') and lines[i][2][1:2] in ('', ' ') else mapping(i, indent)
 
-    def nested(i: int, indent: int):
-        """The value of a key or item with nothing after it: a deeper block, a sequence at the same indent, or null."""
-        if i < len(lines) and (lines[i][1] > indent or lines[i][1] == indent and lines[i][2].startswith('- ')):
+    def item(content: str) -> bool:
+        return content.startswith('-') and content[1:2] in ('', ' ')
+
+    def nested(i: int, indent: int, same_indent_sequence: bool = True):
+        """The value of a key or item with nothing after it: a deeper block, a sequence at the same indent (after a
+        key, not after an item, where the next "-" is a sibling), or null."""
+        if i < len(lines) and (lines[i][1] > indent or same_indent_sequence and lines[i][1] == indent and item(lines[i][2])):
             return node(i, lines[i][1])
         return None, i
 
@@ -176,8 +193,8 @@ def load_yaml(text: str):
             number, _, content = lines[i]
             rest = content[1:].strip()
             if not rest:
-                value, i = nested(i + 1, indent)
-            elif rest[0] not in '{["\'' and KEY.match(rest):
+                value, i = nested(i + 1, indent, same_indent_sequence=False)
+            elif rest[0] not in '{[' and KEY.match(rest):
                 # "- key: value" opens a mapping whose further keys sit at the column of that key.
                 lines[i] = [number, indent + len(content) - len(content[1:].lstrip()), rest]
                 value, i = mapping(i, lines[i][1])
@@ -287,6 +304,15 @@ def check_pack(slug: str, root: Path = SKILL_ROOT) -> tuple[list[str], list[str]
     return errors, warnings
 
 
+def report(slug: str, root: Path = SKILL_ROOT) -> str:
+    errors, warnings = check_pack(slug, root)
+    data = examine(root / 'domain-cache' / f'{slug}.yaml')[1] or {}
+    counts = ', '.join(f'{key} {len(data[key]) if isinstance(data.get(key), list) else "?"}'
+                       for key in ('openalex_topics', 'labs', 'companies', 'keywords'))
+    return (f'{"FAIL" if errors else "ok"} {slug}: {len(data)} keys; {counts}'
+            + ''.join(f'\n  error: {e}' for e in errors) + ''.join(f'\n  warning: {w}' for w in warnings))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('slugs', nargs='*')
@@ -294,19 +320,13 @@ def main() -> None:
     args = parser.parse_args()
     if not args.slugs and not args.template:
         parser.error('name at least one slug, or --template')
-    failed = False
+    lines = []
     if args.template:
         errors = check_file(TEMPLATE, template=True)
-        print(f'{"FAIL" if errors else "ok"} template {TEMPLATE.name}' + ''.join(f'\n  error: {e}' for e in errors))
-        failed |= bool(errors)
-    for slug in args.slugs:
-        errors, warnings = check_pack(slug)
-        data = examine(SKILL_ROOT / 'domain-cache' / f'{slug}.yaml')[1] or {}
-        counts = ', '.join(f'{key} {len(data.get(key) or [])}' for key in ('openalex_topics', 'labs', 'companies', 'keywords'))
-        print(f'{"FAIL" if errors else "ok"} {slug}: {len(data)} keys; {counts}'
-              + ''.join(f'\n  error: {e}' for e in errors) + ''.join(f'\n  warning: {w}' for w in warnings))
-        failed |= bool(errors)
-    sys.exit(1 if failed else 0)
+        lines.append(f'{"FAIL" if errors else "ok"} template {TEMPLATE.name}' + ''.join(f'\n  error: {e}' for e in errors))
+    lines += [report(slug) for slug in args.slugs]
+    print('\n'.join(lines))
+    sys.exit(1 if any(line.startswith('FAIL') for line in lines) else 0)
 
 
 if __name__ == '__main__':
