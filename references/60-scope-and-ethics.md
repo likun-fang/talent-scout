@@ -6,7 +6,8 @@
 - Role class and group are data taken from public pages; they are not an assessment of anyone.
 - Sources are the public professional record: institutional web pages, papers, grant registers, competition
   results, public code, company team pages. LinkedIn is not read at any stage, not even to confirm a role;
-  `group_export.py`, `check_groups.py` and `publish_site.py` refuse any LinkedIn key or URL. Login-gated content,
+  `group_export.py` stops when a LinkedIn key or URL sits on a record the map is built from, and `check_groups.py`
+  and `publish_site.py` refuse any LinkedIn key or URL in the published data. Login-gated content,
   social-network profiles, people-search aggregators and private contact details stay outside the run.
 - Record no sensitive categories (health, politics, religion, ethnicity, nationality beyond what
   an affiliation country implies).

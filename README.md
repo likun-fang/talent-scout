@@ -4,8 +4,8 @@ Public maps of research groups in Europe, one per field, built from the public a
 
 ## The maps
 
-- Fields published: multimodal AI. Prepared, not yet run: embodied AI (`domain-cache/embodied-ai.yaml`).
-- Each group card shows the PI, the institution, the homepage, the members a public team page names, the topics, the date the page was read and the evidence links. A card that says "members not yet collected" has no member linked from a public page yet.
+- Fields published: multimodal AI. Prepared, not yet published: embodied AI (`domain-cache/embodied-ai.yaml`).
+- Each group card shows the PI, the institution, the homepage, the members a public team page or a shared grant links to the group, the topics, the date the page was read (or of the newest record when no page was read) and the evidence links. A card that says "members not yet collected" has no member linked from a public page yet.
 - Four checks run before every publication and their current values are on the about page: recall against a list of well-known groups of the field (`assets/known-groups/<slug>.json`), the share of groups read more than 12 months ago, the absence of any LinkedIn key or URL, and a seeded sample for a check by hand.
 - Every card links a correction form; a removal form takes a name and a group and needs no reason. Removals are applied at the next publication and are kept outside the repository.
 
