@@ -16,7 +16,7 @@ multimodal keyword is an implicit inclusion criterion: project titles or abstrac
 ## Sources and discovery
 
 The official entry pages below were opened on 2026-10-12. Their availability and published search guidance were
-checked. A live ANR/NWO sample is recorded in `docs/runs/2026-10-12-multimodal-funding-pilot.md`;
+checked. A live ANR/NWO sample is recorded in `notes/runs/2026-10-12-multimodal-funding-pilot.md`;
 FRIS, DataScops and the AEI table download were read live on 2026-10-14 (below). Read current forms/API documentation
 before using filters. Do not assume every portal exposes the same fields or a public bulk API.
 
