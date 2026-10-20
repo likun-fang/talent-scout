@@ -95,6 +95,10 @@ class TitleRuleTests(unittest.TestCase):
 
     def test_institute_and_doctoral_school_context_comes_from_the_page(self):
         self.assertEqual(title_class('Scientific Director', affiliation='MPI Informatics'), 'professor')
+        # A research institute in a GmbH shell (DFKI, Fraunhofer) is an institute, whatever its name says.
+        self.assertEqual(title_class('Scientific Director', affiliation='German Research Center for Artificial Intelligence (DFKI GmbH)'),
+                         'professor')
+        self.assertEqual(title_class('Scientific Director', affiliation='Siemens Healthineers GmbH'), '')
         imprs = {'role_title': 'Scholars', 'parent': 'International Max Planck Research School for Intelligent Systems',
                  'affiliation_raw': 'MPI for Intelligent Systems / University of Tübingen / University of Stuttgart',
                  'evidence_url': 'https://imprs.is.mpg.de/scholars', 'signal_type': 'imprs_member'}
