@@ -151,13 +151,12 @@ def secondary_post(person: dict) -> bool:
     lead = re.split(r'[,;(]|\b(?:in the (?:group|lab) of|supervised by|advised by|with prof)\b', title, flags=re.I)[0]
     return bool(re.match(r'\s*(?:' + SECONDARY_TITLE + ')', lead, re.I) and place and current and not past_position(person)
                 and academic_institution(place)
-                and not any(same_institution_name(a, b) for a in institution_items(place) for b in institution_items(current)))
+                and not any(same_institution_name(a, b) for a in unbracketed(place) for b in unbracketed(current)))
 
 
-def institution_items(name: str) -> list[str]:
-    """The name and those of its items that read as an institution: "TUM" in "TUM (Munich)", not the city."""
-    items = [item.strip() for item in re.split(r'[,;()]|\s/\s', name or '') if item.strip()]
-    return [name] + [item for item in items if re.search(INSTITUTION_WORDS, normalized(item)) or registered_spellings(item)]
+def unbracketed(name: str) -> set[str]:
+    """The name as printed and without its brackets: "TUM (Munich)" is TUM; a bracket alone never decides."""
+    return {name, ' '.join(re.sub(r'\([^)]*\)', ' ', name or '').split())} - {''}
 
 
 def academic_institution(name: str) -> bool:
