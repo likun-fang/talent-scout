@@ -36,8 +36,8 @@ def strip_comment(text: str) -> str:
         if quote:
             if escaped:
                 escaped = False
-            elif ch == '\\' and quote == '"':
-                escaped = True
+            elif ch == '\\' and quote == '"' or ch == "'" == quote and text[i + 1:i + 2] == "'":
+                escaped = True  # \" in "…", '' in '…'
             elif ch == quote:
                 quote = None
             previous = ch
@@ -104,11 +104,15 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
                 raise ValueError(f'unclosed {"mapping" if mapping else "sequence"}')
             if mapping:
                 key, pos = flow(text, pos, ':,' + closing)
+                while text[pos:pos + 1] == ' ':
+                    pos += 1
                 if text[pos:pos + 1] != ':':
                     raise ValueError(f'expected ":" after key {key!r}')
                 value, pos = flow(text, pos + 1, ',' + closing)
                 result[str(key)] = value
             else:
+                if text[pos:pos + 1] == ',':
+                    raise ValueError(f'empty entry at column {pos + 1}')
                 value, pos = flow(text, pos, ',' + closing)
                 result.append(value)
             while text[pos:pos + 1] == ' ':
@@ -125,7 +129,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
     while end < len(text):
         # A ":" ends a plain key only before a space, a flow indicator or the end; "https://x" stays one scalar.
         if text[end] == ':' and ':' in stops:
-            if text[end + 1:end + 2] in ('', ' ', ',', '}', ']'):
+            if text[end + 1:end + 2] in ('', ' ', ',', '{', '}', '[', ']'):
                 break
         elif text[end] in stops:
             break
@@ -136,6 +140,8 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
 def inline(text: str):
     if re.fullmatch(r'[|>][-+]?\d*', text) or text.startswith(('&', '*', '!')):
         raise ValueError(f'{text[:2]!r} is outside the YAML subset')
+    if text[0] not in '{["\'' and (': ' in text or text.endswith(':')):
+        raise ValueError(f'a plain value with ": " needs quotes: {text[:40]!r}')
     value, end = flow(text, 0, '')
     if text[end:].strip():
         raise ValueError(f'unexpected text after the value: {text[end:].strip()[:30]!r}')
