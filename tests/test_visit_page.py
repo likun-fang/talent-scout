@@ -45,7 +45,8 @@ class ReaderTests(unittest.TestCase):
                 visit(url)
             self.assertIn('LinkedIn is outside the sources', str(stop.exception))
             self.assertFalse(read.called)
-        for url in ('https://linkedin.com.example.org/', 'https://lab.example.org/team#linkedin.com'):
+        for url in ('https://linkedin.com.example.org/', 'https://lab.example.org/team#linkedin.com',
+                    'https://lab.example.org/team?utm_source=linkedin.com&utm_medium=social'):
             with self.subTest(url=url), patch('visit_page.http_read', return_value={'text': 'ok', 'final_url': url}):
                 self.assertEqual(visit(url, ladder=('http',))['status'], 'readable')
 
