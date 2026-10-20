@@ -45,13 +45,15 @@ class ReaderTests(unittest.TestCase):
                 visit(url)
             self.assertIn('LinkedIn is outside the sources', str(stop.exception))
             self.assertFalse(read.called)
-        with patch('visit_page.http_read', return_value={'text': 'ok', 'final_url': 'https://linkedin.com.example.org/'}):
-            self.assertEqual(visit('https://linkedin.com.example.org/', ladder=('http',))['status'], 'readable')
+        for url in ('https://linkedin.com.example.org/', 'https://lab.example.org/team#linkedin.com'):
+            with self.subTest(url=url), patch('visit_page.http_read', return_value={'text': 'ok', 'final_url': url}):
+                self.assertEqual(visit(url, ladder=('http',))['status'], 'readable')
 
     def test_a_wrapped_or_dotted_linkedin_url_is_refused_too(self):
         for url in ('https://web.archive.org/web/20250101000000/https://linkedin.com/in/x',
                     'https://web.archive.org/web/2025/linkedin.com/in/x', 'https://r.jina.ai/https://linkedin.com/in/x',
-                    'https://www.linkedin.com./in/x', 'https://example.org/go?to=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fx'):
+                    'https://www.linkedin.com./in/x', 'https://example.org/go?to=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fx',
+                    'https://r.jina.ai/https://%4Cinkedin.com/in/x', 'https://example.org/reader?url=https%3A%2F%2Flinkedin.com&format=text'):
             with self.subTest(url=url), patch('visit_page.http_read') as read, self.assertRaises(OutsideSources):
                 visit(url)
             self.assertFalse(read.called)
