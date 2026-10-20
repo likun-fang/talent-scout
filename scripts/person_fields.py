@@ -155,8 +155,10 @@ def secondary_post(person: dict) -> bool:
 
 
 def unbracketed(name: str) -> set[str]:
-    """The name as printed and without its brackets: "TUM (Munich)" is TUM; a bracket alone never decides."""
-    return {name, ' '.join(re.sub(r'\([^)]*\)', ' ', name or '').split())} - {''}
+    """The name as printed, without its brackets ("TUM (Munich)" is TUM), and a bracket the alias registry lists
+    ("Department of Computer Science (TUM)" is TUM). Any other bracket, a city or a school, never decides."""
+    registered = {inner.strip() for inner in re.findall(r'\(([^)]*)\)', name or '') if registered_spellings(inner.strip())}
+    return ({name, ' '.join(re.sub(r'\([^)]*\)', ' ', name or '').split())} | registered) - {''}
 
 
 def academic_institution(name: str) -> bool:
