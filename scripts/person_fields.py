@@ -117,16 +117,17 @@ def leader_heading_signal(person: dict) -> dict | None:
     """The roster that lists the person under a group-leader heading, while it still holds: undated or not older
     than the final pass read, and at the person's institution or a second post of theirs (a roster at another
     institution is from before a move, as in rule_one)."""
-    read = (person.get('last_verified') or '')[:7]
+    read = person.get('last_verified') or ''
     places = [place for place in [affiliation_for(person)] + second_institutions(person) if place]
     for signal in person.get('signals', []):
         if signal.get('signal_type') not in TEAM_SIGNALS or not leader_heading(signal.get('role_title') or ''):
             continue
-        date, roster_place = (signal.get('date') or '')[:7], signal.get('affiliation_raw') or ''
-        if date and read and date < read:
+        date, roster_place = signal.get('date') or '', signal.get('affiliation_raw') or ''
+        # Compared at the precision both carry: a roster of the read month counts, one of an earlier day does not.
+        common = min(len(date), len(read))
+        if date and read and date[:common] < read[:common]:
             continue
-        if roster_place and not any(same_institution_name(roster_place, place) or names_part_of(place, roster_place)
-                                    for place in places):
+        if not any(same_institution_name(roster_place, place) or names_part_of(place, roster_place) for place in places):
             continue
         return signal
     return None
@@ -149,7 +150,12 @@ def secondary_post(person: dict) -> bool:
     current = person.get('current_affiliation') or ''
     lead = re.split(r'[,;(]|\b(?:in the (?:group|lab) of|supervised by|advised by|with prof)\b', title, flags=re.I)[0]
     return bool(re.match(r'\s*(?:' + SECONDARY_TITLE + ')', lead, re.I) and place and current and not past_position(person)
-                and re.search(ACADEMIC_WORDS, place, re.I) and not same_institution_name(place, current))
+                and academic_institution(place) and not same_institution_name(place, current))
+
+
+def academic_institution(name: str) -> bool:
+    """An academic name, or a short name the alias registry spells out as one ("TUM", "KIT")."""
+    return any(re.search(ACADEMIC_WORDS, value, re.I) for value in (name, registered_name(name)) if value)
 
 
 def second_institutions(person: dict) -> list[str]:
@@ -204,7 +210,8 @@ def roster_institutions(person: dict) -> list[str]:
     """Academic institutions of final-pass rosters read for this person as their head (lab_member signals with role pi
     and roster_pi) that differ from the institution the person's own final pass names: a second post, such as a group
     at another university or institute."""
-    own = person.get('final_pass_affiliation') or ''
+    # The group's own institution: the record's one when the final pass read a secondary post.
+    own = affiliation_for(person) if person.get('final_pass_affiliation') else ''
     if not own or past_position(person):
         return []
     places = (s.get('affiliation_raw') or '' for s in person.get('signals', [])
@@ -271,6 +278,18 @@ def institution_aliases() -> dict[str, str]:
     aliases = json.loads(path.read_text(encoding='utf-8'))
     return {institution_name(alias): institution_name(canonical)
             for canonical, variants in aliases.items() for alias in [canonical, *variants]}
+
+
+@lru_cache(maxsize=1)
+def registered_names() -> dict[str, str]:
+    path = Path(__file__).resolve().parents[1] / 'assets/institution-aliases.yaml'
+    registry = json.loads(path.read_text(encoding='utf-8'))
+    return {normalized(alias): canonical for canonical, variants in registry.items() for alias in [canonical, *variants]}
+
+
+def registered_name(value: str) -> str:
+    """The registry's name for a spelling it lists, else ''."""
+    return registered_names().get(normalized(value), '')
 
 
 @lru_cache(maxsize=1)

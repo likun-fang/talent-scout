@@ -66,6 +66,19 @@ class GroupLeaderHeadingTests(unittest.TestCase):
                 'signals': [{'name_raw': 'Marc', **roster('Research Group Leaders', affiliation_raw=f'{MPI}, Visual Computing')}]}
         self.assertEqual(ca.classify_role(unit, 2026)['role_class'], 'group_leader')
 
+    def test_a_roster_dated_before_the_read_day_or_without_an_institution_does_not_outrank_the_final_pass(self):
+        for heading_roster in (roster('Group Leaders', date='2026-10-01', channel='lab-pages'),
+                               roster('Group Leaders', affiliation_raw='')):
+            one = {'name': 'Marc', 'final_pass_title': 'Senior Researcher', 'final_pass_affiliation': MPI,
+                   'final_pass_url': 'https://own.example', 'last_verified': '2026-10-19',
+                   'signals': [{'name_raw': 'Marc', **heading_roster}]}
+            with self.subTest(date=heading_roster['date'], institution=heading_roster['affiliation_raw']):
+                self.assertEqual(ca.classify_role(one, 2026)['role_class'], 'researcher')
+        month = {'name': 'Marc', 'final_pass_title': 'Senior Researcher', 'final_pass_affiliation': MPI,
+                 'final_pass_url': 'https://own.example', 'last_verified': '2026-10-19',
+                 'signals': [{'name_raw': 'Marc', **roster('Group Leaders', date='2026-10', channel='lab-pages')}]}
+        self.assertEqual(ca.classify_role(month, 2026)['role_class'], 'group_leader')
+
     def test_a_group_leader_named_only_on_an_old_roster_does_not_anchor_a_group(self):
         head = person('Chris Director', 'professor', [roster('Director', role='pi', roster_pi='Chris Director')])
         lead = person('Rita Lead', 'group_leader', [roster('Group Leaders', date='2017-03', channel='lab-pages',
@@ -188,6 +201,20 @@ class SecondaryPostTests(unittest.TestCase):
         self.assertEqual(result['role_class'], 'industry')
         self.assertIn('Honorary Professor', result['role_evidence'])
         self.assertEqual(group_affiliation(one), ('Siemens AG', ['Technical University of Munich']))
+
+    def test_a_secondary_post_at_an_institution_named_by_its_acronym_is_still_a_secondary_post(self):
+        for place in ('TUM', 'KIT', 'NCT/UCC Dresden'):
+            one = self.member('Honorary Professor', place=place, current='Siemens AG')
+            with self.subTest(place=place):
+                self.assertEqual(group_affiliation(one), ('Siemens AG', [place]))
+                self.assertEqual(ca.classify_role(one, 2026)['role_class'], 'industry')
+
+    def test_a_roster_at_the_records_own_institution_is_not_a_second_post(self):
+        lead = {**self.member('Adjunct Professor', current='DFKI'),
+                'signals': [{'name_raw': 'Richard', 'signal_type': 'lab_member', 'role': 'pi', 'parent': 'Agents Lab',
+                             'channel': 'final-pass', 'date': '', 'affiliation_raw': 'DFKI', 'roster_pi': 'Richard',
+                             'evidence_url': PAGE}]}
+        self.assertEqual(group_affiliation(lead), ('DFKI', ['Saarland University']))
 
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
         for place, current in (('Universität des Saarlandes', 'Saarland University'), ('DFKI Saarbrücken', DFKI),

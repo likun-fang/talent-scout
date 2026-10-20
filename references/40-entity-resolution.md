@@ -88,7 +88,8 @@ that lists the person under a group-leader heading, one of whose items is exactl
 Leaders", "Independent Group Leader", "Scientist, Group Leader of Surgical Analytics"; not a former, deputy, dated or
 bracket-qualified one, and none that also names doctoral students or postdocs): it outranks a researcher title read in
 the final pass, and the person is a group_leader. The roster counts only when it is undated or not older than the final
-pass and sits at the person's institution; an older roster or one at another institution is from before a move.
+pass (compared at the precision both dates carry) and names the person's institution; an older roster, one at
+another institution or one without an institution can be from before a move.
 The patterns accept plural and German feminine forms ("Doctoral students", "Professors", "Wissenschaftliche
 Mitarbeiterinnen"), because a section heading is the usual `role_title` on people pages.
 Rule 1 sources are signal `role_title`, current ORCID employment `role-title`, and a final-pass
@@ -116,7 +117,8 @@ so it does when the leader's affiliation is an ORCID employment at a company and
 began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. A final-pass title whose leading item names a current secondary post
 (Affiliated, Affiliate, Adjunct or Honorary Professor, also with a rank such as "Adjunct Associate Professor",
 Honorarprofessor, außerplanmäßiger Professor or apl. Prof., Privatdozent or PD Dr.) at another academic institution than
-the person's record never sets the institution or the country. Only the alias registry and the items of a name make the
+the person's record (a short name the alias registry spells out, such as TUM or KIT, counts as academic) never sets
+the institution or the country. Only the alias registry and the items of a name make the
 post's institution the record's; a shared word does not, since two institutions of one city share it (DFKI and Saarland
 University in Saarbrücken). With such a post the record's institution
 stays, the post joins `also_at`, and that institution counts as the leader's for members: a roster member there is
