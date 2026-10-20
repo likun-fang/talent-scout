@@ -139,7 +139,7 @@ const I18N = {
     tileHint: n => `basemap "${n}" is not loading on this network; pick another one, the markers still work`,
     aboutText: m => [
       `A public map of research groups in ${m.domain || 'one field'}, in ${m.region}, as of ${m.as_of}. One entry per group: its PI, institution and homepage. People appear only as names with a role under their group.`,
-      'Built from academic public pages (lab and institutional pages read by hand) and public funding and paper records since ' + m.window_start + '. No LinkedIn data.',
+      'Built from academic public pages (lab, group and institutional pages, read page by page; a sample is checked by hand) and public funding and paper records since ' + m.window_start + '. No LinkedIn data.',
       'Roles come from titles on public pages and from funding records and can be wrong. Groups are listed by institution and then PI name; the order carries no judgement.',
       'Institution positions come from a manual table or a ROR name search; "approximate position" means the centre of the country.',
       'Something wrong or missing? Every card has a "Report a correction" link.'],
@@ -157,7 +157,7 @@ const I18N = {
     tileHint: n => `底图 "${n}" 在当前网络加载不了，换一个即可，圆点不受影响`,
     aboutText: m => [
       `欧洲${m.domain || '某一领域'}研究课题组的公开地图，区域 ${m.region}，截至 ${m.as_of}。每个课题组一条：负责人、机构和主页。人员只以姓名和角色列在所属课题组下。`,
-      `数据来自学术公开页面（人工读过的实验室和机构页面）以及 ${m.window_start} 以来的公开资助和论文记录。不含领英数据。`,
+      `数据来自学术公开页面（实验室、课题组和机构页面，逐页阅读，抽样人工核查）以及 ${m.window_start} 以来的公开资助和论文记录。不含领英数据。`,
       '角色取自公开页面上的头衔和资助记录，可能有错。课题组按机构、再按负责人姓名排列，顺序不代表任何评价。',
       '机构位置来自手工表或 ROR 名称检索；"位置为近似"表示用的是国家中心点。',
       '发现错误或遗漏？每张卡片都有"报告错误"链接。'],
