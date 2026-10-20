@@ -79,7 +79,7 @@ def scalar(token: str):
         return int(token)
     if re.fullmatch(r'-?(0|[1-9][0-9]*)\.[0-9]+', token):
         return float(token)
-    if YAML_TYPED.match(token):
+    if YAML_TYPED.match(token) or token in ('<<', '='):
         raise ValueError(f'{token!r} reads as a typed value in YAML: quote it')
     return token
 
@@ -182,6 +182,12 @@ KEY = re.compile(r'^("(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'|[^ \t"\'{\[\]},#&*!|>
 
 
 def load_yaml(text: str):
+    text = text.replace('\r\n', '\n')
+    # Control characters (and the line separators splitlines() would split on) are outside YAML's printable set.
+    bad = re.search(r'[\x00-\x08\x0b-\x1f\x7f-\x84\x86-\x9f\u2028\u2029]', text)
+    if bad:
+        line = text.count('\n', 0, bad.start()) + 1
+        raise ValueError(f'line {line}: control character {bad.group()!r} is outside YAML')
     lines = []
     for number, raw in enumerate(text.splitlines(), 1):
         content = strip_comment(raw)
