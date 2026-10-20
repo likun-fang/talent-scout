@@ -163,12 +163,14 @@ def name_in_url(name: str, url: str) -> bool:
     "?name=Ben+Ott", "ben_ott.html", "/john-oconnor" or "/john_o-connor" for John O'Connor, "/S%C3%B8ren%20Nielsen",
     "/John%20R.%20Smith". Apostrophes in the URL are dropped, and up to three separators or none may stand between the
     words of the name; the spelling must stand as a whole ("/ruben-otto" does not spell Ben Ott)."""
-    words = re.findall(r'[^\W_]+', normalized(name))  # "O'Connor" gives "o", "connor", joined below like any words
-    if len(words) < 2:
-        return False
     text = APOSTROPHES.sub('', normalized(urllib.parse.unquote_plus(url)))
-    spelling = r'[\W_]{0,3}'.join(re.escape(word) for word in words)
-    return bool(re.search(rf'(?<![^\W_]){spelling}(?![^\W_])', text))
+    for folded in name_spellings(name):  # Kühne also as Kuehne
+        words = folded.split()  # "O'Connor" gives "o", "connor", joined below like any words
+        # A one-word name (王明, a mononym) matches as a whole word too: removing a link too many is the safe side.
+        spelling = r'[\W_]{0,3}'.join(re.escape(word) for word in words)
+        if words and re.search(rf'(?<![^\W_]){spelling}(?![^\W_])', text):
+            return True
+    return False
 
 
 def name_spellings(name: str) -> set[str]:
