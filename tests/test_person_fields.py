@@ -110,7 +110,7 @@ class RoleTests(unittest.TestCase):
 
     def test_title_sources_order_and_no_mutation(self):
         person = {'signals': [signal(role_title='Professor', date='2024'), signal(role_title='Doctoral student', date='2025')],
-                  'last_verified': '2026-10-12', 'linkedin_headline': 'Research Scientist', 'linkedin_url': 'https://linkedin.com/in/example'}
+                  'last_verified': '2026-10-12', 'final_pass_title': 'Research Scientist', 'final_pass_url': 'https://lab.example/people'}
         original = copy.deepcopy(person)
         employment = (2025, 'Example Institute', 'DE', 'Postdoc', 'https://orcid.org/example')
         result = ca.classify_role(person, 2026, employment)
@@ -121,6 +121,16 @@ class RoleTests(unittest.TestCase):
         self.assertIn('ORCID', result['role_evidence'])
         result = ca.classify_role({**person, 'last_verified': ''}, 2026)
         self.assertEqual(result['role_class'], 'phd_student')
+
+    def test_a_linkedin_headline_left_on_a_record_is_not_a_title(self):
+        person = {'signals': [signal(role_title='Doctoral student', date='2025')], 'last_verified': '2026-10-12',
+                  'linkedin_headline': 'Professor of Robotics', 'linkedin_url': 'https://www.linkedin.com/in/example'}
+        employment = (2025, 'Example Institute', 'DE', 'Postdoc', 'https://orcid.org/example')
+        result = ca.classify_role(person, 2026, employment)
+        self.assertEqual(result['role_class'], 'researcher')
+        self.assertNotIn('rule 0', result['role_evidence'])
+        self.assertNotIn('linkedin', result['role_evidence'].casefold())
+        self.assertIsNone(ca.final_pass_title(person))
 
     def test_enrich_uses_provider_titles_and_company_type_without_verifying(self):
         person = {'name': 'A', 'ids': {'orcid': '0000', 'openalex': 'A1'}, 'signals': [signal()]}
