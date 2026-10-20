@@ -326,10 +326,10 @@ def field_lines(fields: list[tuple[str, dict]], zh: bool) -> str:
 def index_page(fields: list[tuple[str, dict]]) -> str:
     english = (header('Research group maps', '中文', 'zh')
                + '<p>Public maps of research groups in Europe, one per field. One entry per group: its PI, institution '
-               'and homepage. No ranking.</p>' + field_lines(fields, False)
+               'and homepage, listed by institution and PI.</p>' + field_lines(fields, False)
                + '<p><a href="about.html">About these maps, their sources and how to correct or remove an entry</a></p>')
     chinese = (header('研究课题组地图', 'English', 'en')
-               + '<p>欧洲研究课题组的公开地图，每个领域一张。每个课题组一条：负责人、机构和主页。不排名。</p>'
+               + '<p>欧洲研究课题组的公开地图，每个领域一张。每个课题组一条：负责人、机构和主页，按机构和负责人排列。</p>'
                + field_lines(fields, True)
                + '<p><a href="about.html">关于这些地图：来源、方法，以及如何更正或删除条目</a></p>')
     return page('Research group maps', english, chinese)
@@ -357,13 +357,13 @@ def about_page(fields: list[tuple[str, dict]]) -> str:
 <section data-part="what"><h2>What the maps are</h2>
 <p>Each map shows the research groups of one field in Europe: the EU, the UK, Switzerland and Norway.</p>
 <p>One entry is one group: a PI, an institution and the group's homepage.</p>
-<p>Members appear by name and role under their group. Nothing else about them is shown.</p>
-<p>There is no ranking and there are no tiers. Groups are listed by institution, then by PI name.</p>
+<p>Members appear by name and role under their group; those two facts are all the map shows about them.</p>
+<p>Groups are listed by institution, then by PI name.</p>
 {field_lines(fields, False)}</section>
 <section data-part="sources"><h2>Data sources</h2>
 <p>Public academic pages: lab, group and institutional pages, read page by page; a sample is checked by hand.</p>
 <p>Public funding registers, publication metadata, and award and competition pages.</p>
-<p>Never LinkedIn and never paid sources.</p>
+<p>These are the only sources.</p>
 <p>Each group shows the date its page was last read.</p></section>
 <section data-part="method"><h2>Method</h2>
 <p>A group forms around its PI: a professor, a group leader named as such on a public page, or the lead of a grant.</p>
@@ -377,7 +377,7 @@ next to it, not in its place.</p>
 has no members.</p>
 <p>Before each publication four checks run. (a) At least {RECALL_MIN:.0%} of a list of well-known groups in the field
 are on the map, with the same PI at the same institution. (b) At most {STALE_MAX:.0%} of groups were last read more
-than 12 months before the map's date. (c) No LinkedIn key or URL appears anywhere in the data. (d) A random sample of
+than 12 months before the map's date. (c) The data is free of LinkedIn keys and URLs. (d) A random sample of
 groups is checked by hand against their pages. The current values:</p>
 {check_rows(fields, False)}</section>
 <section data-part="corrections"><h2>Corrections and removal</h2>
@@ -392,20 +392,20 @@ the page was read. Nothing else.</p></section>'''
 <section data-part="what"><h2>地图是什么</h2>
 <p>每张地图展示一个领域在欧洲（欧盟、英国、瑞士和挪威）的研究课题组。</p>
 <p>一个条目就是一个课题组：负责人、机构和课题组主页。</p>
-<p>成员只以姓名和角色列在所属课题组下，不显示其他信息。</p>
-<p>不排名，不分级。课题组按机构、再按负责人姓名排列。</p>
+<p>成员以姓名和角色列在所属课题组下，地图展示的只有这两项。</p>
+<p>课题组按机构、再按负责人姓名排列。</p>
 {field_lines(fields, True)}</section>
 <section data-part="sources"><h2>数据来源</h2>
 <p>学术公开页面：实验室、课题组和机构页面，逐页阅读，抽样人工核查。</p>
 <p>公开的资助登记、论文元数据，以及奖项和竞赛页面。</p>
-<p>从不使用领英，也不使用付费来源。</p>
+<p>来源仅限于此。</p>
 <p>每个课题组都标明其页面最近一次阅读的日期。</p></section>
 <section data-part="method"><h2>方法</h2>
 <p>课题组以负责人为中心：教授、公开页面上写明的课题组长，或资助项目的负责人。</p>
 <p>公开的团队页面把某人与负责人列在一起，或某人在同一机构参与负责人的资助项目，此人即为成员。只与负责人合写过论文的人只计数，不列名。如果较新的页面显示某人已在别处，仍列着此人的旧团队页面不算数。</p>
 <p>机构取负责人本人页面上的机构。同一机构的不同写法通过<a href="{aliases}">公开的名称表</a>合并。在别处的第二职位（如名誉教授）列在旁边，不取代主机构。</p>
 <p>卡片上写"成员未采集"，表示还没有从公开页面关联到成员，并不表示该课题组没有成员。</p>
-<p>每次发布前运行四项检查：(a) 该领域知名课题组清单中至少 {RECALL_MIN:.0%} 在图上，负责人和机构一致；(b) 最近一次阅读早于地图日期 12 个月以上的课题组不超过 {STALE_MAX:.0%}；(c) 数据中没有任何领英字段或链接；(d) 随机抽取若干课题组，人工对照其页面核查。当前数值：</p>
+<p>每次发布前运行四项检查：(a) 该领域知名课题组清单中至少 {RECALL_MIN:.0%} 在图上，负责人和机构一致；(b) 最近一次阅读早于地图日期 12 个月以上的课题组不超过 {STALE_MAX:.0%}；(c) 数据中领英字段和链接的计数为 0；(d) 随机抽取若干课题组，人工对照其页面核查。当前数值：</p>
 {check_rows(fields, True)}</section>
 <section data-part="corrections"><h2>更正与删除</h2>
 <p>要更正条目，请点课题组卡片上的"报告错误"，或使用<a href="{CORRECTION_FORM}">更正表单</a>：说明哪里有误，并附上能证明正确信息的公开页面。</p>
