@@ -116,7 +116,8 @@ so it does when the leader's affiliation is an ORCID employment at a company and
 began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. A final-pass title whose leading item names a current secondary post
 (Affiliated, Adjunct or Honorary Professor, Honorarprofessor, außerplanmäßiger Professor, Privatdozent) at another
 academic institution than the person's record never sets the institution or the country: the record's institution
-stays, the post joins `also_at`, and members of a roster at that institution are not stale. When the leader's own final pass names one academic institution and a
+stays, the post joins `also_at`, and that institution counts as the leader's for members: a roster member there is
+not stale, a coauthor there is not from another institution, and a member choosing between leaders keeps this one. When the leader's own final pass names one academic institution and a
 final-pass roster read for the leader as its head names another (Karolinska, and a group at FIMM Helsinki), the group sits
 at the final-pass institution and the roster's institution joins `also_at`; that roster's members are not stale. Two
 names count as two institutions only when they share no distinctive word, so a spelling or a unit of the same one

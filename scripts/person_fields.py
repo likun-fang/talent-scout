@@ -413,6 +413,14 @@ def name_variant(key: str, names: set[str]) -> bool:
     return False
 
 
+def at_leader_institution(member: dict, leader: dict) -> bool:
+    """The member is at the leader's institution or at one where the leader holds a second post (a roster read there,
+    a secondary professorship): a member there has not moved away and is no coauthor from elsewhere."""
+    place = affiliation_for(member)
+    return same_institution(member, leader) or bool(place) and any(names_part_of(place, other)
+                                                                   for other in second_institutions(leader))
+
+
 def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, str, str]:
     """(evidence, rejection, link kind) for the strongest parent link from member to leader."""
     names = [leader.get('name', ''), leader.get('name_raw', '')]
@@ -440,13 +448,11 @@ def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, st
         url = signal.get('evidence_url') or evidence_url(leader)
         # An undated roster still listing someone whom the final pass found at another institution is stale.
         if (signal.get('signal_type') in TEAM_SIGNALS and not signal.get('date') and member.get('final_pass_affiliation')
-                and not same_institution(member, leader)
-                # A member placed at the leader's second institution (a roster read there) has not moved away.
-                and not any(names_part_of(member['final_pass_affiliation'], place) for place in second_institutions(leader))):
+                and not at_leader_institution(member, leader)):
             rejected = f"moved since the roster: {parent} -> {leader['name']}, now {member['final_pass_affiliation']} | {url}"
             continue
         paper = signal.get('channel') in {'awards-papers', 'industry', 'competitions'} or key not in lab_parents
-        if paper and not same_institution(member, leader):
+        if paper and not at_leader_institution(member, leader):
             rejected = f"coauthor only, different institution: {parent} -> {leader['name']} | {url}"
             continue
         note = ' (name variant)' if variant else ''
@@ -479,7 +485,7 @@ def choose(member: dict, candidates: list[tuple], rule: int) -> dict | None:
         return None
     original = candidates
     if len(candidates) > 1:
-        candidates = [candidate for candidate in candidates if same_institution(member, candidate[0])]
+        candidates = [candidate for candidate in candidates if at_leader_institution(member, candidate[0])]
     if len(candidates) != 1:
         head = roster_head(member, candidates or original, rule)
         if head:

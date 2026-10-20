@@ -137,6 +137,39 @@ class SecondaryPostTests(unittest.TestCase):
                                 'channel': 'final-pass', 'date': '', 'affiliation_raw': 'Saarland University', 'evidence_url': PAGE}]}
         self.assertEqual({p['name']: p for p in assign_groups([lead, student])}['Pia']['group'], f'Richard @ {DFKI}')
 
+    def secondary_leader(self):
+        return {**self.member('Adjunct Professor'),
+                'signals': [{'name_raw': 'Richard', 'signal_type': 'lab_member', 'role': 'pi', 'parent': 'Graphics Lab',
+                             'channel': 'final-pass', 'date': '', 'affiliation_raw': 'Saarland University',
+                             'roster_pi': 'Richard', 'evidence_url': PAGE}]}
+
+    def test_a_roster_member_who_also_coauthored_with_a_professor_at_the_secondary_institution_stays_with_the_roster_head(self):
+        anna = {'name': 'Anna Prof', 'role_class': 'professor', 'current_affiliation': 'Saarland University',
+                'signals': [{'name_raw': 'Anna Prof', 'signal_type': 'lab_publication', 'role': 'last_author',
+                             'parent': 'Anna Prof', 'channel': 'awards-papers', 'date': '2025-06',
+                             'affiliation_raw': 'Saarland University', 'evidence_url': 'https://paper'}]}
+        pia = {'name': 'Pia', 'role_class': 'phd_student', 'final_pass_title': 'PhD student',
+               'final_pass_affiliation': 'Saarland University', 'final_pass_country': 'DE', 'last_verified': '2026-10-19',
+               'current_affiliation': 'Saarland University',
+               'signals': [{'name_raw': 'Pia', 'signal_type': 'lab_member', 'role': 'team_member', 'parent': 'Graphics Lab',
+                            'channel': 'final-pass', 'date': '', 'affiliation_raw': 'Saarland University',
+                            'evidence_url': PAGE, 'roster_pi': 'Richard'},
+                           {'name_raw': 'Pia', 'signal_type': 'lab_publication', 'role': 'first_author', 'parent': 'Anna Prof',
+                            'channel': 'awards-papers', 'date': '2025-06', 'affiliation_raw': 'Saarland University',
+                            'evidence_url': 'https://paper'}]}
+        groups = {p['name']: p for p in assign_groups([self.secondary_leader(), anna, pia])}
+        self.assertEqual(groups['Pia']['group'], f'Richard @ {DFKI}')
+        self.assertIn('roster head Richard', groups['Pia']['group_evidence'])
+
+    def test_a_coauthor_at_the_secondary_institution_is_not_at_a_different_institution(self):
+        max_ = {'name': 'Max', 'role_class': 'researcher', 'current_affiliation': 'Saarland University',
+                'final_pass_affiliation': 'Saarland University', 'final_pass_title': 'Postdoc', 'last_verified': '2026-10-19',
+                'signals': [{'name_raw': 'Max', 'signal_type': 'lab_publication', 'role': 'first_author', 'parent': 'Richard',
+                             'channel': 'awards-papers', 'date': '2025-06', 'affiliation_raw': 'Saarland University',
+                             'evidence_url': 'https://paper2'}]}
+        groups = {p['name']: p for p in assign_groups([self.secondary_leader(), max_])}
+        self.assertEqual(groups['Max']['group'], f'Richard @ {DFKI}')
+
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
         same = self.member('Adjunct Professor', place='DFKI Saarbrücken')
         self.assertEqual(affiliation_for(same), 'DFKI Saarbrücken')
