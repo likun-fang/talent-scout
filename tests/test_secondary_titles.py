@@ -182,6 +182,13 @@ class SecondaryPostTests(unittest.TestCase):
                 self.assertEqual(affiliation_for(one), current)
                 self.assertEqual(group_affiliation(one), (current, [place]))
 
+    def test_an_honorary_professorship_beside_a_company_record_leaves_the_person_in_industry(self):
+        one = self.member('Honorary Professor', place='Technical University of Munich', current='Siemens AG')
+        result = ca.classify_role(one, 2026)
+        self.assertEqual(result['role_class'], 'industry')
+        self.assertIn('Honorary Professor', result['role_evidence'])
+        self.assertEqual(group_affiliation(one), ('Siemens AG', ['Technical University of Munich']))
+
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
         same = self.member('Adjunct Professor', place='Universität des Saarlandes', current='Saarland University')
         self.assertEqual(affiliation_for(same), 'Universität des Saarlandes')
