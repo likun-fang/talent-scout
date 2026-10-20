@@ -19,7 +19,7 @@ Each stage names the file to read when you reach it and the condition that ends 
 | # | Stage | Read | Done when |
 |---|-------|------|-----------|
 | 0 | Probe environment, fix scope, ask once for the OpenAlex key | `references/00-environment.md` | `run.meta.json` written with env (OpenAlex keyed, or keyless with the user's answer recorded), `region_core` + `region_extended`, window, channels, page budgets, `run_dir`, `stage_status` |
-| 1 | Derive the domain map from universal sources | `references/10-domain-discovery.md` | `domain-map.yaml` written with its run copy under `domain-cache/`, shown to the user in one screen, and the user has replied |
+| 1 | Derive the domain map from the field's pack and universal sources | `references/15-domain-pack.md`, `references/10-domain-discovery.md` | `domain-map.yaml` written with its run copy under `domain-cache/`, shown to the user in one screen, and the user has replied |
 | 2 | Sweep channels into signals, hopping to people inside each channel | `references/channels/README.md`, then one file per channel in the run; hop rules in `references/30-hops.md` | every channel in `run.meta.json` has either reached its page budget or exhausted its sources; `signals/<channel>.jsonl` and `signals/<channel>.coverage.md` exist for each |
 | 3 | Close the hop gaps | `references/30-hops.md` | every non-person signal across channels has produced person signals or a `roster not public` note; `signals.jsonl` is the concatenation |
 | 4 | Merge signals into persons, then enrich | `references/40-entity-resolution.md` | `persons.jsonl` written by `merge_persons.py` **and passed through `current_affiliation.py`** (ORCID title and employment, OpenAlex institution and first publication year); each person has a strong key, or a weak key with same institution, or is marked `ambiguous`; each carries `role_class`, `role_evidence`, `role_confidence`, `tier`, `topics`, `group` |
@@ -63,10 +63,11 @@ does not count as a finished stage.
 
 ## Domain reuse
 
-The procedure is domain-agnostic; the domain map is derived at stage 1 and cached under
-`domain-cache/<slug>.yaml`. A cached map is a starting point to refresh, with its `derived_on` date as the
-signal for which fields to re-check. Region codes, ERC panels, EuroSciVoc paths and the national prize
-registry are universal and live in `assets/`.
+The procedure is domain-agnostic; a field is one pack (`references/15-domain-pack.md`): its domain map
+`domain-cache/<slug>.yaml`, its facets and its known groups, checked by `scripts/check_domain_pack.py`. A run starts
+from the pack and refreshes it, with `derived_on` as the signal for which fields to re-check; the pack changes only
+through a pull request. Region codes, ERC panels, EuroSciVoc paths and the national prize registry are universal and
+live in `assets/`.
 
 ## Final pass: current roles and affiliations, by group
 

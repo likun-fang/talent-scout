@@ -7,6 +7,11 @@ exists, load it, refresh the dated fields and recompute publication-based counts
 starting over. The cache records the `window` its counts were computed over; counts from another window are not
 recent activity. This stage maps where to look; it reads no grant lists or rosters (that is stage 2).
 
+A run starts from the field's pack (`references/15-domain-pack.md`): the cached map, `assets/facets/<slug>.json` and
+`assets/known-groups/<slug>.json`. For a new field, the maintainer's answers to the pack's ten questions start the map.
+What the run learns goes into the run's copy, never into the pack directly: the pack changes only through a pull
+request, and `scripts/check_domain_pack.py <slug>` passes before it is merged.
+
 ## 1. Venues and labs — OpenAlex (keyless JSON)
 
 - Topics: `https://api.openalex.org/topics?search=<phrase>` → read the top 10 (or all, when fewer come back) and
