@@ -75,7 +75,9 @@ class YamlSubsetTests(unittest.TestCase):
                  "keywords: ['it''s # robotics']\n": {'keywords': ["it's # robotics"]},
                  'labs: [{"name" : Robotics}]\n': {'labs': [{'name': 'Robotics'}]},
                  'labs: [{name:[robotics]}]\n': {'labs': [{'name': ['robotics']}]},
-                 'keyword_rules: use a "robotics term # comment\n': {'keyword_rules': 'use a "robotics term'}}
+                 'keyword_rules: use a "robotics term # comment\n': {'keyword_rules': 'use a "robotics term'},
+                 'keyword_rules: search vision, "robotics # comment\n': {'keyword_rules': 'search vision, "robotics'},
+                 'labs: [{name: "a, #1", url: https://x.example/#top}] # c\n': {'labs': [{'name': 'a, #1', 'url': 'https://x.example/#top'}]}}
         for text, expected in cases.items():
             with self.subTest(text=text):
                 self.assertEqual(load_yaml(text), expected)
@@ -83,7 +85,8 @@ class YamlSubsetTests(unittest.TestCase):
     def test_flow_collections_need_commas_and_anchors_are_outside_the_subset(self):
         for text in ('keywords: ["robots" "vision"]\n', 'keywords: [&seed robotics, *seed]\n', 'labs: {a: !tag b}\n',
                      'snapshot: {terms: [a,,b]}\n', 'keyword_rules: a: b\n', 'keywords: [robot: arm]\n', 'keywords: [foo{bar]\n',
-                     'keywords: []\nkeywords: [x]\n', 'labs: [{name: a, name: b}]\n'):
+                     'keywords: []\nkeywords: [x]\n', 'labs: [{name: a, name: b}]\n', 'keywords: [robot:]\n',
+                     'labs:\n  - - robotics\n'):
             with self.subTest(text=text):
                 with self.assertRaises(ValueError) as stop:
                     load_yaml(text)
