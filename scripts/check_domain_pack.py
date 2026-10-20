@@ -30,25 +30,26 @@ PERSONAL = ((r'linkedin\.', 'a LinkedIn URL'), (r'\bA5\d{9}\b', 'an OpenAlex aut
 
 def strip_comment(text: str) -> str:
     """Cut a # comment; a # inside a quoted scalar or glued to a word ("#awards") stays. A quote opens a scalar only
-    where a scalar can start, so the apostrophe in a plain "Akata's lab" is text; \\" does not close a "…" scalar."""
-    quote, previous, escaped = None, ' ', False
+    where a value can start (after ":", "-", "[", "{", "," or at the line start), so the apostrophe in a plain
+    "Akata's lab" and a quote inside a plain value are text; \\" and '' do not close a quoted scalar."""
+    quote, last, escaped = None, None, False
     for i, ch in enumerate(text):
         if quote:
             if escaped:
                 escaped = False
             elif ch == '\\' and quote == '"' or ch == "'" == quote and text[i + 1:i + 2] == "'":
-                escaped = True  # \" in "…", '' in '…'
+                escaped = True
             elif ch == quote:
                 quote = None
-            previous = ch
+            last = ch
             continue
-        if ch in '"\'' and previous in ' :-[{,':
+        if ch in '"\'' and last in (None, ':', '-', '[', '{', ','):
             quote = ch
-        elif ch == '#' and previous in ' \t':
+        elif ch == '#' and (i == 0 or text[i - 1] in ' \t'):
             return text[:i].rstrip()
-        previous = ' ' if ch in ' \t' else ch
+        if ch not in ' \t':
+            last = ch
     return text.rstrip()
-
 
 def scalar(token: str):
     if token in ('', '~', 'null'):
@@ -109,6 +110,8 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
                 if text[pos:pos + 1] != ':':
                     raise ValueError(f'expected ":" after key {key!r}')
                 value, pos = flow(text, pos + 1, ',' + closing)
+                if str(key) in result:
+                    raise ValueError(f'duplicate key {key!r}')
                 result[str(key)] = value
             else:
                 if text[pos:pos + 1] == ',':
@@ -134,7 +137,11 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
         elif text[end] in stops:
             break
         end += 1
-    return scalar(text[pos:end].strip()), end
+    token = text[pos:end].strip()
+    # Inside a flow collection a plain scalar holds no ": " (YAML reads a mapping there) and no flow indicator.
+    if ',' in stops and (': ' in token or re.search(r'[{}\[\]]', token)):
+        raise ValueError(f'a flow entry needs quotes: {token[:40]!r}')
+    return scalar(token), end
 
 
 def inline(text: str):
@@ -182,6 +189,8 @@ def load_yaml(text: str):
                 raise ValueError(f'line {number}: expected "key: value", got {content[:40]!r}')
             key = match.group(1)
             key = quoted(key, 0)[0] if key[0] in '"\'' else key
+            if key in result:
+                raise ValueError(f'line {number}: duplicate key {key!r}')
             try:
                 if match.group(2) is None:
                     result[key], i = nested(i + 1, indent)

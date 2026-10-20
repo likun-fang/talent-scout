@@ -74,18 +74,20 @@ class YamlSubsetTests(unittest.TestCase):
                  'keywords: [a, b,]\n': {'keywords': ['a', 'b']},
                  "keywords: ['it''s # robotics']\n": {'keywords': ["it's # robotics"]},
                  'labs: [{"name" : Robotics}]\n': {'labs': [{'name': 'Robotics'}]},
-                 'labs: [{name:[robotics]}]\n': {'labs': [{'name': ['robotics']}]}}
+                 'labs: [{name:[robotics]}]\n': {'labs': [{'name': ['robotics']}]},
+                 'keyword_rules: use a "robotics term # comment\n': {'keyword_rules': 'use a "robotics term'}}
         for text, expected in cases.items():
             with self.subTest(text=text):
                 self.assertEqual(load_yaml(text), expected)
 
     def test_flow_collections_need_commas_and_anchors_are_outside_the_subset(self):
         for text in ('keywords: ["robots" "vision"]\n', 'keywords: [&seed robotics, *seed]\n', 'labs: {a: !tag b}\n',
-                     'snapshot: {terms: [a,,b]}\n', 'keyword_rules: a: b\n'):
+                     'snapshot: {terms: [a,,b]}\n', 'keyword_rules: a: b\n', 'keywords: [robot: arm]\n', 'keywords: [foo{bar]\n',
+                     'keywords: []\nkeywords: [x]\n', 'labs: [{name: a, name: b}]\n'):
             with self.subTest(text=text):
                 with self.assertRaises(ValueError) as stop:
                     load_yaml(text)
-                self.assertIn('line 1', str(stop.exception))
+                self.assertRegex(str(stop.exception), r'^line \d+: ')
 
     def test_a_line_the_subset_does_not_cover_names_its_line(self):
         with self.assertRaises(ValueError) as stop:
