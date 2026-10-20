@@ -21,8 +21,8 @@ import urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
-from person_fields import (ACADEMIC_EMPLOYER, ACADEMIC_WORDS, GROUP_LEADER_HEADING, PAST_LEAD, RESEARCH_GMBH, TEAM_SIGNALS,
-                           assign_groups, past_position, secondary_post, topics_for,
+from person_fields import (ACADEMIC_EMPLOYER, ACADEMIC_WORDS, PAST_LEAD, RESEARCH_GMBH, TEAM_SIGNALS,
+                           assign_groups, past_position, secondary_post, topics_for, leader_heading as leader_heading_item,
                            same_institution)
 from openalex_auth import auth_headers
 from publication_signals import inference_signals
@@ -387,8 +387,7 @@ def company_evidence(person: dict, institution: tuple | None) -> tuple | None:
 def leader_heading(person: dict) -> tuple[str, str] | None:
     """(heading, URL) of a roster that lists the person under a group-leader heading."""
     return next(((s['role_title'], s.get('evidence_url', '')) for s in person.get('signals', [])
-                 if s.get('signal_type') in TEAM_SIGNALS and re.search(GROUP_LEADER_HEADING, s.get('role_title') or '', re.I)
-                 and title_class(s['role_title']) == 'group_leader'), None)
+                 if s.get('signal_type') in TEAM_SIGNALS and leader_heading_item(s.get('role_title') or '')), None)
 
 
 def classify_role(person: dict, run_year: int, employment: tuple | None = None,

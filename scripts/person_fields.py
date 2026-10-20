@@ -97,27 +97,38 @@ def past_position(person: dict) -> bool:
     return bool(until) and until < (int(read[:4]), int(read[5:7]))
 
 
-# A roster heading that names a group leader ("Research Group Leaders", "Independent Group Leader").
-GROUP_LEADER_HEADING = r'\b(?:research |independent |junior )?group leaders?\b'
+# One item of a roster heading or title that names a group leader ("Research Group Leaders", "Scientist, Group Leader
+# of Surgical Analytics"); "Former Group Leader", "Deputy Group Leader" and "Group Leaders and PhD Students" are not.
+GROUP_LEADER_ITEM = re.compile(r'^(?:research |independent |junior )?group leaders?(?: (?:of|for) .+| \(.+\))?$', re.I)
+
+
+def leader_heading(title: str) -> bool:
+    return any(GROUP_LEADER_ITEM.match(item.strip()) for item in re.split(r'[,;/]', title or ''))
 # Titles of a second post held beside the main one; they never set the group's institution.
 SECONDARY_TITLE = (r'\b(?:(?:affiliated|adjunct|honorary) professors?|honorarprofessor\w*|privatdozent\w*|'
                    r'au(?:ß|ss)erplanm(?:ä|ae|a)(?:ß|ss)ige[rn]? professor\w*)\b|\bapl\.\s*prof\w*')
 
 
 def secondary_post(person: dict) -> bool:
-    """A final pass that read a secondary post ("Affiliated Professor") at another academic institution than the
-    person's own record: the post goes to also_at, the record's institution stays."""
+    """A final pass that read a current secondary post ("Affiliated Professor") at another academic institution than
+    the person's own record: the post goes to also_at, the record's institution stays. Only the title's leading item
+    counts, before brackets and a supervisor ("Full Professor (formerly Adjunct Professor)" is a full professorship)."""
     title, place = person.get('final_pass_title') or '', person.get('final_pass_affiliation') or ''
     current = person.get('current_affiliation') or ''
-    return bool(re.search(SECONDARY_TITLE, title, re.I) and place and current and re.search(ACADEMIC_WORDS, place, re.I)
-                and distinct_institutions(place, current))
+    lead = re.split(r'[,;(]|\b(?:in the (?:group|lab) of|supervised by|advised by|with prof)\b', title, flags=re.I)[0]
+    return bool(re.match(r'\s*(?:' + SECONDARY_TITLE + ')', lead, re.I) and place and current and not past_position(person)
+                and re.search(ACADEMIC_WORDS, place, re.I) and distinct_institutions(place, current))
+
+
+def second_institutions(person: dict) -> list[str]:
+    """Institutions where the person holds a second post: a roster read for them as head, or a secondary title."""
+    return roster_institutions(person) + ([person['final_pass_affiliation']] if secondary_post(person) else [])
 
 
 def named_group_leader(person: dict) -> bool:
     """A group leader whom a roster lists under a group-leader heading leads a group of its own."""
     return person.get('role_class') == 'group_leader' and any(
-        s.get('signal_type') in TEAM_SIGNALS and re.search(GROUP_LEADER_HEADING, s.get('role_title') or '', re.I)
-        for s in person.get('signals', []))
+        s.get('signal_type') in TEAM_SIGNALS and leader_heading(s.get('role_title') or '') for s in person.get('signals', []))
 
 
 def affiliation_for(person: dict) -> str:
@@ -403,7 +414,7 @@ def rule_one(member: dict, leader: dict, lab_parents: set[str]) -> tuple[str, st
         if (signal.get('signal_type') in TEAM_SIGNALS and not signal.get('date') and member.get('final_pass_affiliation')
                 and not same_institution(member, leader)
                 # A member placed at the leader's second institution (a roster read there) has not moved away.
-                and not any(names_part_of(member['final_pass_affiliation'], place) for place in roster_institutions(leader))):
+                and not any(names_part_of(member['final_pass_affiliation'], place) for place in second_institutions(leader))):
             rejected = f"moved since the roster: {parent} -> {leader['name']}, now {member['final_pass_affiliation']} | {url}"
             continue
         paper = signal.get('channel') in {'awards-papers', 'industry', 'competitions'} or key not in lab_parents

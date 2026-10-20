@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse, csv, datetime, glob, json, os, sys
 from pathlib import Path
 from current_affiliation import region_codes, apply_final_pass, classify_role, FUNDING_PREFIXES
-from person_fields import topics_for, assign_groups, past_position
+from person_fields import topics_for, assign_groups, past_position, secondary_post
 
 COLUMNS = ["name", "current_affiliation", "country", "role", "domain", "channels_hit", "signals",
            "evidence_urls", "ids", "hop_depth", "merge_confidence", "affiliation_source", "last_verified", "notes",
@@ -161,7 +161,7 @@ def coverage_text(kept: int, cut: int, out_of_region: int, cov_dir: str | None) 
 def country_for(person: dict) -> str:
     if past_position(person):
         return ''  # the page read says the position is over; no current country until a current one is read
-    if person.get('final_pass_affiliation'):
+    if person.get('final_pass_affiliation') and not secondary_post(person):
         return person.get('final_pass_country') or ''
     newest = max(person.get('signals', []), key=signal_date, default={})
     return person.get('country') or newest.get('country', '')

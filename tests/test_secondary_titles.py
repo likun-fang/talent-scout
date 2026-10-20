@@ -32,6 +32,23 @@ class GroupLeaderHeadingTests(unittest.TestCase):
                 self.assertEqual(result['role_class'], 'group_leader')
                 self.assertIn(f'roster heading | {heading} | {PAGE}', result['role_evidence'])
 
+    def test_a_past_deputy_or_mixed_heading_is_not_a_group_leader_heading(self):
+        for heading in ('Former Group Leader', 'Deputy Group Leader', 'Group Leaders and PhD Students'):
+            one = {'name': 'Marc', 'final_pass_title': 'Senior Researcher', 'final_pass_affiliation': MPI,
+                   'final_pass_url': 'https://own.example', 'last_verified': '2026-10-15',
+                   'signals': [{'name_raw': 'Marc', **roster(heading)}]}
+            with self.subTest(heading=heading):
+                self.assertEqual(ca.classify_role(one, 2026)['role_class'], 'researcher')
+        lead = person('Rita Lead', 'group_leader', [roster('Group Leaders and PhD Students', roster_pi='Chris Director')])
+        head = person('Chris Director', 'professor', [roster('Director', role='pi', roster_pi='Chris Director')])
+        self.assertNotIn('leader self', {p['name']: p for p in assign_groups([head, lead])}['Rita Lead']['group_evidence'])
+
+    def test_one_item_of_a_joined_title_can_name_the_group_leader(self):
+        one = {'name': 'Seb', 'final_pass_title': 'Scientist', 'final_pass_affiliation': MPI,
+               'final_pass_url': 'https://own.example', 'last_verified': '2026-10-15',
+               'signals': [{'name_raw': 'Seb', **roster('Scientist, Deputy Head of Department, Group Leader of Surgical Analytics')}]}
+        self.assertEqual(ca.classify_role(one, 2026)['role_class'], 'group_leader')
+
     def test_a_doctoral_title_read_on_the_persons_own_page_still_decides(self):
         one = {'name': 'Mia', 'final_pass_title': 'PhD student', 'final_pass_affiliation': MPI,
                'final_pass_url': 'https://own.example', 'last_verified': '2026-10-15',
@@ -65,6 +82,30 @@ class SecondaryPostTests(unittest.TestCase):
                 applied = ca.apply_final_pass({**one, 'affiliation_source': 'evidence 2025-01'})
                 self.assertEqual((applied['current_affiliation'], applied['country']), (DFKI, 'DE'))
                 self.assertIn('secondary post', applied['notes'])
+
+    def test_only_a_current_leading_secondary_title_counts(self):
+        for title in ('Full Professor (formerly Adjunct Professor)', 'Researcher in the group of Honorary Professor Jane Doe',
+                      'Former Honorary Professor'):
+            one = self.member(title)
+            with self.subTest(title=title):
+                self.assertNotEqual(group_affiliation(one)[1], ['Saarland University'])
+                applied = ca.apply_final_pass({**one, 'affiliation_source': 'evidence 2025-01'})
+                self.assertNotIn('secondary post', applied.get('notes', ''))
+
+    def test_the_export_keeps_the_records_country_and_the_secondary_rosters_members_join(self):
+        import table_export
+        one = self.member('Honorary Professor', place='Stanford University')
+        one['final_pass_country'] = 'US'
+        self.assertEqual(table_export.country_for(one), 'DE')
+        lead = {**self.member('Adjunct Professor'), 'name': 'Richard',
+                'signals': [{'name_raw': 'Richard', 'signal_type': 'lab_member', 'role': 'pi', 'parent': 'Graphics Lab',
+                             'channel': 'final-pass', 'date': '', 'affiliation_raw': 'Saarland University', 'roster_pi': 'Richard',
+                             'evidence_url': PAGE}]}
+        student = {'name': 'Pia', 'role_class': 'phd_student', 'final_pass_title': 'PhD student',
+                   'final_pass_affiliation': 'Saarland University', 'final_pass_country': 'DE', 'last_verified': '2026-10-19',
+                   'signals': [{'name_raw': 'Pia', 'signal_type': 'lab_member', 'role': 'team_member', 'parent': 'Graphics Lab',
+                                'channel': 'final-pass', 'date': '', 'affiliation_raw': 'Saarland University', 'evidence_url': PAGE}]}
+        self.assertEqual({p['name']: p for p in assign_groups([lead, student])}['Pia']['group'], f'Richard @ {DFKI}')
 
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
         same = self.member('Adjunct Professor', place='DFKI Saarbrücken')
