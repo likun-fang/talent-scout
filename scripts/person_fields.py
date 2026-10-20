@@ -150,7 +150,8 @@ def secondary_post(person: dict) -> bool:
     current = person.get('current_affiliation') or ''
     lead = re.split(r'[,;(]|\b(?:in the (?:group|lab) of|supervised by|advised by|with prof)\b', title, flags=re.I)[0]
     return bool(re.match(r'\s*(?:' + SECONDARY_TITLE + ')', lead, re.I) and place and current and not past_position(person)
-                and academic_institution(place) and not same_institution_name(place, current))
+                and academic_institution(place) and not same_institution_name(place, current)
+                and not names_part_of(current, place) and not names_part_of(place, current))
 
 
 def academic_institution(name: str) -> bool:

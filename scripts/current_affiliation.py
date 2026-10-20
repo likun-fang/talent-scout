@@ -266,7 +266,7 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '', c
             institution_type == 'research' or re.search(r'\b(?:institute|institut|research institute|mpi)\b', own + ' ' + affiliation, re.I)
             or re.search(RESEARCH_GMBH, affiliation or '', re.I)):
         return 'professor'
-    if re.search(r'\b(?:gmbh|ag|ltd|inc)\b', title, re.I) or re.search(FOUNDER, own, re.I) or (
+    if re.search(r'\b(?:gmbh|ag|ltd|inc)\b', own, re.I) or re.search(FOUNDER, own, re.I) or (
             institution_type == 'company' and re.search(r'\b(?:engineer|software)\b', title, re.I)):
         return 'industry'
     if re.search(r'\bengineers?\b', own, re.I) and affiliation and not re.search(ACADEMIC_WORDS, affiliation, re.I):
