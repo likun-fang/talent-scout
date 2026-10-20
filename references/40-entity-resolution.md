@@ -29,7 +29,7 @@
   wins too (an arXiv parsing error filed a whole Hugging Face team under Oxford). `scripts/current_affiliation.py`
   applies exactly this order and caches lookups under `cache/affiliation/` so reruns do not re-request.
 
-Current-role checks against web pages and public LinkedIn profiles happen by group after the initial stage-5 export
+Current-role checks against public web pages happen by group after the initial stage-5 export
 (`45-web-verification.md`); they do not run per person here.
 
 ## Script
@@ -92,9 +92,8 @@ pass (compared at the precision both dates carry) and names the person's institu
 another institution or one without an institution can be from before a move.
 The patterns accept plural and German feminine forms ("Doctoral students", "Professors", "Wissenschaftliche
 Mitarbeiterinnen"), because a section heading is the usual `role_title` on people pages.
-Rule 1 sources are signal `role_title`, current ORCID employment `role-title`, and a final-pass
-LinkedIn headline. Within this rule, use the dated final-pass headline first, then current ORCID,
-then signal titles from newest to oldest. Stale ORCID employment rejected during affiliation resolution
+Rule 1 sources are signal `role_title` and current ORCID employment `role-title`. Within this rule, use current
+ORCID first, then signal titles from newest to oldest. Stale ORCID employment rejected during affiliation resolution
 also cannot supply a title. OpenAlex type applies only when its institution is the selected current
 institution. A generic director title without institute context does not imply professor.
 
@@ -186,9 +185,8 @@ in stage 4 and are excluded from the roster.
 
 `last_verified` starts as `""`. Only the final pass that actually reads a person's page may fill it with
 the read date; lookups, merging and table export do not verify a person or manufacture a date.
-Enrichment and export preserve an explicitly supplied verification date. For a reviewed final-pass
-LinkedIn headline, supply `linkedin_headline` and `linkedin_url` on the person together with that date;
-a headline without `last_verified` is ignored. These are optional input adapters, not new output columns.
+Enrichment and export preserve an explicitly supplied verification date. A `linkedin_headline` or `linkedin_url`
+left on an older record is ignored: LinkedIn is not a source.
 Do not mark a refused page as verified. `visit_page.py` retains `role_verified: false` until a human/agent
 reviews what was read.
 

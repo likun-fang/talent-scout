@@ -56,9 +56,7 @@ the stage-1 summary, so the user can change them there.
 - Time window [the 36 months ending on the run date, for all channels including funding]. For a run on 2026-10-12
   this is 2023-10-12 through 2026-10-12, inclusive. Record the exact bounds. Use the event or work date, never the
   date a page was fetched; see `channels/README.md`.
-- Final-pass budget [team pages: one per group, tier 1 first; LinkedIn profile reads: 20, serial, 5 s apart, optional;
-  see `45-web-verification.md`. The anonymous quota is per outbound address and is often already spent, so the pass
-  must not depend on it].
+- Final-pass budget [team pages: one per group, tier 1 first; see `45-web-verification.md`].
 - Channels to run [the eight default channels listed below; optional channels require explicit selection]. Page budget per channel [40 fetch attempts, counting failures and replacements; API calls,
   dataset downloads and git clones are not pages]. Target
   roster size [uncapped, `target_rows: 0`]: every qualifying person in the region gets a row and the final pass
@@ -73,7 +71,7 @@ Write it to `RUN_DIR/run.meta.json`:
 ```json
 {"domain": "...", "purpose": "discovery of technology and research groups through their public professional record; roles recorded as data",
  "seeds": [], "region_core": "DE+CH", "region_extended": "EU27+UK+CH+NO", "region": "EU27+UK+CH+NO",
- "window_months": 36, "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD", "final_pass_linkedin_budget": 20,
+ "window_months": 36, "window_start": "YYYY-MM-DD", "window_end": "YYYY-MM-DD",
  "channels": ["awards-papers","funding-eu","funding-de-ch","national-prizes","competitions","startups","industry","open-source"],
  "page_budget_per_channel": 40, "target_rows": 0,
  "openalex_credits": {"per_channel": 900, "stage_4_reserve": 4000},
