@@ -14,6 +14,7 @@ OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows r
 | `group_map.py` | 5 | `groups.json` → one static bilingual `index.html`: institutions on a map, groups listed by institution and PI, a correction link per card |
 | `check_domain_pack.py` | 1 | `<slug>` → validates `domain-cache/<slug>.yaml` against `assets/domain-pack.schema.json` (stdlib YAML-subset loader), its facets file and its known-groups list; no people's data in a pack; exits 1 on an error |
 | `check_groups.py` | 5 | `groups.json` + `assets/known-groups/<field>.json` → recall, freshness and LinkedIn checks and a seeded spot-check sample; exits 1 on a failed check |
+| `publish_site.py` | 5 | a run's `site/groups.json` + slug → `docs/<slug>/` (map and data), `docs/index.html`, `docs/about.html`; refuses on a failed check, LinkedIn data, a `notes` field, an email address or a local path |
 
 Date defaults: `openalex_lookup.py --topics` queries the 36 months ending on `--date` (default today);
 `--since YYYY` widens the start to that January 1. `table_export.py` applies the same 36-month window before

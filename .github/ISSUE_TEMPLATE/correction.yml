@@ -1,0 +1,31 @@
+name: Correct an entry on a group map
+description: Something on a research group map is wrong or missing.
+title: "Correction: "
+labels: ["correction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. This issue is public. Please name only facts that a public page shows.
+  - type: input
+    id: group
+    attributes:
+      label: Group id
+      description: Filled in when you come from a group's card. Otherwise, the PI's name and institution.
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong
+      description: For example a role, a member, the institution or the homepage.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Public page with the correct fact
+      description: A link to a public page, such as the group's or the institution's own page.
+      placeholder: https://
+    validations:
+      required: true

@@ -30,6 +30,14 @@ page reader used once, on the final table, to check current roles from public pa
 - Paths: skill files resolve against the directory holding `SKILL.md`; each run writes only into its own run
   directory.
 
+## Published maps
+
+The public group maps live in `docs/` for GitHub Pages: one map per field, with an about page that names the
+sources, the method and the current check values. `scripts/publish_site.py` writes them from a run and refuses when a
+check fails. Each group
+card has a "Report a correction" link to an issue form; the removal form takes a name and a group and needs no reason,
+and a removal is made at the next publication.
+
 ## Layout
 
 ```

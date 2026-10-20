@@ -15,7 +15,22 @@
         "as_of": {"$ref": "#/$defs/day"},
         "region": {"type": "string"},
         "window_start": {"$ref": "#/$defs/day"},
-        "facets": {"type": "array", "items": {"$ref": "#/$defs/facet"}}
+        "facets": {"type": "array", "items": {"$ref": "#/$defs/facet"}},
+        "checks": {
+          "description": "Values of the acceptance checks at publication (publish_site.py); a run's own file has none.",
+          "type": "object",
+          "required": ["recall", "stale", "linkedin", "sample"],
+          "additionalProperties": false,
+          "properties": {
+            "recall": {"type": "object", "required": ["found", "known"], "additionalProperties": false,
+                       "properties": {"found": {"type": "integer", "minimum": 0}, "known": {"type": "integer", "minimum": 0}}},
+            "stale": {"type": "object", "required": ["groups", "of", "verified_since"], "additionalProperties": false,
+                      "properties": {"groups": {"type": "integer", "minimum": 0}, "of": {"type": "integer", "minimum": 0},
+                                     "verified_since": {"$ref": "#/$defs/day"}}},
+            "linkedin": {"type": "integer", "minimum": 0},
+            "sample": {"type": "integer", "minimum": 0}
+          }
+        }
       }
     },
     "groups": {"type": "array", "items": {"$ref": "#/$defs/group"}}
