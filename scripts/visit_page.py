@@ -68,8 +68,9 @@ LINKEDIN_HOST = re.compile(r'(?:^|[^a-z0-9-])linkedin\.com\.?(?=[/:?#&;,)\s]|$)'
 
 
 def outside_sources(url: str) -> bool:
-    """The URL's own fragment is never fetched, so it does not count."""
-    text = (url or '').split('#', 1)[0]
+    """The URL's own fragment is never fetched, and a tracking tag (utm_source=linkedin.com) names no destination,
+    so neither counts."""
+    text = re.sub(r'(?i)([?&])utm_[^=&#]*=[^&#]*', r'\1', (url or '').split('#', 1)[0])
     for _ in range(3):
         text = urllib.parse.unquote(text)
     return bool(LINKEDIN_HOST.search(text.lower()))
