@@ -31,7 +31,7 @@ reply before the next stage.
 
 Channels are independent: run them as parallel subagents sharing one brief (`assets/channel-brief.template.md`),
 each doing its own hops and writing its own coverage note. A first real run (embodied AI, 2026-10-08) did this
-with six agents and produced 845 signals, 521 in-region people; its lessons are in `docs/runs/`.
+with six agents and produced 845 signals, 521 in-region people; its lessons are in `notes/runs/`.
 
 ## Working rules
 
