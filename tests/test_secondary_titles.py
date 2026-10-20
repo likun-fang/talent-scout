@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import current_affiliation as ca
-from person_fields import affiliation_for, assign_groups, group_affiliation
+from person_fields import affiliation_for, assign_groups, group_affiliation, leader_heading
 
 MPI = 'Max-Planck-Institut für Informatik'
 DFKI = 'German Research Center for Artificial Intelligence (DFKI)'
@@ -41,6 +41,36 @@ class GroupLeaderHeadingTests(unittest.TestCase):
                 self.assertEqual(ca.classify_role(one, 2026)['role_class'], 'researcher')
         lead = person('Rita Lead', 'group_leader', [roster('Group Leaders and PhD Students', roster_pi='Chris Director')])
         head = person('Chris Director', 'professor', [roster('Director', role='pi', roster_pi='Chris Director')])
+        self.assertNotIn('leader self', {p['name']: p for p in assign_groups([head, lead])}['Rita Lead']['group_evidence'])
+
+    def test_a_mixed_or_qualified_heading_is_not_a_group_leader_heading(self):
+        for heading in ('Group Leaders / PhD Students', 'Group Leaders, Postdocs and PhD Students', 'Postdocs; Group Leaders',
+                        'Group Leader (former)', 'Group Leader (until 2022)', 'Group Leader (Deputy)',
+                        'Group Leader (2015-2019)'):
+            with self.subTest(heading=heading):
+                self.assertFalse(leader_heading(heading))
+        for heading in ('Research Group Leaders (W2)', 'Group Leader of Surgical Analytics', 'Scientist / Group Leader'):
+            with self.subTest(heading=heading):
+                self.assertTrue(leader_heading(heading))
+
+    def test_a_dated_or_other_institution_roster_heading_does_not_outrank_the_final_pass(self):
+        for heading_roster in (roster('Research Group Leaders', affiliation_raw='University of Oldtown'),
+                               roster('Group Leaders', date='2017-03', channel='lab-pages')):
+            one = {'name': 'Marc', 'final_pass_title': 'Senior Researcher', 'final_pass_affiliation': MPI,
+                   'final_pass_url': 'https://own.example', 'last_verified': '2026-10-15',
+                   'signals': [{'name_raw': 'Marc', **heading_roster}]}
+            with self.subTest(roster=heading_roster['affiliation_raw'], date=heading_roster['date']):
+                self.assertEqual(ca.classify_role(one, 2026)['role_class'], 'researcher')
+        unit = {'name': 'Marc', 'final_pass_title': 'Senior Researcher', 'final_pass_affiliation': 'Max Planck Institute for Informatics',
+                'final_pass_url': 'https://own.example', 'last_verified': '2026-10-15',
+                'signals': [{'name_raw': 'Marc', **roster('Research Group Leaders', affiliation_raw=f'{MPI}, Visual Computing')}]}
+        self.assertEqual(ca.classify_role(unit, 2026)['role_class'], 'group_leader')
+
+    def test_a_group_leader_named_only_on_an_old_roster_does_not_anchor_a_group(self):
+        head = person('Chris Director', 'professor', [roster('Director', role='pi', roster_pi='Chris Director')])
+        lead = person('Rita Lead', 'group_leader', [roster('Group Leaders', date='2017-03', channel='lab-pages',
+                                                           roster_pi='Chris Director')],
+                      final_pass_affiliation=MPI, final_pass_title='Group Leader', last_verified='2026-10-15')
         self.assertNotIn('leader self', {p['name']: p for p in assign_groups([head, lead])}['Rita Lead']['group_evidence'])
 
     def test_one_item_of_a_joined_title_can_name_the_group_leader(self):

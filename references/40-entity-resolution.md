@@ -85,8 +85,10 @@ Within rule 1 a supervisor mention ("… in the group of Prof. Meyer", "supervis
 so the person's own title decides. One person's joined titles ("Professor and Head of Lab", "Senior Scientist and
 Group Leader") keep the highest class in the order phd_student, professor, group_leader, researcher. So does a roster
 that lists the person under a group-leader heading, one of whose items is exactly a group-leader phrase ("Research Group
-Leaders", "Independent Group Leader", "Scientist, Group Leader of Surgical Analytics"; not a former, deputy or mixed one):
-it outranks a researcher title read in the final pass, and the person is a group_leader.
+Leaders", "Independent Group Leader", "Scientist, Group Leader of Surgical Analytics"; not a former, deputy, dated or
+bracket-qualified one, and none that also names doctoral students or postdocs): it outranks a researcher title read in
+the final pass, and the person is a group_leader. The roster counts only when it is undated or not older than the final
+pass and sits at the person's institution; an older roster or one at another institution is from before a move.
 The patterns accept plural and German feminine forms ("Doctoral students", "Professors", "Wissenschaftliche
 Mitarbeiterinnen"), because a section heading is the usual `role_title` on people pages.
 Rule 1 sources are signal `role_title`, current ORCID employment `role-title`, and a final-pass
