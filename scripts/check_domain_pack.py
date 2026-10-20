@@ -46,7 +46,7 @@ def strip_comment(text: str) -> str:
         if ch in ' \t':
             continue
         if ch == '#' and (i == 0 or text[i - 1] in ' \t'):
-            return text[:i].rstrip()
+            return text[:i].rstrip(' \t')
         if start and ch in '"\'':
             quote, start = ch, False
         elif start and ch in '[{':
@@ -61,12 +61,13 @@ def strip_comment(text: str) -> str:
             pass  # a sequence item: its value starts next
         else:
             start = False
-    return text.rstrip()
+    return text.rstrip(' \t')
 
 # Plain forms YAML 1.1 reads as booleans, nulls, numbers, dates or times; outside the four the loader resolves, a pack
 # quotes them, so the value means the same to YAML and to this loader.
-YAML_TYPED = re.compile(r'(?i)^(y|n|yes|no|on|off|true|false|null|~|[-+]?(0x[0-9a-f_]+|0o?[0-7_]+|[0-9][0-9_]*(\.[0-9_]*)?'
-                        r'(e[-+]?[0-9]+)?|\.[0-9_]+(e[-+]?[0-9]+)?|\.inf|\.nan)|\d{4}-\d{1,2}-\d{1,2}([t ].*)?|[0-9]+(:[0-5]?[0-9])+)$')
+YAML_TYPED = re.compile(r'(?i)^(y|n|yes|no|on|off|true|false|null|~|[-+]?(0x[0-9a-f_]+|0b[01_]+|0o?[0-7_]+|'
+                        r'[0-9][0-9_]*(:[0-5]?[0-9])*(\.[0-9_]*)?(e[-+]?[0-9]+)?|\.[0-9_]+(e[-+]?[0-9]+)?|\.inf|\.nan)|'
+                        r'[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}([t ].*)?)$')
 
 
 def scalar(token: str):
@@ -74,9 +75,9 @@ def scalar(token: str):
         return None
     if token in ('true', 'false'):
         return token == 'true'
-    if re.fullmatch(r'-?(0|[1-9]\d*)', token):
+    if re.fullmatch(r'-?(0|[1-9][0-9]*)', token):
         return int(token)
-    if re.fullmatch(r'-?(0|[1-9]\d*)\.\d+', token):
+    if re.fullmatch(r'-?(0|[1-9][0-9]*)\.[0-9]+', token):
         return float(token)
     if YAML_TYPED.match(token):
         raise ValueError(f'{token!r} reads as a typed value in YAML: quote it')
@@ -159,7 +160,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
         elif text[end] in stops:
             break
         end += 1
-    token = text[pos:end].strip()
+    token = text[pos:end].strip(' \t')
     # Inside a flow collection a plain scalar holds no ": " (YAML reads a mapping there) and no flow indicator.
     if ',' in stops and (': ' in token or token.endswith(':') or re.search(r'[{}\[\]]', token)):
         raise ValueError(f'a flow entry needs quotes: {token[:40]!r}')
@@ -167,7 +168,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
 
 
 def inline(text: str):
-    if re.fullmatch(r'[|>][-+]?\d*', text) or text.startswith(('&', '*', '!', '?', '%', '@', '`', '- ')):
+    if re.fullmatch(r'[|>][-+]?\d*', text) or text.startswith(('&', '*', '!', '?', '%', '@', '`', '- ', ']', '}', ',')):
         raise ValueError(f'{text[:2]!r} is outside the YAML subset')
     if text[0] not in '{["\'' and (': ' in text or text.endswith(':')):
         raise ValueError(f'a plain value with ": " needs quotes: {text[:40]!r}')
@@ -177,17 +178,17 @@ def inline(text: str):
     return value
 
 
-KEY = re.compile(r'^("(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'|[^\s"\'{\[\]},#&*!|>-][^:]*?|-[^\s:][^:]*?)\s*:(?:\s+(.*)|$)')
+KEY = re.compile(r'^("(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'|[^ \t"\'{\[\]},#&*!|>?@`%-][^:]*?|-[^ \t:][^:]*?)[ \t]*:(?:[ \t]+(.*)|$)')
 
 
 def load_yaml(text: str):
     lines = []
     for number, raw in enumerate(text.splitlines(), 1):
         content = strip_comment(raw)
-        if content.strip():
+        if content.strip(' '):
             if '\t' in content:
                 raise ValueError(f'line {number}: a tab is outside the YAML subset; packs use spaces')
-            lines.append([number, len(content) - len(content.lstrip()), content.strip()])
+            lines.append([number, len(content) - len(content.lstrip(' ')), content.strip(' ')])
 
     def node(i: int, indent: int):
         return sequence(i, indent) if lines[i][2].startswith('-') and lines[i][2][1:2] in ('', ' ') else mapping(i, indent)
@@ -214,8 +215,8 @@ def load_yaml(text: str):
                 key = quoted(key, 0)[0] if key[0] in '"\'' else scalar(key)
             except ValueError as exc:
                 raise ValueError(f'line {number}: {exc}') from None
-            if not isinstance(key, str):
-                raise ValueError(f'line {number}: a key must be text, not {key!r}')
+            if not isinstance(key, str) or key == '<<':
+                raise ValueError(f'line {number}: a key must be text (and not the merge key), not {key!r}')
             if key in result:
                 raise ValueError(f'line {number}: duplicate key {key!r}')
             try:
@@ -337,9 +338,9 @@ def check_pack(slug: str, root: Path = SKILL_ROOT) -> tuple[list[str], list[str]
         errors.append(f'facets_file {facets_file!r} is not assets/facets/{slug}.json')
     for name in (f'assets/facets/{slug}.json', f'assets/known-groups/{slug}.json'):
         try:
-            text = (root / name).read_text(encoding='utf-8')
-        except OSError:
-            continue
+            text = json.dumps(json.loads((root / name).read_text(encoding='utf-8')), ensure_ascii=False)  # escapes decoded
+        except (OSError, ValueError):
+            continue  # json_list reports a file that is missing, not UTF-8 or not JSON
         errors += [f'personal data: {what} in {name}' for pattern, what in PERSONAL if re.search(pattern, text, re.I)]
     facets, problem = json_list(root / f'assets/facets/{slug}.json', 'facets')
     if facets is None:
