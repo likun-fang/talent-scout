@@ -66,6 +66,23 @@ class YamlSubsetTests(unittest.TestCase):
     def test_a_plain_list_item_with_a_colon_and_space_is_a_mapping_as_in_yaml(self):
         self.assertEqual(load_yaml('items:\n  - openalex (searches: x)\n'), {'items': [{'openalex (searches': 'x)'}]})
 
+    def test_edge_cases_parse_as_yaml_does(self):
+        cases = {'keywords: ["a\\" # b"]\n': {'keywords': ['a" # b']},
+                 'labs: [{https://example.org: Lab}]\n': {'labs': [{'https://example.org': 'Lab'}]},
+                 'items:\n  -\n  - robots\n': {'items': [None, 'robots']},
+                 'labs:\n  - "name": Robotics\n    country: DE\n': {'labs': [{'name': 'Robotics', 'country': 'DE'}]},
+                 'keywords: [a, b,]\n': {'keywords': ['a', 'b']}}
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(load_yaml(text), expected)
+
+    def test_flow_collections_need_commas_and_anchors_are_outside_the_subset(self):
+        for text in ('keywords: ["robots" "vision"]\n', 'keywords: [&seed robotics, *seed]\n', 'labs: {a: !tag b}\n'):
+            with self.subTest(text=text):
+                with self.assertRaises(ValueError) as stop:
+                    load_yaml(text)
+                self.assertIn('line 1', str(stop.exception))
+
     def test_a_line_the_subset_does_not_cover_names_its_line(self):
         with self.assertRaises(ValueError) as stop:
             load_yaml('notes: |\n  a block scalar\n')
@@ -101,6 +118,12 @@ class PackTests(unittest.TestCase):
             with self.subTest(case=case):
                 errors, _ = self.check(text)
                 self.assertTrue(errors, case)
+
+    def test_a_value_of_the_wrong_type_is_reported_not_a_crash(self):
+        (self.root / 'domain-cache/demo-field.yaml').write_text(pack_text(labs='3'), encoding='utf-8')
+        line = check_domain_pack.report('demo-field', self.root)
+        self.assertTrue(line.startswith('FAIL demo-field'))
+        self.assertIn('$.labs: expected array', line)
 
     def test_personal_data_is_an_error(self):
         for value in ('[https://www.linkedin.com/in/someone]', '["author A5024508073 dropped"]'):
