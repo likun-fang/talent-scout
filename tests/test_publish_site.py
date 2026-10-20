@@ -170,9 +170,15 @@ class RefusalTests(unittest.TestCase):
         for topic in ('write to anna.meyer@tum.de', '/Users/someone/projects/x', 'runs/multimodal-ai-2026-10-14/site',
                       'file:///tmp/x.html', '../runs/private/site', '/Volumes/Private/run/site', '"anna meyer"@tum.de',
                       'line one\n/Users/alice/private', '~/projects/x', 'mailto:anna@tum.de', '/srv/private/run/site',
-                      'C:/work/private/run/site', '\\\\server\\private\\run'):
+                      'C:/work/private/run/site', '\\\\server\\private\\run', '/Shared Data/private/run',
+                      '/data+archive/private/run'):
             with self.subTest(topic=topic):
                 self.assertIn('private', self.refused(groups_doc(group('Anna Meyer', 'TUM', topics=[topic]))))
+
+    def test_slashes_in_prose_are_not_paths(self):
+        for topic in ('vision / language / action', 'audio-visual/text models', '3D/4D reconstruction', 'w/o labels'):
+            with self.subTest(topic=topic):
+                self.assertEqual(publish_site.private_values({'topics': [topic]}), [])
 
     def test_a_slug_that_is_not_a_plain_name_is_refused(self):
         for slug in ('../x', 'Multimodal AI', ''):
