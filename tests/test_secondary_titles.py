@@ -188,6 +188,7 @@ class SecondaryPostTests(unittest.TestCase):
 
     def test_two_institutions_of_one_city_are_two_institutions(self):
         for current, place in (('DFKI Kaiserslautern', 'Saarland University, Saarbrücken'),
+                               ('University of Zurich', 'ETH Zurich (Zurich)'), ('University of Oxford', 'Oxford Brookes University (Oxford)'),
                                ('German Research Center for Artificial Intelligence (DFKI), Saarbrücken', 'Saarland University'),
                                ('Technical University of Munich', 'Munich Center for Machine Learning')):
             one = self.member('Adjunct Professor', place=place, current=current)
