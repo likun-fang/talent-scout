@@ -130,6 +130,7 @@ open_source_anchors:
   - {url: "https://github.com/google-deepmind/mujoco_playground", selection_reason: "Auxiliary robot-policy and evaluation source; verify individual contributions."}
 # Flat keywords remain available to existing channel workflows. Directions above define relevance and query groups.
 keywords: [robot learning, embodied, manipulation, humanoid, legged locomotion, sim-to-real, vision-language-action, vision language action, VLA, vision-language model, vision language model, VLM, embodied multimodal reasoning, vision-language robot planning, embodied question answering, open-vocabulary robot perception, robot world model, world-action model, WAM, action-conditioned video robot, learned dynamics robot planning, dexterous, imitation learning, reinforcement learning robot, robot policy, robot policies, robotic policy, robotic policies, visuomotor policy, visuomotor policies, diffusion policy, diffusion policies, generalist robot policy, generalist robot policies, robot action generation, flow matching for robot control, flow-based robot policy, flow-based robot policies]
+keyword_rules: ""
 prizes_filter: engineering
 
 # Preserved for provenance only. Never rank current leads or populate a new run from these counts.
@@ -170,3 +171,4 @@ historical_snapshot:
     - {name: "KU Leuven", openalex_institution_id: I99464096, works: 353}
     - {name: "Sorbonne Université", openalex_institution_id: I39804081, works: 335}
     - {name: "Max Planck Institute for Intelligent Systems", openalex_institution_id: I4210135521, works: 326}
+quirks: {title_words: [], institution_patterns: [], evidence_venues: []}
