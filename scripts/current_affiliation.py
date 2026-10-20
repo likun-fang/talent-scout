@@ -362,8 +362,10 @@ def company_evidence(person: dict, institution: tuple | None) -> tuple | None:
     """Use the most current employer; a former company's type cannot override a reviewed move."""
     signals = sorted(person.get('signals', []), key=lambda s: date_value(s.get('date')), reverse=True)
     newest = next((s for s in signals if s.get('affiliation_raw')), {})
-    affiliation = person.get('final_pass_affiliation') or person.get('current_affiliation') or newest.get('affiliation_raw', '')
-    final = bool(person.get('final_pass_affiliation'))
+    # A secondary post read in the final pass leaves the record's employer in place.
+    final = bool(person.get('final_pass_affiliation')) and not secondary_post(person)
+    affiliation = ((person['final_pass_affiliation'] if final else '') or person.get('current_affiliation')
+                   or newest.get('affiliation_raw', ''))
     url = person.get('final_pass_url', '') if final else newest.get('evidence_url', '')
     if re.search(ACADEMIC_EMPLOYER, affiliation, re.I) and not re.search(COMPANY_SUFFIX, affiliation, re.I):
         return None
@@ -397,7 +399,8 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
     if company:
         title = verified[0] if verified else next((entry[1] for entry in entries), '')
         url = verified[1] if verified else next((entry[2] for entry in entries), company[3])
-        own_class = title_class(title, country=country)
+        # An honorary or adjunct professorship elsewhere is annotated, not the role the employer supports.
+        own_class = '' if secondary_post(person) else title_class(title, country=country)
         if own_class == 'professor':
             return role_result('professor', 'high', 0 if verified else 1, 'professorial title', title, url)
         if own_class == 'mixed':

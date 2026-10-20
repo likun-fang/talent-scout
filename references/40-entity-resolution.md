@@ -120,7 +120,8 @@ the person's record never sets the institution or the country. Only the alias re
 post's institution the record's; a shared word does not, since two institutions of one city share it (DFKI and Saarland
 University in Saarbrücken). With such a post the record's institution
 stays, the post joins `also_at`, and that institution counts as the leader's for members: a roster member there is
-not stale, a coauthor there is not from another institution, and a member choosing between leaders keeps this one. When the leader's own final pass names one academic institution and a
+not stale, a coauthor there is not from another institution, and a member choosing between leaders keeps this one. A
+company record beside such a post keeps the role the company supports (industry), with the title in the evidence. When the leader's own final pass names one academic institution and a
 final-pass roster read for the leader as its head names another (Karolinska, and a group at FIMM Helsinki), the group sits
 at the final-pass institution and the roster's institution joins `also_at`; that roster's members are not stale. Two
 names count as two institutions only when they share no distinctive word, so a spelling or a unit of the same one
