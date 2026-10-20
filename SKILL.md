@@ -1,6 +1,6 @@
 ---
 name: talent-scout
-description: Build a public, correctable map of the research groups of a technical domain in Europe (EU27 + UK + CH + NO), group by group with PI, institution, homepage and named members, from the public academic record; no ranking, no LinkedIn.
+description: Build a public, correctable map of the research groups of a technical domain in Europe (EU27 + UK + CH + NO), group by group with PI, institution, homepage and named members, from the public academic record, listed by institution and PI.
 ---
 
 # Talent Scout

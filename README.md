@@ -1,11 +1,11 @@
 # talent-scout
 
-Public maps of research groups in Europe, one per field, built from the public academic record. The maps are served at https://likun-fang.github.io/talent-scout/ . One entry is one group: a PI, an institution and the group's homepage. Members appear by name and role under their group. There is no ranking and there are no tiers, and no LinkedIn data is read or stored.
+Public maps of research groups in Europe, one per field, built from the public academic record. The maps are served at https://likun-fang.github.io/talent-scout/ . One entry is one group: a PI, an institution and the group's homepage. Members appear by name and role under their group. Groups are listed by institution and PI name, and every fact carries the public page it was read from.
 
 ## The maps
 
 - Fields published: multimodal AI. Prepared, not yet published: embodied AI (`domain-cache/embodied-ai.yaml`).
-- Each group card shows the PI, the institution, the homepage, the members a public team page or a shared grant links to the group, the topics, the date the page was read (or of the newest record when no page was read) and the evidence links. A card that says "members not yet collected" has no member linked from a public page yet.
+- Each group card shows the PI, the institution, the homepage, the members a public team page or a shared grant links to the group, the topics, the date the page was read (or of the newest record when no page was read) and the evidence links. A card that says "members not yet collected" is waiting for its team page to be read.
 - Four checks run before every publication and their current values are on the about page: recall against a list of well-known groups of the field (`assets/known-groups/<slug>.json`), the share of groups read more than 12 months ago, the absence of any LinkedIn key or URL, and a seeded sample for a check by hand.
 - Every card links a correction form; a removal form takes a name and a group and needs no reason. Removals are applied at the next publication and are kept outside the repository.
 
@@ -15,10 +15,10 @@ This repository is an [Agent Skills](https://agentskills.io) package. An agent r
 
 1. The field's pack (`references/15-domain-pack.md`): a domain map, facets and known groups. A new field starts from ten questions, not from code.
 2. Channels: paper awards, national prizes, EU, DFG and SNSF funding, competitions, open source, startups and industry labs are swept into signals, which hop to people and groups (`references/30-hops.md`).
-3. People are merged and their current role read from public pages (`references/40-entity-resolution.md`, `references/45-web-verification.md`): institutional pages, team pages, funding registers and publication metadata. Login-gated sites, social networks and people-search aggregators are never read.
+3. People are merged and their current role read from public pages (`references/40-entity-resolution.md`, `references/45-web-verification.md`): institutional pages, team pages, funding registers and publication metadata, and only those.
 4. Groups form around their PI; members attach through public team pages and shared grants (`references/50-output.md`). `scripts/group_export.py` writes `groups.json`, `scripts/check_groups.py` runs the four checks, `scripts/publish_site.py` writes `docs/` and refuses when a check fails or private text is present.
 
-A run writes only into its own run directory, which stays local; the per-person working tables of a run are never published.
+A run writes into its own run directory, which stays local; the per-person working tables stay there.
 
 ## Layout
 
