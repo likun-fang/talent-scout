@@ -93,7 +93,9 @@ class YamlSubsetTests(unittest.TestCase):
                      'keywords: [- robot]\n', 'snapshot: {true: x}\n', '1: x\n', 'keywords: [\t"robot", x]\n',
                      'keywords: [0b1010]\n', 'keywords: [-1:20]\n', 'keywords: [1:20.5]\n', 'snapshot:\n  <<: {a: b}\n',
                      'snapshot:\n  ? a: b\n', 'snapshot:\n  @a: b\n', 'keyword_rules: ]robot\n', 'snapshot: {<<: {a: b}}\n',
-                     'keywords: [#robot]\n', 'keywords: [robot ? arm]\n', 'snapshot:\n  : a: b\n', 'keyword_rules: "robot"\u00a0\n'):
+                     'keywords: [#robot]\n', 'keywords: [robot ? arm]\n', 'snapshot:\n  : a: b\n', 'keyword_rules: "robot"\u00a0\n',
+                     'keywords: [<<]\n', 'keywords: [=]\n', 'keyword_rules: robot\x00arm\n', "keyword_rules: 'robot\x0barm'\n",
+                     'keyword_rules: robot\u2028arm\n'):
             with self.subTest(text=text):
                 with self.assertRaises(ValueError) as stop:
                     load_yaml(text)
