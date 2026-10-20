@@ -27,5 +27,7 @@
   "CISPA Helmholtz Center for Information Security": ["CISPA", "CISPA Helmholtz-Zentrum für Informationssicherheit", "CISPA Helmholtz Center", "Helmholtz Center for Information Security"],
   "Max Planck Institute for Intelligent Systems": ["MPI-IS", "MPI for Intelligent Systems", "Max-Planck-Institut für Intelligente Systeme"],
   "Max Planck Institute for Software Systems": ["MPI-SWS", "MPI for Software Systems", "Max-Planck-Institut für Softwaresysteme"],
-  "Fraunhofer Institute for Intelligent Analysis and Information Systems": ["Fraunhofer IAIS"]
+  "Fraunhofer Institute for Intelligent Analysis and Information Systems": ["Fraunhofer IAIS"],
+  "German Research Center for Artificial Intelligence (DFKI)": ["DFKI", "DFKI GmbH", "German Research Center for Artificial Intelligence", "German Research Center for Artificial Intelligence (DFKI GmbH)", "Deutsches Forschungszentrum für Künstliche Intelligenz", "Deutsches Forschungszentrum für Künstliche Intelligenz (DFKI)", "Deutsches Forschungszentrum für Künstliche Intelligenz GmbH", "DFKI Saarbrücken", "DFKI Kaiserslautern", "DFKI Bremen", "DFKI Berlin", "DFKI Darmstadt"],
+  "National Center for Tumor Diseases Dresden (NCT/UCC)": ["NCT/UCC Dresden", "NCT Dresden", "Nationales Centrum für Tumorerkrankungen Dresden"]
 }

@@ -190,8 +190,11 @@ class SecondaryPostTests(unittest.TestCase):
         self.assertEqual(group_affiliation(one), ('Siemens AG', ['Technical University of Munich']))
 
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
-        same = self.member('Adjunct Professor', place='Universität des Saarlandes', current='Saarland University')
-        self.assertEqual(affiliation_for(same), 'Universität des Saarlandes')
+        for place, current in (('Universität des Saarlandes', 'Saarland University'), ('DFKI Saarbrücken', DFKI),
+                               ('NCT/UCC Dresden', 'National Center for Tumor Diseases Dresden (NCT/UCC)')):
+            same = self.member('Adjunct Professor', place=place, current=current)
+            with self.subTest(place=place):
+                self.assertEqual(affiliation_for(same), place)
         alias = self.member('Adjunct Professor', place='École Polytechnique Fédérale de Lausanne', current='EPFL')
         self.assertEqual(group_affiliation(alias), ('École Polytechnique Fédérale de Lausanne', []))
         alone = self.member('Affiliated Professor', current='')
