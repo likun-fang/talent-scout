@@ -30,7 +30,7 @@ Two moments to stop for the user: after stage 1 (the domain map and the chosen O
 stage 2 (the raw candidate count, before budget goes into enrichment). Show the screen, stop, and wait for the user's
 reply before the next stage.
 
-The tier in stages 4 and 5 is a sort order of the working table only and never reaches the map.
+The tier in stages 4 and 5 is a sort order of the working table only and never reaches the published map (`groups.json` and `docs/`).
 
 Channels are independent: run them as parallel subagents sharing one brief (`assets/channel-brief.template.md`),
 each doing its own hops and writing its own coverage note. A first real run (embodied AI, 2026-10-08) did this
