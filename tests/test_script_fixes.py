@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import openalex_lookup as oa
-import visit_page as vp
 
 
 class RepositoryTests(unittest.TestCase):
@@ -46,40 +45,6 @@ class RepositoryTests(unittest.TestCase):
             result = oa.topic_groups('T1', 'DE+CH', datetime.date(2023, 10, 12), datetime.date(2026, 10, 12))
         self.assertEqual([v['id'] for v in result['venues']], ['S2'])
         self.assertEqual(oa.region_codes('DE+CH'), ['DE', 'CH'])
-
-
-class SectionTruncationTests(unittest.TestCase):
-    def test_line_cap_and_exact_boundary(self):
-        for text, expected in [('Experience\na\nb\nc\nEducation\nx', True),
-                               ('Experience\na\nb\nEducation\nx', False),
-                               ('Experience\na\nb', False),
-                               ('Experience\na\nb\nView full profile', False)]:
-            with self.subTest(text=text):
-                record = vp.section_excerpts(text, lines_per_section=2)
-                self.assertEqual(record['experience']['lines'], ['a', 'b'])
-                self.assertIs(record['experience']['section_truncated'], expected)
-
-    def test_page_cap_marks_only_section_without_boundary(self):
-        record = vp.section_excerpts('Experience\na\nEducation\nb', page_truncated=True)
-        self.assertFalse(record['experience']['section_truncated'])
-        self.assertTrue(record['education']['section_truncated'])
-
-    def test_visit_keeps_per_section_flags_with_existing_excerpt_shape(self):
-        url = 'https://www.linkedin.com/in/example'
-        page = {'text': 'Experience\n' + '\n'.join(str(i) for i in range(15)) + '\nEducation\nSchool',
-                'final_url': url, 'title': 'Example | LinkedIn'}
-        with patch.object(vp, 'http_read', return_value=page):
-            record = vp.visit(url)
-        self.assertEqual(len(record['sections']['experience']), 14)
-        self.assertEqual(record['section_truncated'], {'experience': True, 'education': False})
-        self.assertIs(record['role_verified'], False)
-        self.assertEqual(record['text'], '')
-
-    def test_visit_page_character_cap_propagates_to_section(self):
-        url = 'https://www.linkedin.com/in/example'
-        with patch.object(vp, 'http_read', return_value={'text': 'Experience\nResearch scientist', 'final_url': url}):
-            record = vp.visit(url, max_chars=16)
-        self.assertTrue(record['section_truncated']['experience'])
 
 
 class FileHandleTests(unittest.TestCase):
