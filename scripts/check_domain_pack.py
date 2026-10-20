@@ -148,7 +148,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
                 raise ValueError(f'expected "," or "{closing}" at column {pos + 1}')
     if text[pos:pos + 1] in ('"', "'"):
         return quoted(text, pos)
-    if text[pos:pos + 1] in ('&', '*', '!', '?', '|', '>', '%', '@', '`') or (
+    if text[pos:pos + 1] in ('&', '*', '!', '?', '|', '>', '%', '@', '`', '#', ':') or (
             text[pos:pos + 1] == '-' and text[pos + 1:pos + 2] in ('', ' ', '\t', ',', ']', '}')):
         raise ValueError(f'{text[pos]!r} (an indicator: anchor, alias, tag, key, block or item) is outside the YAML subset')
     end = pos
@@ -162,7 +162,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
         end += 1
     token = text[pos:end].strip(' \t')
     # Inside a flow collection a plain scalar holds no ": " (YAML reads a mapping there) and no flow indicator.
-    if ',' in stops and (': ' in token or token.endswith(':') or re.search(r'[{}\[\]]', token)):
+    if ',' in stops and (': ' in token or token.endswith(':') or re.search(r'[{}\[\]?]| # ', token)):  # YAML 1.1 reads no "?" in a flow plain scalar
         raise ValueError(f'a flow entry needs quotes: {token[:40]!r}')
     return scalar(token), end
 
@@ -173,12 +173,12 @@ def inline(text: str):
     if text[0] not in '{["\'' and (': ' in text or text.endswith(':')):
         raise ValueError(f'a plain value with ": " needs quotes: {text[:40]!r}')
     value, end = flow(text, 0, '')
-    if text[end:].strip():
+    if text[end:].strip(' \t'):
         raise ValueError(f'unexpected text after the value: {text[end:].strip()[:30]!r}')
     return value
 
 
-KEY = re.compile(r'^("(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'|[^ \t"\'{\[\]},#&*!|>?@`%-][^:]*?|-[^ \t:][^:]*?)[ \t]*:(?:[ \t]+(.*)|$)')
+KEY = re.compile(r'^("(?:[^"\\]|\\.)*"|\'(?:[^\']|\'\')*\'|[^ \t"\'{\[\]},#&*!|>?@`%:-][^:]*?|-[^ \t:][^:]*?)[ \t]*:(?:[ \t]+(.*)|$)')
 
 
 def load_yaml(text: str):
