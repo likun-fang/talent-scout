@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render groups.json as one static, bilingual page: a map of institutions and a list of group cards.
 
-  group_map.py groups.json [--out site/index.html]
+  group_map.py groups.json [--out site/index.html] [--correction-url URL] [--about-url URL]
 
 The page lists groups by institution and then PI name; nothing on it ranks groups or countries. A card shows the PI,
 institution, homepage, direction tags, topics, members by role, funding, evidence links and the date the group was
@@ -9,23 +9,32 @@ last verified, with a link to report a correction. Leaflet and the basemap tiles
 is opened (Leaflet pinned as in talent_map.py); everything else is inline. Standard library only.
 """
 from __future__ import annotations
-import argparse, html, json, sys
+import argparse, html, json, re, sys
 from pathlib import Path
 from person_fields import normalized
 
-# Placeholder until the correction issue template exists; each card appends ?group=<id>.
+# Placeholder for a run's own page; publish_site.py passes the repository's correction form. Each card appends
+# group=<id> to it, after "&" when the URL already carries a query.
 CORRECTION_URL = 'https://example.invalid/report-a-correction'
+# The in-page about section; a published page links the site's about page instead.
+ABOUT_URL = '#about'
 
 
-def render_html(doc: dict) -> str:
+def render_html(doc: dict, correction_url: str = CORRECTION_URL, about_url: str = ABOUT_URL) -> str:
     groups = sorted(doc['groups'], key=lambda g: (normalized(g['institution']['name']), normalized(g['pi']['name']), g['id']))
     # No markup characters inside the data block: "</script>" would close it and "<!--<script>" would swallow the page.
     payload = (json.dumps({**doc, 'groups': groups}, ensure_ascii=False)
                .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
     meta = doc.get('meta', {})
     title = html.escape(f"Research groups · {meta.get('domain') or 'field'} · {meta.get('as_of', '')}")
-    return (TEMPLATE.replace('__TITLE__', title).replace('__CORRECTION_URL__', json.dumps(CORRECTION_URL))
-            .replace('__DATA__', payload))
+    # Neither URL may carry markup into the script block; json.dumps quotes them for JavaScript.
+    urls = {'__CORRECTION_URL__': correction_url, '__ABOUT_URL__': about_url}
+    if any(re.search(r'[<>"\'\\\s]', url) for url in urls.values()):
+        raise ValueError(f'a correction or about URL with quotes, brackets or spaces: {urls}')
+    page = TEMPLATE.replace('__TITLE__', title)
+    for marker, url in urls.items():
+        page = page.replace(marker, json.dumps(url))
+    return page.replace('__DATA__', payload)
 
 
 TEMPLATE = r'''<!doctype html>
@@ -93,7 +102,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12.5px}
   <select id="f-country"></select>
   <span id="facets"></span>
   <button id="reset"></button>
-  <a class="about" id="about-link" href="#about"></a>
+  <a class="about" id="about-link"></a>
   <button id="lang">中文</button>
 </header>
 <main>
@@ -109,6 +118,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:12.5px}
 <script>
 const DATA = JSON.parse(document.getElementById('group-data').textContent);
 const CORRECTION_URL = __CORRECTION_URL__;
+const ABOUT_URL = __ABOUT_URL__;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // Only web links become anchors: a value from a page cannot smuggle in a javascript: URL.
@@ -122,6 +132,7 @@ const I18N = {
     topics: 'topics', funding: 'funding records', openSource: 'open source', sources: 'found through', lastVerified: 'last verified',
     fromPage: 'page read', fromRecord: 'date of the newest record, no page read', never: 'not verified', members: 'members', evidence: 'evidence links',
     coauthors: n => `and ${n} coauthor${n === 1 ? '' : 's'} of shared papers, not listed`, project: 'project', correction: 'Report a correction',
+    noMembers: 'members not yet collected',
     roles: {professor: 'professor', group_leader: 'group leader', researcher: 'researcher / postdoc', phd_student: 'PhD student', industry: 'industry', unknown: 'role unknown'},
     basemaps: {esri: 'Esri light gray', osmde: 'OpenStreetMap (DE mirror)', osm: 'OpenStreetMap', none: 'no basemap'},
     tileHint: n => `basemap "${n}" is not loading on this network; pick another one, the markers still work`,
@@ -139,6 +150,7 @@ const I18N = {
     topics: '方向', funding: '资助记录', openSource: '开源', sources: '发现渠道', lastVerified: '最近核实',
     fromPage: '读过页面', fromRecord: '最新记录日期，未读页面', never: '未核实', members: '成员', evidence: '证据链接',
     coauthors: n => `另有 ${n} 位合著者（只共同发表过论文，不列出）`, project: '项目', correction: '报告错误',
+    noMembers: '成员未采集',
     roles: {professor: '教授', group_leader: '课题组长', researcher: '研究员/博后', phd_student: '博士生', industry: '业界', unknown: '角色未定'},
     basemaps: {esri: 'Esri 浅灰底图', osmde: 'OpenStreetMap（德国镜像）', osm: 'OpenStreetMap', none: '无底图'},
     tileHint: n => `底图 "${n}" 在当前网络加载不了，换一个即可，圆点不受影响`,
@@ -272,23 +284,23 @@ function membersByRole(g) {
 function card(g) {
   const t = T(), loc = g.institution.location || {};
   const verified = g.last_verified ? `${esc(g.last_verified)} <span class="muted">(${g.last_verified_from === 'final_pass' ? t.fromPage : t.fromRecord})</span>` : `<span class="muted">${t.never}</span>`;
-  const correction = `${CORRECTION_URL}?group=${encodeURIComponent(g.id)}`;
+  const correction = CORRECTION_URL + (CORRECTION_URL.includes('?') ? '&' : '?') + 'group=' + encodeURIComponent(g.id);
   return `<div class="card"><h2>${esc(g.pi.name)} <span class="role">${esc(roleLabel(g.pi.role_class))}</span></h2>
     <div class="sub"><a data-inst="${esc(g.institution.name)}" href="#">${esc(g.institution.name)}</a> · ${esc(g.institution.country)}${loc.city ? ' · ' + esc(loc.city) : ''}${loc.source === 'country centroid' ? ' · ' + t.approx : ''}
       ${g.institution.location ? `<button class="btn" data-fly="${esc(g.institution.name)}">${t.showOnMap}</button>` : ''}</div>
-    <dl>${g.homepage ? `<dt>${t.homepage}</dt><dd>${link(g.homepage)}</dd>` : ''}
+    <dl>${g.homepage ? `<dt>${t.homepage}</dt><dd>${link(g.homepage)}</dd>` : g.pi.homepage ? `<dt>${t.piPage}</dt><dd>${link(g.pi.homepage)}</dd>` : ''}
     ${g.lab ? `<dt>${t.lab}</dt><dd>${g.lab.groups.filter(id => id !== g.id).map(byId).filter(Boolean).map(o => `<a href="#" data-group="${esc(o.id)}">${esc(o.pi.name)}</a>`).join(', ')}</dd>` : ''}
-    ${g.pi.homepage && g.pi.homepage !== g.homepage ? `<dt>${t.piPage}</dt><dd>${link(g.pi.homepage)}</dd>` : ''}
+    ${g.homepage && g.pi.homepage && g.pi.homepage !== g.homepage ? `<dt>${t.piPage}</dt><dd>${link(g.pi.homepage)}</dd>` : ''}
     ${FACETS.length ? `<dt>${t.tags}</dt><dd>${tagChips(g.tags) || '<span class="muted">—</span>'}</dd>` : ''}
     <dt>${t.topics}</dt><dd>${g.topics.map(x => `<span class="topic">${esc(x)}</span>`).join('') || '<span class="muted">—</span>'}</dd>
     ${g.active_funding.length ? `<dt>${t.funding}</dt><dd>${g.active_funding.map(f => esc(fundingLabel(f.type)) + (f.date ? ' · ' + esc(f.date) : '')).join('<br>')}</dd>` : ''}
     ${g.open_source.length ? `<dt>${t.openSource}</dt><dd>${g.open_source.slice(0, 8).map(u => link(u)).join('<br>')}</dd>` : ''}
     <dt>${t.sources}</dt><dd>${g.sources.map(c => esc(channelLabel(c))).join(', ') || '—'}</dd>
     <dt>${t.lastVerified}</dt><dd>${verified}</dd></dl>
-    ${g.members.length ? `<h3>${t.members}</h3>${membersByRole(g)}` : ''}
+    <h3>${t.members}</h3>${g.members.length ? membersByRole(g) : `<p class="muted">${t.noMembers}</p>`}
     ${g.coauthors_count ? `<p class="muted">${esc(t.coauthors(g.coauthors_count))}</p>` : ''}
     <details><summary>${t.evidence} (${g.evidence_urls.length})</summary>${g.evidence_urls.slice(0, 60).map(u => link(u)).join('<br>')}</details>
-    <div class="actions"><a href="${esc(correction)}" target="_blank" rel="noopener">${t.correction}</a><a href="#about">${t.about}</a></div></div>`;
+    <div class="actions"><a href="${esc(correction)}" target="_blank" rel="noopener">${t.correction}</a><a href="${esc(ABOUT_URL)}">${t.about}</a></div></div>`;
 }
 function render() {
   const groups = visible();
@@ -321,7 +333,7 @@ function applyLanguage() {
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
   $('#lang').textContent = lang === 'zh' ? 'EN' : '中文';
   $('#title').textContent = t.title(`${DATA.meta.domain || ''} · ${DATA.meta.as_of}`);
-  $('#q').placeholder = t.search; $('#reset').textContent = t.reset; $('#about-link').textContent = t.about;
+  $('#q').placeholder = t.search; $('#reset').textContent = t.reset; $('#about-link').textContent = t.about; $('#about-link').href = ABOUT_URL;
   const country = $('#f-country'), cur = country.value;
   country.innerHTML = `<option value="">${esc(t.allCountries)}</option>` +
     [...new Set(DATA.groups.map(g => g.institution.country))].filter(Boolean).sort().map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
@@ -375,6 +387,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('groups')
     parser.add_argument('--out', default='index.html')
+    parser.add_argument('--correction-url', default=CORRECTION_URL,
+                        help='form a card links to report a correction; the card appends group=<id>')
+    parser.add_argument('--about-url', default=ABOUT_URL, help='where the about links point (default: the in-page section)')
     args = parser.parse_args()
     try:
         doc = json.loads(Path(args.groups).read_text(encoding='utf-8'))
@@ -384,7 +399,11 @@ def main() -> None:
         raise SystemExit(f'{args.groups}: expected an object with "meta" and "groups" (written by group_export.py)')
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render_html(doc), encoding='utf-8')
+    try:
+        page = render_html(doc, args.correction_url, args.about_url)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
+    out.write_text(page, encoding='utf-8')
     print(f"wrote {out}: {len(doc['groups'])} groups", file=sys.stderr)
 
 

@@ -48,7 +48,7 @@ class PageTests(unittest.TestCase):
         html = render_html(doc(record('Anna Meyer', 'TUM')))
         self.assertIn(json.dumps(CORRECTION_URL), html)
         self.assertIn('id="about"', html)
-        self.assertIn('href="#about"', html)
+        self.assertIn('href="${esc(ABOUT_URL)}"', html)
 
     def test_no_tiers_badges_scores_or_person_pages(self):
         html = render_html(doc(record('Anna Meyer', 'TUM'))).lower()
@@ -69,6 +69,52 @@ class PageTests(unittest.TestCase):
         html = render_html(doc(record('Anna Meyer', 'TUM')))
         self.assertIn('function filtersChanged() { fitPending = true; home(); }', html)
         self.assertEqual(html.count('filtersChanged()'), 4)  # the definition, search, country and each facet select
+
+
+class PublishedPageTests(unittest.TestCase):
+    ISSUES = 'https://github.com/likun-fang/talent-scout/issues/new?template=correction.yml'
+
+    def test_the_correction_url_is_appended_with_an_ampersand_when_it_already_has_a_query(self):
+        html = render_html(doc(record('Anna Meyer', 'TUM')), correction_url=self.ISSUES)
+        self.assertIn(f'const CORRECTION_URL = {json.dumps(self.ISSUES)};', html)
+        self.assertIn("CORRECTION_URL + (CORRECTION_URL.includes('?') ? '&' : '?') + 'group=' + encodeURIComponent(g.id)", html)
+
+    def test_the_about_links_point_where_the_publisher_says(self):
+        html = render_html(doc(record('Anna Meyer', 'TUM')), about_url='../about.html')
+        self.assertIn('const ABOUT_URL = "../about.html";', html)
+        self.assertNotIn('href="#about"', html)
+        self.assertIn('const ABOUT_URL = "#about";', render_html(doc(record('Anna Meyer', 'TUM'))))
+
+    def test_a_group_without_members_says_they_are_not_yet_collected(self):
+        html = render_html(doc({**record('Anna Meyer', 'TUM'), 'members': []}))
+        self.assertIn("noMembers: 'members not yet collected'", html)
+        self.assertIn("noMembers: '成员未采集'", html)
+        self.assertIn('<p class="muted">${t.noMembers}</p>', html)
+
+    def test_a_group_without_a_homepage_shows_the_pi_page_in_its_place(self):
+        html = render_html(doc(record('Anna Meyer', 'TUM')))
+        self.assertIn("${g.homepage ? `<dt>${t.homepage}</dt><dd>${link(g.homepage)}</dd>`"
+                      " : g.pi.homepage ? `<dt>${t.piPage}</dt><dd>${link(g.pi.homepage)}</dd>` : ''}", html)
+        self.assertIn('g.homepage && g.pi.homepage && g.pi.homepage !== g.homepage', html)
+
+    def test_a_url_that_could_break_out_of_the_script_is_refused(self):
+        for url in ('https://x.example/"; alert(1); "', 'https://x.example/</script>', 'https://x.example/a b'):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                render_html(doc(record('Anna Meyer', 'TUM')), correction_url=url)
+
+    def test_main_takes_the_correction_and_about_urls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source, out = Path(tmp) / 'groups.json', Path(tmp) / 'index.html'
+            source.write_text(json.dumps(doc(record('Anna Meyer', 'TUM'))), encoding='utf-8')
+            old, sys.argv = sys.argv, ['group_map.py', str(source), '--out', str(out), '--correction-url', self.ISSUES,
+                                       '--about-url', '../about.html']
+            try:
+                group_map.main()
+            finally:
+                sys.argv = old
+            html = out.read_text(encoding='utf-8')
+            self.assertIn(json.dumps(self.ISSUES), html)
+            self.assertIn('"../about.html"', html)
 
 
 class SharedLabTests(unittest.TestCase):
