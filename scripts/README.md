@@ -12,6 +12,7 @@ OpenAlex calls honour `OPENALEX_API_KEY` (free key; without it OpenAlex allows r
 | `talent_map.py` | 5 | the same `persons.jsonl` → one `talent-map.html`: a map of institutions with every group, person, signal and evidence link inline; same selection, tiers and groups as `table_export.py`; institutions placed from the manual table `assets/geo-overrides.json` (city level, with sources), then through ROR (cached in `cache/geo/`, `--offline` to reuse), country centroid when neither has a match; research-direction tags from `facets.json` (`--facets`) |
 | `group_export.py` | 5 | the same `persons.jsonl` → `groups.json`, one record per research group for the public group map (`references/50-output.md`, schema `assets/groups.schema.json`); no tiers, no LinkedIn data |
 | `group_map.py` | 5 | `groups.json` → one static bilingual `index.html`: institutions on a map, groups listed by institution and PI, a correction link per card |
+| `check_domain_pack.py` | 1 | `<slug>` → validates `domain-cache/<slug>.yaml` against `assets/domain-pack.schema.json` (stdlib YAML-subset loader), its facets file and its known-groups list; no people's data in a pack; exits 1 on an error |
 | `check_groups.py` | 5 | `groups.json` + `assets/known-groups/<field>.json` → recall, freshness and LinkedIn checks and a seeded spot-check sample; exits 1 on a failed check |
 
 Date defaults: `openalex_lookup.py --topics` queries the 36 months ending on `--date` (default today);
