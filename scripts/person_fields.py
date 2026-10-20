@@ -100,10 +100,38 @@ def past_position(person: dict) -> bool:
 # One item of a roster heading or title that names a group leader ("Research Group Leaders", "Scientist, Group Leader
 # of Surgical Analytics"); "Former Group Leader", "Deputy Group Leader" and "Group Leaders and PhD Students" are not.
 GROUP_LEADER_ITEM = re.compile(r'^(?:research |independent |junior )?group leaders?(?: (?:of|for) .+| \(.+\))?$', re.I)
+# A qualifier that makes the item a past or stand-in post: "Group Leader (until 2022)", "Group Leader (Deputy)".
+LEADER_QUALIFIER = r'\b(?:former(?:ly)?|until|bis|deputy|acting|interim|ehemalig\w*|stellv\w*|\d{4})\b'
+# A heading that also names a doctoral or postdoctoral stage lists members, whatever its other items say.
+MEMBER_STAGE = r'\b(?:ph\.?d\.?|doctoral|doktorand\w*|promovierende\w*|post[ -]?do[ck]\w*|students?)\b'
 
 
 def leader_heading(title: str) -> bool:
-    return any(GROUP_LEADER_ITEM.match(item.strip()) for item in re.split(r'[,;/]', title or ''))
+    if re.search(MEMBER_STAGE, title or '', re.I):
+        return False
+    return any(GROUP_LEADER_ITEM.match(item.strip()) and not re.search(LEADER_QUALIFIER, item, re.I)
+               for item in re.split(r'[,;/]', title or ''))
+
+
+def leader_heading_signal(person: dict) -> dict | None:
+    """The roster that lists the person under a group-leader heading, while it still holds: undated or not older
+    than the final pass read, and at the person's institution or a second post of theirs (a roster at another
+    institution is from before a move, as in rule_one)."""
+    read = (person.get('last_verified') or '')[:7]
+    places = [place for place in [affiliation_for(person)] + second_institutions(person) if place]
+    for signal in person.get('signals', []):
+        if signal.get('signal_type') not in TEAM_SIGNALS or not leader_heading(signal.get('role_title') or ''):
+            continue
+        date, roster_place = (signal.get('date') or '')[:7], signal.get('affiliation_raw') or ''
+        if date and read and date < read:
+            continue
+        if roster_place and not any(same_institution_name(roster_place, place) or names_part_of(place, roster_place)
+                                    for place in places):
+            continue
+        return signal
+    return None
+
+
 # Titles of a second post held beside the main one; they never set the group's institution.
 SECONDARY_TITLE = (r'\b(?:(?:affiliated|adjunct|honorary) professors?|honorarprofessor\w*|privatdozent\w*|'
                    r'au(?:ß|ss)erplanm(?:ä|ae|a)(?:ß|ss)ige[rn]? professor\w*)\b|\bapl\.\s*prof\w*')
@@ -128,8 +156,7 @@ def second_institutions(person: dict) -> list[str]:
 
 def named_group_leader(person: dict) -> bool:
     """A group leader whom a roster lists under a group-leader heading leads a group of its own."""
-    return person.get('role_class') == 'group_leader' and any(
-        s.get('signal_type') in TEAM_SIGNALS and leader_heading(s.get('role_title') or '') for s in person.get('signals', []))
+    return person.get('role_class') == 'group_leader' and leader_heading_signal(person) is not None
 
 
 def affiliation_for(person: dict) -> str:
