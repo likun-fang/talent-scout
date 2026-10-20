@@ -62,9 +62,16 @@ def validate_url(url: str) -> str:
     return url
 
 
+# linkedin.com as a host anywhere in the URL, decoded: the page itself, a trailing-dot host, or a URL another service
+# wraps (web.archive.org/web/.../linkedin.com/in/x, r.jina.ai/https://linkedin.com/..., ?to=https%3A%2F%2Flinkedin...).
+LINKEDIN_HOST = re.compile(r'(?:^|[^a-z0-9-])linkedin\.com\.?(?=[/:?#]|$)')
+
+
 def outside_sources(url: str) -> bool:
-    host = (urllib.parse.urlsplit(url).hostname or '').lower()
-    return host == 'linkedin.com' or host.endswith('.linkedin.com')
+    text = (url or '').lower()
+    for _ in range(3):
+        text = urllib.parse.unquote(text)
+    return bool(LINKEDIN_HOST.search(text))
 
 
 class TextPage(HTMLParser):
@@ -245,6 +252,10 @@ def jina_read(url: str, timeout: float) -> dict:
     record = http_read('https://r.jina.ai/' + url, timeout, user_agent=PLAIN_UA)
     text = record.get('text', '')
     title = ''
+    # Jina names the page it rendered; a redirect to LinkedIn shows only there.
+    source = re.search(r'^URL Source:\s*(\S+)', text, re.M)
+    if source:
+        record = {**record, 'source_url': source.group(1)}
     if text.startswith('Title:'):
         title, _, text = text.partition('\n')
         title = title[6:].strip()
@@ -301,10 +312,11 @@ def climb(url: str, timeout: float, ladder: tuple, channel: str | None, wait_ms:
 def classify(result: dict) -> str:
     """Access outcome from status code, final URL and page shape. Button labels such as
     'Join to view profile' appear on readable public profiles and are deliberately ignored."""
+    # Before any other status: a refused or unsupported answer from LinkedIn must not send the ladder on.
+    if outside_sources(result.get('final_url', '')) or outside_sources(result.get('source_url', '')):
+        return 'outside_sources'
     if result.get('status'):
         return result['status']
-    if outside_sources(result.get('final_url', '')):
-        return 'outside_sources'
     code = result.get('http_status')
     final_url = result.get('final_url', '')
     path = urllib.parse.urlsplit(final_url).path.lower()
