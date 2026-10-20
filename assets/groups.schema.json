@@ -16,6 +16,7 @@
         "region": {"type": "string"},
         "window_start": {"$ref": "#/$defs/day"},
         "facets": {"type": "array", "items": {"$ref": "#/$defs/facet"}},
+        "removals": {"description": "How many removal requests applied to this field at publication (publish_site.py); the requests stay outside the repository.", "type": "integer", "minimum": 0},
         "checks": {
           "description": "Values of the acceptance checks at publication (publish_site.py); a run's own file has none. banned_source_hits counts LinkedIn keys and URLs, named so that the key itself is not one.",
           "type": "object",
