@@ -132,21 +132,24 @@ def leader_heading_signal(person: dict) -> dict | None:
     return None
 
 
-# Titles of a second post held beside the main one; they never set the group's institution.
-SECONDARY_TITLE = (r'\b(?:(?:affiliated|adjunct|honorary) professors?|honorarprofessor\w*|privatdozent\w*|'
-                   r'au(?:ß|ss)erplanm(?:ä|ae|a)(?:ß|ss)ige[rn]? professor\w*)\b|\bapl\.\s*prof\w*')
+# Titles of a second post held beside the main one; they never set the group's institution. A rank may stand between
+# the qualifier and "professor" ("Adjunct Associate Professor"); "PD Dr." is the Privatdozent.
+SECONDARY_TITLE = (r'\b(?:(?:affiliated?|adjunct|honorary) (?:(?:full|associate|assistant) )?professors?|'
+                   r'honorarprofessor\w*|privatdozent\w*|au(?:ß|ss)erplanm(?:ä|ae|a)(?:ß|ss)ige[rn]? professor\w*)\b|'
+                   r'\bapl\.\s*prof\w*|\bpd\.?\s+dr\b')
 
 
 def secondary_post(person: dict) -> bool:
     """A final pass that read a current secondary post ("Affiliated Professor") at another academic institution than
     the person's own record: the post goes to also_at, the record's institution stays. Only the title's leading item
-    counts, before brackets and a supervisor ("Full Professor (formerly Adjunct Professor)" is a full professorship)."""
+    counts, before brackets and a supervisor ("Full Professor (formerly Adjunct Professor)" is a full professorship).
+    Only the alias registry and the items of a name make two names one institution: a shared word does not, since
+    two institutions of one city share it ("DFKI, Saarbrücken" and "Saarland University, Saarbrücken")."""
     title, place = person.get('final_pass_title') or '', person.get('final_pass_affiliation') or ''
     current = person.get('current_affiliation') or ''
     lead = re.split(r'[,;(]|\b(?:in the (?:group|lab) of|supervised by|advised by|with prof)\b', title, flags=re.I)[0]
     return bool(re.match(r'\s*(?:' + SECONDARY_TITLE + ')', lead, re.I) and place and current and not past_position(person)
-                and re.search(ACADEMIC_WORDS, place, re.I) and not same_institution_name(place, current)
-                and distinct_institutions(place, current))
+                and re.search(ACADEMIC_WORDS, place, re.I) and not same_institution_name(place, current))
 
 
 def second_institutions(person: dict) -> list[str]:

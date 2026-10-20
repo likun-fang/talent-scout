@@ -114,8 +114,11 @@ limited to five; do not paraphrase or case-fold the phrases.
 institution next to another organisation ("valeo.ai; Sorbonne Univ."), the group carries the academic institution;
 so it does when the leader's affiliation is an ORCID employment at a company and a record dated since that employment
 began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. A final-pass title whose leading item names a current secondary post
-(Affiliated, Adjunct or Honorary Professor, Honorarprofessor, außerplanmäßiger Professor, Privatdozent) at another
-academic institution than the person's record never sets the institution or the country: the record's institution
+(Affiliated, Affiliate, Adjunct or Honorary Professor, also with a rank such as "Adjunct Associate Professor",
+Honorarprofessor, außerplanmäßiger Professor or apl. Prof., Privatdozent or PD Dr.) at another academic institution than
+the person's record never sets the institution or the country. Only the alias registry and the items of a name make the
+post's institution the record's; a shared word does not, since two institutions of one city share it (DFKI and Saarland
+University in Saarbrücken). With such a post the record's institution
 stays, the post joins `also_at`, and that institution counts as the leader's for members: a roster member there is
 not stale, a coauthor there is not from another institution, and a member choosing between leaders keeps this one. When the leader's own final pass names one academic institution and a
 final-pass roster read for the leader as its head names another (Karolinska, and a group at FIMM Helsinki), the group sits

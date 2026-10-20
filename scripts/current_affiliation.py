@@ -336,8 +336,9 @@ def apply_final_pass(person: dict) -> dict:
     names a past position leaves no current affiliation."""
     past = past_position(person)
     if secondary_post(person):
-        note = (f"final pass {person.get('last_verified', '')}: secondary post at {person['final_pass_affiliation']} "
-                f"({person.get('final_pass_title')}); the record's institution stays")
+        source = f"final pass {person.get('last_verified', '')} {person.get('final_pass_url', '')}".strip()
+        note = (f"{source}: secondary post at {person['final_pass_affiliation']} ({person.get('final_pass_title')}); "
+                "the record's institution stays")
         notes = person.get('notes', '')
         return {**person, 'notes': notes if note in notes else '; '.join(filter(None, [notes, note]))}
     if not person.get('final_pass_affiliation') and not past:

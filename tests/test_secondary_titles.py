@@ -104,7 +104,9 @@ class SecondaryPostTests(unittest.TestCase):
 
     def test_a_secondary_professorship_elsewhere_goes_to_also_at_and_the_primary_institution_stays(self):
         for title in ('Affiliated Professor', 'Adjunct Professor', 'Honorary Professor', 'Honorarprofessor',
-                      'Außerplanmäßiger Professor', 'apl. Professor', 'Privatdozent'):
+                      'Außerplanmäßiger Professor', 'apl. Professor', 'Privatdozent', 'Adjunct Associate Professor',
+                      'Adjunct Assistant Professor', 'Honorary Associate Professor', 'Affiliate Professor', 'PD Dr.',
+                      'apl. Prof. Dr.'):
             one = self.member(title)
             with self.subTest(title=title):
                 self.assertEqual(affiliation_for(one), DFKI)
@@ -112,6 +114,7 @@ class SecondaryPostTests(unittest.TestCase):
                 applied = ca.apply_final_pass({**one, 'affiliation_source': 'evidence 2025-01'})
                 self.assertEqual((applied['current_affiliation'], applied['country']), (DFKI, 'DE'))
                 self.assertIn('secondary post', applied['notes'])
+                self.assertIn('https://graphics.example/people', applied['notes'])
 
     def test_only_a_current_leading_secondary_title_counts(self):
         for title in ('Full Professor (formerly Adjunct Professor)', 'Researcher in the group of Honorary Professor Jane Doe',
@@ -170,9 +173,18 @@ class SecondaryPostTests(unittest.TestCase):
         groups = {p['name']: p for p in assign_groups([self.secondary_leader(), max_])}
         self.assertEqual(groups['Max']['group'], f'Richard @ {DFKI}')
 
+    def test_two_institutions_of_one_city_are_two_institutions(self):
+        for current, place in (('DFKI Kaiserslautern', 'Saarland University, Saarbrücken'),
+                               ('German Research Center for Artificial Intelligence (DFKI), Saarbrücken', 'Saarland University'),
+                               ('Technical University of Munich', 'Munich Center for Machine Learning')):
+            one = self.member('Adjunct Professor', place=place, current=current)
+            with self.subTest(current=current, place=place):
+                self.assertEqual(affiliation_for(one), current)
+                self.assertEqual(group_affiliation(one), (current, [place]))
+
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
-        same = self.member('Adjunct Professor', place='DFKI Saarbrücken')
-        self.assertEqual(affiliation_for(same), 'DFKI Saarbrücken')
+        same = self.member('Adjunct Professor', place='Universität des Saarlandes', current='Saarland University')
+        self.assertEqual(affiliation_for(same), 'Universität des Saarlandes')
         alias = self.member('Adjunct Professor', place='École Polytechnique Fédérale de Lausanne', current='EPFL')
         self.assertEqual(group_affiliation(alias), ('École Polytechnique Fédérale de Lausanne', []))
         alone = self.member('Affiliated Professor', current='')
