@@ -25,7 +25,7 @@ Standard library only.
 from __future__ import annotations
 import argparse, datetime, html, json, os, re, sys, tempfile, urllib.parse
 from pathlib import Path
-from check_groups import RECALL_MIN, STALE_MAX, recall, same_pi, stale_groups
+from check_groups import RECALL_MIN, STALE_MAX, recall, stale_groups
 from group_export import linkedin_hits
 from group_map import render_html
 from person_fields import normalized
@@ -155,15 +155,20 @@ def load_removals(path: Path) -> list[dict]:
     return entries
 
 
+APOSTROPHES = re.compile(r"['’`´]")
+
+
 def name_in_url(name: str, url: str) -> bool:
     """A URL that spells the name anywhere, host, path or query, decoded: "ben-ott.example", "/people/Ben%20Ott",
-    "?name=Ben+Ott", "ben_ott.html". The spelling must stand as a whole ("/ruben-otto" does not spell Ben Ott)."""
-    words = re.findall(r'[a-z0-9]+', normalized(name))
+    "?name=Ben+Ott", "ben_ott.html", "/john-oconnor" or "/john_o-connor" for John O'Connor. Apostrophes in the URL are
+    dropped, and any one separator or none may stand between the words of the name; the spelling must stand as a whole
+    ("/ruben-otto" does not spell Ben Ott)."""
+    words = re.findall(r'[a-z0-9]+', normalized(name))  # "O'Connor" gives "o", "connor", joined below like any words
     if len(words) < 2:
         return False
-    text = normalized(urllib.parse.unquote_plus(url))
-    spellings = '|'.join(re.escape(joiner.join(words)) for joiner in ('-', '_', '.', ' ', ''))
-    return bool(re.search(rf'(?<![a-z0-9])(?:{spellings})(?![a-z0-9])', text))
+    text = APOSTROPHES.sub('', normalized(urllib.parse.unquote_plus(url)))
+    spelling = r'[-_. ]?'.join(re.escape(word) for word in words)
+    return bool(re.search(rf'(?<![a-z0-9]){spelling}(?![a-z0-9])', text))
 
 
 def same_name(left: str, right: str) -> bool:
@@ -184,18 +189,17 @@ def without_person(group: dict, name: str) -> dict:
     return group
 
 
-def apply_removals(doc: dict, entries: list[dict]) -> tuple[dict, int, list[str]]:
-    """The field without the removed people and groups, how many requests changed it, and the PIs whose groups went.
+def apply_removals(doc: dict, entries: list[dict]) -> tuple[dict, int]:
+    """The field without the removed people and groups, and how many requests changed it.
     A removed person leaves every group of the field, with every link that spells their name, since the request is
     about them rather than one card; a group request, or a PI's own request, removes the group, which is shown under
     the PI's name. A lab whose partner groups are gone stops being drawn as a lab."""
-    groups, applied, removed_pis = list(doc['groups']), 0, []
+    groups, applied = list(doc['groups']), 0
     for entry in entries:
         before = json.dumps(groups, sort_keys=True)
         name = entry['person'].strip()
         drop = {g['id'] for g in groups if (entry['scope'] == 'group' and g['id'] == entry['group'])
                 or (name and same_name(g['pi']['name'], name))}
-        removed_pis += [g['pi']['name'] for g in groups if g['id'] in drop]
         groups = [g for g in groups if g['id'] not in drop]
         if name:
             groups = [without_person(g, name) for g in groups]
@@ -209,7 +213,7 @@ def apply_removals(doc: dict, entries: list[dict]) -> tuple[dict, int, list[str]
             if len(partners) > 1:
                 group['lab'] = {**lab, 'groups': partners}
         result.append(group)
-    return {**doc, 'groups': result}, applied, removed_pis
+    return {**doc, 'groups': result}, applied
 
 
 def stray_files(out: Path, slug: str) -> list[str]:
@@ -418,9 +422,11 @@ def publish(run_dir: Path, slug: str, out: Path, known_path: Path, removals_path
     known = load_json(known_path, 'known groups')
     if not isinstance(known, dict) or not isinstance(known.get('groups'), list):
         raise SystemExit(f'{known_path}: expected {{"groups": [{{"pi": ..., "institution": ...}}]}}')
-    doc, removed, removed_pis = apply_removals(doc, load_removals(removals_path))
-    # A known group whose PI asked to be removed is no longer expected on the map.
-    known_groups = [item for item in known['groups'] if not any(same_pi(item['pi'], pi) for pi in removed_pis)]
+    entries = load_removals(removals_path)
+    doc, removed = apply_removals(doc, entries)
+    # A known group whose PI asked to be removed, now or at an earlier publication, is no longer expected on the map.
+    # The full name decides: the recall check's surname-and-initial match would also excuse another PI.
+    known_groups = [item for item in known['groups'] if not any(same_name(item['pi'], entry['person']) for entry in entries)]
     notes = notes_fields(doc)
     if notes:
         raise SystemExit(f'not published: notes fields stay in the run: {notes[:5]}')

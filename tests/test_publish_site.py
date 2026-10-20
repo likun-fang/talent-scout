@@ -285,6 +285,24 @@ class RemovalTests(unittest.TestCase):
             self.assertEqual([g['id'] for g in doc['groups']], ['anna-meyer-tum', 'dan-roe-tum'])
             self.assertNotIn('cara', json.dumps(doc).casefold())
 
+    def test_a_punctuated_name_is_found_in_urls_spelled_with_or_without_its_punctuation(self):
+        for url in ('https://lab.example/people/John%20O%27Connor', 'https://lab.example/john-oconnor',
+                    'https://lab.example/john_o-connor', 'https://lab.example/JohnOConnor'):
+            with self.subTest(url=url):
+                self.assertTrue(publish_site.name_in_url("John O'Connor", url))
+        self.assertFalse(publish_site.name_in_url("John O'Connor", 'https://lab.example/john-oconnors-lab-x'.replace('oconnors', 'oconnorson')))
+
+    def test_only_the_removed_pi_is_exempt_from_recall_even_when_the_group_was_removed_before(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            known = [{'pi': 'Anna Meyer', 'institution': 'TUM'}, {'pi': 'Anton Meyer', 'institution': 'ETH Zurich'}]
+            site = Fixture(tmp, groups_doc(group('Cara Lin', 'TUM')), known)
+            site.removals.write_text(json.dumps([{'issue': 13, 'person': 'Anna Meyer', 'group': 'anna-meyer-tum',
+                                                  'scope': 'group'}]), encoding='utf-8')
+            with self.assertRaises(SystemExit) as stop:
+                site.publish()
+            self.assertIn('recall 0/1', str(stop.exception))
+            self.assertIn('Anton Meyer', str(stop.exception))
+
     def test_a_malformed_or_unreadable_removals_file_stops_the_publication(self):
         for removals in ('{not json', {'issue': 1}, [{'issue': 'x', 'person': 'Ben Ott', 'group': 'g', 'scope': 'person'}],
                          [{'issue': 1, 'person': 'Ben Ott', 'group': 'g', 'scope': 'everything'}],
