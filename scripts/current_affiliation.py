@@ -21,7 +21,8 @@ import urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
-from person_fields import (ACADEMIC_EMPLOYER, ACADEMIC_WORDS, PAST_LEAD, RESEARCH_GMBH, assign_groups, past_position, topics_for,
+from person_fields import (ACADEMIC_EMPLOYER, ACADEMIC_WORDS, GROUP_LEADER_HEADING, PAST_LEAD, RESEARCH_GMBH, TEAM_SIGNALS,
+                           assign_groups, past_position, secondary_post, topics_for,
                            same_institution)
 from openalex_auth import auth_headers
 from publication_signals import inference_signals
@@ -334,6 +335,11 @@ def apply_final_pass(person: dict) -> dict:
     """Apply reviewed affiliation without mutating signals or losing the provider provenance. A read title that
     names a past position leaves no current affiliation."""
     past = past_position(person)
+    if secondary_post(person):
+        note = (f"final pass {person.get('last_verified', '')}: secondary post at {person['final_pass_affiliation']} "
+                f"({person.get('final_pass_title')}); the record's institution stays")
+        notes = person.get('notes', '')
+        return {**person, 'notes': notes if note in notes else '; '.join(filter(None, [notes, note]))}
     if not person.get('final_pass_affiliation') and not past:
         return dict(person)
     source = f"final pass {person.get('last_verified', '')} {person.get('final_pass_url', '')}".strip()
@@ -378,6 +384,13 @@ def company_evidence(person: dict, institution: tuple | None) -> tuple | None:
     return None
 
 
+def leader_heading(person: dict) -> tuple[str, str] | None:
+    """(heading, URL) of a roster that lists the person under a group-leader heading."""
+    return next(((s['role_title'], s.get('evidence_url', '')) for s in person.get('signals', [])
+                 if s.get('signal_type') in TEAM_SIGNALS and re.search(GROUP_LEADER_HEADING, s.get('role_title') or '', re.I)
+                 and title_class(s['role_title']) == 'group_leader'), None)
+
+
 def classify_role(person: dict, run_year: int, employment: tuple | None = None,
                   institution: tuple | None = None) -> dict:
     """First matching rule wins. Classification is pure and never dates a verification."""
@@ -402,6 +415,10 @@ def classify_role(person: dict, run_year: int, employment: tuple | None = None,
                                  person.get('final_pass_affiliation') or person.get('current_affiliation', ''), country)
         if role_class == 'mixed':
             return role_result('unknown', 'low', 0, 'final pass: mixed heading proves membership only', verified[0], verified[1])
+        heading = leader_heading(person) if role_class == 'researcher' else None
+        if heading:
+            # The roster that lists the person among its group leaders outranks a researcher title (precedence).
+            return role_result('group_leader', 'high', 1, 'roster heading', heading[0], heading[1])
         if role_class:
             return role_result(role_class, 'high', 0, f"final pass {person.get('last_verified')}", verified[0], verified[1])
     mixed = None
