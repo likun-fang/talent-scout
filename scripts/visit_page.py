@@ -64,14 +64,15 @@ def validate_url(url: str) -> str:
 
 # linkedin.com as a host anywhere in the URL, decoded: the page itself, a trailing-dot host, or a URL another service
 # wraps (web.archive.org/web/.../linkedin.com/in/x, r.jina.ai/https://linkedin.com/..., ?to=https%3A%2F%2Flinkedin...).
-LINKEDIN_HOST = re.compile(r'(?:^|[^a-z0-9-])linkedin\.com\.?(?=[/:?#]|$)')
+LINKEDIN_HOST = re.compile(r'(?:^|[^a-z0-9-])linkedin\.com\.?(?=[/:?#&;,)\s]|$)')
 
 
 def outside_sources(url: str) -> bool:
-    text = (url or '').lower()
+    """The URL's own fragment is never fetched, so it does not count."""
+    text = (url or '').split('#', 1)[0]
     for _ in range(3):
         text = urllib.parse.unquote(text)
-    return bool(LINKEDIN_HOST.search(text))
+    return bool(LINKEDIN_HOST.search(text.lower()))
 
 
 class TextPage(HTMLParser):
