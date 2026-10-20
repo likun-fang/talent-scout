@@ -48,6 +48,28 @@ class ReaderTests(unittest.TestCase):
         with patch('visit_page.http_read', return_value={'text': 'ok', 'final_url': 'https://linkedin.com.example.org/'}):
             self.assertEqual(visit('https://linkedin.com.example.org/', ladder=('http',))['status'], 'readable')
 
+    def test_a_wrapped_or_dotted_linkedin_url_is_refused_too(self):
+        for url in ('https://web.archive.org/web/20250101000000/https://linkedin.com/in/x',
+                    'https://web.archive.org/web/2025/linkedin.com/in/x', 'https://r.jina.ai/https://linkedin.com/in/x',
+                    'https://www.linkedin.com./in/x', 'https://example.org/go?to=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fx'):
+            with self.subTest(url=url), patch('visit_page.http_read') as read, self.assertRaises(OutsideSources):
+                visit(url)
+            self.assertFalse(read.called)
+
+    def test_a_jina_answer_from_linkedin_or_a_refused_redirect_to_linkedin_stops_the_ladder(self):
+        jina = {'http_status': 200, 'final_url': 'https://r.jina.ai/https://lab.example.org/alex',
+                'text': 'Title: Alex | LinkedIn\nURL Source: https://www.linkedin.com/in/alex\nMarkdown Content:\nAlex ' * 3}
+        with patch('visit_page.http_read', side_effect=[{'http_status': 403, 'final_url': 'https://lab.example.org/alex', 'text': ''}, jina]), \
+                patch('visit_page.wayback_read', return_value={'status': 'unavailable', 'text': '', 'final_url': 'https://lab.example.org/alex'}):
+            record = visit('https://lab.example.org/alex', ladder=('http', 'wayback', 'jina'))
+        self.assertEqual(record['status'], 'outside_sources')
+        self.assertEqual(record['text'], '')
+        redirect = {'status': 'unsupported_content', 'final_url': 'https://www.linkedin.com/in/alex', 'text': ''}
+        with patch('visit_page.http_read', return_value=redirect), patch('visit_page.wayback_read') as wayback:
+            record = visit('https://lab.example.org/alex')
+        self.assertEqual(record['status'], 'outside_sources')
+        self.assertFalse(wayback.called)
+
     def test_a_page_that_redirects_to_linkedin_keeps_nothing_and_does_not_climb(self):
         page = {'http_status': 200, 'final_url': 'https://www.linkedin.com/in/alex-example', 'title': 'Alex | LinkedIn',
                 'text': 'Alex Example\nResearch Scientist at Example Lab\nExperience', 'links': ['https://example.org/x']}
