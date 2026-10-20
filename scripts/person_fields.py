@@ -150,8 +150,14 @@ def secondary_post(person: dict) -> bool:
     current = person.get('current_affiliation') or ''
     lead = re.split(r'[,;(]|\b(?:in the (?:group|lab) of|supervised by|advised by|with prof)\b', title, flags=re.I)[0]
     return bool(re.match(r'\s*(?:' + SECONDARY_TITLE + ')', lead, re.I) and place and current and not past_position(person)
-                and academic_institution(place) and not same_institution_name(place, current)
-                and not names_part_of(current, place) and not names_part_of(place, current))
+                and academic_institution(place)
+                and not any(same_institution_name(a, b) for a in institution_items(place) for b in institution_items(current)))
+
+
+def institution_items(name: str) -> list[str]:
+    """The name and those of its items that read as an institution: "TUM" in "TUM (Munich)", not the city."""
+    items = [item.strip() for item in re.split(r'[,;()]|\s/\s', name or '') if item.strip()]
+    return [name] + [item for item in items if re.search(INSTITUTION_WORDS, normalized(item)) or registered_spellings(item)]
 
 
 def academic_institution(name: str) -> bool:
