@@ -242,6 +242,49 @@ class RemovalTests(unittest.TestCase):
             site.publish()
             self.assertEqual([g['id'] for g in self.published(site)['groups']], ['anna-meyer-tum'])
 
+    def test_a_removed_person_is_gone_from_every_group_and_every_url_that_spells_the_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            urls = ['https://lab.example', 'https://ben-ott.example/profile', 'https://lab.example/people?name=Ben%20Ott',
+                    'https://lab.example/people/Ben%20Ott', 'https://lab.example/people/ruben-otto']
+            anna = group('Anna Meyer', 'TUM', members=[{'name': 'Ben Ott', 'role_class': 'phd_student', 'link': 'team'}],
+                         evidence_urls=urls, open_source=['https://github.com/ben-ott/project'],
+                         homepage='https://lab.example/people/ben-ott')
+            cara = group('Cara Lin', 'TUM', members=[{'name': 'Ben Ott', 'role_class': 'phd_student', 'link': 'team'}])
+            eve = group('Eve Ng', 'TUM', members=[], evidence_urls=['https://lab.example/ben_ott.html'])
+            site = Fixture(tmp, groups_doc(anna, cara, eve), KNOWN)
+            site.removals.write_text(json.dumps([{'issue': 12, 'person': 'Ben Ott', 'group': 'anna-meyer-tum',
+                                                  'scope': 'person'}]), encoding='utf-8')
+            site.publish()
+            doc = self.published(site)
+            groups = {g['id']: g for g in doc['groups']}
+            self.assertEqual([m['name'] for g in doc['groups'] for m in g['members']], [])
+            self.assertEqual(groups['anna-meyer-tum']['evidence_urls'], ['https://lab.example', 'https://lab.example/people/ruben-otto'])
+            self.assertEqual(groups['anna-meyer-tum']['open_source'], [])
+            self.assertEqual(groups['anna-meyer-tum']['homepage'], '')
+            self.assertEqual(groups['eve-ng-tum']['evidence_urls'], [])
+            self.assertEqual(doc['meta']['removals'], 1)
+            for path in site.docs.rglob('*'):
+                if path.is_file():
+                    text = path.read_text(encoding='utf-8').casefold()
+                    for spelling in ('ben ott', 'ben-ott', 'ben_ott', 'ben%20ott'):
+                        # ruben-otto is another person and stays
+                        self.assertIsNone(re.search(rf'(?<![a-z0-9]){re.escape(spelling)}(?![a-z0-9])', text), spelling)
+
+    def test_a_removed_pi_is_not_counted_against_recall_and_a_lab_page_that_spells_them_goes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            lab = {'homepage': 'https://lab.example/cara-lin', 'groups': ['anna-meyer-tum', 'cara-lin-tum', 'dan-roe-tum']}
+            site = Fixture(tmp, groups_doc(group('Anna Meyer', 'TUM', lab=lab, homepage='https://lab.example/cara-lin'),
+                                           group('Cara Lin', 'TUM', lab=lab, members=[]),
+                                           group('Dan Roe', 'TUM', lab=lab, members=[])),
+                           [{'pi': 'Cara Lin', 'institution': 'TUM'}])
+            site.removals.write_text(json.dumps([{'issue': 13, 'person': 'Cara Lin', 'group': 'cara-lin-tum',
+                                                  'scope': 'group'}]), encoding='utf-8')
+            site.publish()
+            doc = self.published(site)
+            self.assertEqual(doc['meta']['checks']['recall'], {'found': 0, 'known': 0})
+            self.assertEqual([g['id'] for g in doc['groups']], ['anna-meyer-tum', 'dan-roe-tum'])
+            self.assertNotIn('cara', json.dumps(doc).casefold())
+
     def test_a_malformed_or_unreadable_removals_file_stops_the_publication(self):
         for removals in ('{not json', {'issue': 1}, [{'issue': 'x', 'person': 'Ben Ott', 'group': 'g', 'scope': 'person'}],
                          [{'issue': 1, 'person': 'Ben Ott', 'group': 'g', 'scope': 'everything'}],

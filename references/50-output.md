@@ -167,6 +167,7 @@ when `docs/` holds any other file, and writes `docs/.nojekyll` so Pages serves t
 
 Removal requests live outside the repository, in `~/.config/talent-scout/removals.json` (`--removals` to override): a
 list of `{"issue": <number>, "person": "<name as shown>", "group": "<group id>", "scope": "person" | "group"}`.
-Publication applies them before the checks: a person leaves the named group together with the evidence URLs that spell
-their name, and a group request, or a PI's own request, removes the group. `meta.removals` records only how many
+Publication applies them before the checks: a person leaves every group of the field, together with every evidence,
+open-source, homepage or lab URL that spells their name as a whole; a group request, or a PI's own request, removes the
+group, and the recall check stops expecting a known group whose PI was removed. `meta.removals` records only how many
 requests applied. A missing file publishes with a notice and 0 removals; an unreadable or malformed one stops it.
