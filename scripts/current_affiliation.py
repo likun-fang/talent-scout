@@ -261,8 +261,9 @@ def title_class(title: str, institution_type: str = '', affiliation: str = '', c
     for role_class in PRECEDENCE:
         if role_class in matches:
             return role_class
-    if re.search(r'\b(?:direktor|director)\b', title, re.I) and (
-            institution_type == 'research' or re.search(r'\b(?:institute|institut|research institute|mpi)\b', title + ' ' + affiliation, re.I)
+    # The person's own title, without a supervisor's ("supervised by Director X").
+    if re.search(r'\b(?:direktor|director)\b', own, re.I) and (
+            institution_type == 'research' or re.search(r'\b(?:institute|institut|research institute|mpi)\b', own + ' ' + affiliation, re.I)
             or re.search(RESEARCH_GMBH, affiliation or '', re.I)):
         return 'professor'
     if re.search(r'\b(?:gmbh|ag|ltd|inc)\b', title, re.I) or re.search(FOUNDER, own, re.I) or (

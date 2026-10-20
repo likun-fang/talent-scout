@@ -203,7 +203,7 @@ class SecondaryPostTests(unittest.TestCase):
         self.assertEqual(group_affiliation(one), ('Siemens AG', ['Technical University of Munich']))
 
     def test_a_secondary_post_at_an_institution_named_by_its_acronym_is_still_a_secondary_post(self):
-        for place in ('TUM', 'KIT', 'NCT/UCC Dresden'):
+        for place in ('TUM', 'KIT', 'NCT/UCC Dresden', 'TUM, Munich', 'KU Leuven'):
             one = self.member('Honorary Professor', place=place, current='Siemens AG')
             with self.subTest(place=place):
                 self.assertEqual(group_affiliation(one), ('Siemens AG', [place]))
@@ -215,6 +215,13 @@ class SecondaryPostTests(unittest.TestCase):
                              'channel': 'final-pass', 'date': '', 'affiliation_raw': 'DFKI', 'roster_pi': 'Richard',
                              'evidence_url': PAGE}]}
         self.assertEqual(group_affiliation(lead), ('DFKI', ['Saarland University']))
+
+    def test_a_record_institution_named_by_its_acronym_keeps_a_roster_backed_second_post(self):
+        lead = {**self.member('Honorary Professor', place='EPFL', current='TUM'),
+                'signals': [{'name_raw': 'Richard', 'signal_type': 'lab_member', 'role': 'pi', 'parent': 'Zurich Lab',
+                             'channel': 'final-pass', 'date': '', 'affiliation_raw': 'University of Zurich',
+                             'roster_pi': 'Richard', 'evidence_url': PAGE}]}
+        self.assertEqual(group_affiliation(lead), ('TUM', ['EPFL', 'University of Zurich']))
 
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
         for place, current in (('Universität des Saarlandes', 'Saarland University'), ('DFKI Saarbrücken', DFKI),

@@ -154,8 +154,11 @@ def secondary_post(person: dict) -> bool:
 
 
 def academic_institution(name: str) -> bool:
-    """An academic name, or a short name the alias registry spells out as one ("TUM", "KIT")."""
-    return any(re.search(ACADEMIC_WORDS, value, re.I) for value in (name, registered_name(name)) if value)
+    """An academic name, or one whose item ("TUM" in "TUM, Munich") the alias registry spells out as academic in any
+    of its spellings ("KU Leuven" as "Katholieke Universiteit Leuven")."""
+    items = [name] + [item.strip() for item in re.split(r'[,;()]|\s/\s', name or '') if item.strip()]
+    spellings = [name] + [spelling for item in items for spelling in registered_spellings(item)]
+    return any(re.search(ACADEMIC_WORDS, spelling, re.I) for spelling in spellings if spelling)
 
 
 def second_institutions(person: dict) -> list[str]:
@@ -217,8 +220,8 @@ def roster_institutions(person: dict) -> list[str]:
     places = (s.get('affiliation_raw') or '' for s in person.get('signals', [])
               if s.get('signal_type') == 'lab_member' and s.get('role') == 'pi' and s.get('channel') == 'final-pass'
               and parent_name(s.get('roster_pi') or '') == parent_name(person.get('name', '')))
-    return list(dict.fromkeys(place for place in places if place and re.search(ACADEMIC_WORDS, place, re.I)
-                              and re.search(ACADEMIC_WORDS, own, re.I) and not same_institution_name(place, own)
+    return list(dict.fromkeys(place for place in places if place and academic_institution(place)
+                              and academic_institution(own) and not same_institution_name(place, own)
                               and distinct_institutions(place, own)))
 
 
@@ -281,15 +284,16 @@ def institution_aliases() -> dict[str, str]:
 
 
 @lru_cache(maxsize=1)
-def registered_names() -> dict[str, str]:
+def registry_entries() -> dict[str, tuple[str, ...]]:
     path = Path(__file__).resolve().parents[1] / 'assets/institution-aliases.yaml'
     registry = json.loads(path.read_text(encoding='utf-8'))
-    return {normalized(alias): canonical for canonical, variants in registry.items() for alias in [canonical, *variants]}
+    return {normalized(alias): (canonical, *variants) for canonical, variants in registry.items()
+            for alias in [canonical, *variants]}
 
 
-def registered_name(value: str) -> str:
-    """The registry's name for a spelling it lists, else ''."""
-    return registered_names().get(normalized(value), '')
+def registered_spellings(value: str) -> tuple[str, ...]:
+    """Every spelling of the registry entry that lists this one, else ()."""
+    return registry_entries().get(normalized(value), ())
 
 
 @lru_cache(maxsize=1)
