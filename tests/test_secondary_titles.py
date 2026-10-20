@@ -225,6 +225,7 @@ class SecondaryPostTests(unittest.TestCase):
 
     def test_a_secondary_title_at_the_same_institution_or_without_another_record_is_an_ordinary_read(self):
         for place, current in (('Universität des Saarlandes', 'Saarland University'), ('DFKI Saarbrücken', DFKI),
+                               ('TUM (Munich)', 'TUM'), ('KIT (Karlsruhe)', 'Karlsruhe Institute of Technology'),
                                ('NCT/UCC Dresden', 'National Center for Tumor Diseases Dresden (NCT/UCC)')):
             same = self.member('Adjunct Professor', place=place, current=current)
             with self.subTest(place=place):
