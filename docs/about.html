@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About the research group maps</title>
+<style>
+:root{--bg:#fff;--fg:#1b1b1b;--muted:#6b6b6b;--line:#e4e4e4;--accent:#1f5fbf}
+@media (prefers-color-scheme: dark){:root{--bg:#161618;--fg:#e8e8e8;--muted:#a0a0a0;--line:#333;--accent:#7aa7ef}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+header{display:flex;gap:12px;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:8px}
+h1{font-size:20px;margin:8px 0}
+h2{font-size:16px;margin:22px 0 6px}
+a{color:var(--accent)}
+.m{color:var(--muted)}
+button{font:inherit;background:none;border:1px solid var(--line);border-radius:4px;color:var(--fg);padding:2px 8px;cursor:pointer}
+table{border-collapse:collapse;font-size:14px}
+td,th{border-bottom:1px solid var(--line);padding:4px 8px 4px 0;text-align:left;vertical-align:top}
+[hidden]{display:none}
+</style>
+</head>
+<body>
+<main lang="en"><header><h1>About the research group maps</h1><span><a href="index.html">all maps</a> <button data-lang="zh">中文</button></span></header>
+<section data-part="what"><h2>What the maps are</h2>
+<p>Each map shows the research groups of one field in Europe: the EU, the UK, Switzerland and Norway.</p>
+<p>One entry is one group: a PI, an institution and the group's homepage.</p>
+<p>Members appear by name and role under their group. Nothing else about them is shown.</p>
+<p>There is no ranking and there are no tiers. Groups are listed by institution, then by PI name.</p>
+<ul><li><a href="multimodal-ai/">multimodal AI</a> <span class="m">· 466 groups · as of 2026-10-15</span></li></ul></section>
+<section data-part="sources"><h2>Data sources</h2>
+<p>Public academic pages: lab, group and institutional pages, read page by page; a sample is checked by hand.</p>
+<p>Public funding registers, publication metadata, and award and competition pages.</p>
+<p>Never LinkedIn and never paid sources.</p>
+<p>Each group shows the date its page was last read.</p></section>
+<section data-part="method"><h2>Method</h2>
+<p>A group forms around its PI: a professor, a group leader named as such on a public page, or the lead of a grant.</p>
+<p>A member joins a group when a public team page lists them with the PI, or when they work on the PI's grant at the
+same institution. People who only share papers with the PI are counted, not named. A team page that still lists
+someone whom a newer page places elsewhere does not count.</p>
+<p>The institution is the one the PI's own page names. Spellings of one institution are joined through a
+<a href="https://github.com/likun-fang/talent-scout/blob/main/assets/institution-aliases.yaml">public table of names</a>. A second post elsewhere, such as an honorary professorship, is listed
+next to it, not in its place.</p>
+<p>A card that says "members not yet collected" has no member linked from a public page yet. It does not mean the group
+has no members.</p>
+<p>Before each publication four checks run. (a) At least 90% of a list of well-known groups in the field
+are on the map, with the same PI at the same institution. (b) At most 10% of groups were last read more
+than 12 months before the map's date. (c) No LinkedIn key or URL appears anywhere in the data. (d) A random sample of
+groups is checked by hand against their pages. The current values:</p>
+<table><tr><th>field</th><th>(a) recall</th><th>(b) stale</th><th>(c) LinkedIn</th><th>(d) spot check</th></tr><tr><td><a href="multimodal-ai/">multimodal AI</a></td><td>19/20</td><td>6/466</td><td>0</td><td>30 groups</td></tr></table></section>
+<section data-part="corrections"><h2>Corrections and removal</h2>
+<p>To correct an entry, use "Report a correction" on the group's card, or the
+<a href="https://github.com/likun-fang/talent-scout/issues/new?template=correction.yml">correction form</a>. Say what is wrong and link a public page that shows the correct fact.</p>
+<p>To be removed, use the <a href="https://github.com/likun-fang/talent-scout/issues/new?template=opt-out.yml">removal form</a>. Give your name as shown and the group, and say
+whether to remove you or the whole group. No reason is needed. The removal is made at the next publication.</p>
+<p>Both forms are GitHub issues: they need a GitHub account and are public.</p>
+<p>For each person the map stores the name, role, institution, group, the public URLs these come from, and the date
+the page was read. Nothing else.</p></section></main>
+<main lang="zh" hidden><header><h1>关于研究课题组地图</h1><span><a href="index.html">全部地图</a> <button data-lang="en">English</button></span></header>
+<section data-part="what"><h2>地图是什么</h2>
+<p>每张地图展示一个领域在欧洲（欧盟、英国、瑞士和挪威）的研究课题组。</p>
+<p>一个条目就是一个课题组：负责人、机构和课题组主页。</p>
+<p>成员只以姓名和角色列在所属课题组下，不显示其他信息。</p>
+<p>不排名，不分级。课题组按机构、再按负责人姓名排列。</p>
+<ul><li><a href="multimodal-ai/">multimodal AI</a> <span class="m">· 466 个课题组 · 截至 2026-10-15</span></li></ul></section>
+<section data-part="sources"><h2>数据来源</h2>
+<p>学术公开页面：实验室、课题组和机构页面，逐页阅读，抽样人工核查。</p>
+<p>公开的资助登记、论文元数据，以及奖项和竞赛页面。</p>
+<p>从不使用领英，也不使用付费来源。</p>
+<p>每个课题组都标明其页面最近一次阅读的日期。</p></section>
+<section data-part="method"><h2>方法</h2>
+<p>课题组以负责人为中心：教授、公开页面上写明的课题组长，或资助项目的负责人。</p>
+<p>公开的团队页面把某人与负责人列在一起，或某人在同一机构参与负责人的资助项目，此人即为成员。只与负责人合写过论文的人只计数，不列名。如果较新的页面显示某人已在别处，仍列着此人的旧团队页面不算数。</p>
+<p>机构取负责人本人页面上的机构。同一机构的不同写法通过<a href="https://github.com/likun-fang/talent-scout/blob/main/assets/institution-aliases.yaml">公开的名称表</a>合并。在别处的第二职位（如名誉教授）列在旁边，不取代主机构。</p>
+<p>卡片上写"成员未采集"，表示还没有从公开页面关联到成员，并不表示该课题组没有成员。</p>
+<p>每次发布前运行四项检查：(a) 该领域知名课题组清单中至少 90% 在图上，负责人和机构一致；(b) 最近一次阅读早于地图日期 12 个月以上的课题组不超过 10%；(c) 数据中没有任何领英字段或链接；(d) 随机抽取若干课题组，人工对照其页面核查。当前数值：</p>
+<table><tr><th>领域</th><th>(a) 召回</th><th>(b) 过期</th><th>(c) 领英</th><th>(d) 抽查</th></tr><tr><td><a href="multimodal-ai/">multimodal AI</a></td><td>19/20</td><td>6/466</td><td>0</td><td>30 个</td></tr></table></section>
+<section data-part="corrections"><h2>更正与删除</h2>
+<p>要更正条目，请点课题组卡片上的"报告错误"，或使用<a href="https://github.com/likun-fang/talent-scout/issues/new?template=correction.yml">更正表单</a>：说明哪里有误，并附上能证明正确信息的公开页面。</p>
+<p>要求删除，请使用<a href="https://github.com/likun-fang/talent-scout/issues/new?template=opt-out.yml">删除表单</a>：填写页面上显示的姓名和课题组，并选择删除本人还是整个课题组。无需说明理由。删除在下一次发布时生效。</p>
+<p>两个表单都是 GitHub issue：需要 GitHub 账号，内容公开。</p>
+<p>对每个人，地图只存储姓名、角色、机构、课题组、这些信息所来自的公开链接，以及页面阅读日期。</p></section></main>
+<script>
+let lang = 'en';
+try { lang = localStorage.getItem('group-map.lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en'); } catch (e) {}
+if (/^(en|zh)$/.test(new URLSearchParams(location.search).get('lang') || '')) lang = new URLSearchParams(location.search).get('lang');
+function show(next) {
+  lang = next;
+  document.querySelectorAll('main[lang]').forEach(m => { m.hidden = m.lang !== lang; });
+  document.documentElement.lang = lang === 'zh' ? 'zh' : 'en';
+  try { localStorage.setItem('group-map.lang', lang); } catch (e) {}
+}
+document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => show(b.dataset.lang)));
+show(lang);
+</script>
+</body>
+</html>
