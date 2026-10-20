@@ -29,26 +29,38 @@ PERSONAL = ((r'linkedin\.', 'a LinkedIn URL'), (r'\bA5\d{9}\b', 'an OpenAlex aut
 # --- YAML subset -------------------------------------------------------------------------------------------------
 
 def strip_comment(text: str) -> str:
-    """Cut a # comment; a # inside a quoted scalar or glued to a word ("#awards") stays. A quote opens a scalar only
-    where a value can start (after ":", "-", "[", "{", "," or at the line start), so the apostrophe in a plain
-    "Akata's lab" and a quote inside a plain value are text; \\" and '' do not close a quoted scalar."""
-    quote, last, escaped = None, None, False
+    """Cut a # comment. A # starts a comment only after a space and outside a quoted scalar; a quote opens a scalar
+    only where a value starts (the line start, after "- ", after ": ", after "[", "{" or a flow ","), so a quote
+    or an apostrophe inside a plain value is text; \\" and '' do not close a quoted scalar."""
+    quote, escaped, depth, start = None, False, 0, True
     for i, ch in enumerate(text):
+        after = text[i + 1:i + 2]
         if quote:
             if escaped:
                 escaped = False
-            elif ch == '\\' and quote == '"' or ch == "'" == quote and text[i + 1:i + 2] == "'":
+            elif ch == '\\' and quote == '"' or ch == "'" == quote and after == "'":
                 escaped = True
             elif ch == quote:
                 quote = None
-            last = ch
             continue
-        if ch in '"\'' and last in (None, ':', '-', '[', '{', ','):
-            quote = ch
-        elif ch == '#' and (i == 0 or text[i - 1] in ' \t'):
+        if ch in ' \t':
+            continue
+        if ch == '#' and (i == 0 or text[i - 1] in ' \t'):
             return text[:i].rstrip()
-        if ch not in ' \t':
-            last = ch
+        if start and ch in '"\'':
+            quote, start = ch, False
+        elif start and ch in '[{':
+            depth += 1
+        elif depth and ch in ']}':
+            depth, start = depth - 1, False
+        elif depth and ch == ',':
+            start = True
+        elif ch == ':' and (after in ('', ' ', '\t') or depth and after in ',[]{}'):
+            start = True
+        elif ch == '-' and start and after in ('', ' ', '\t'):
+            pass  # a sequence item: its value starts next
+        else:
+            start = False
     return text.rstrip()
 
 def scalar(token: str):
@@ -139,7 +151,7 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
         end += 1
     token = text[pos:end].strip()
     # Inside a flow collection a plain scalar holds no ": " (YAML reads a mapping there) and no flow indicator.
-    if ',' in stops and (': ' in token or re.search(r'[{}\[\]]', token)):
+    if ',' in stops and (': ' in token or token.endswith(':') or re.search(r'[{}\[\]]', token)):
         raise ValueError(f'a flow entry needs quotes: {token[:40]!r}')
     return scalar(token), end
 
@@ -207,6 +219,8 @@ def load_yaml(text: str):
         while i < len(lines) and lines[i][1] == indent and lines[i][2].startswith('-') and lines[i][2][1:2] in ('', ' '):
             number, _, content = lines[i]
             rest = content[1:].strip()
+            if rest.startswith('-') and rest[1:2] in ('', ' '):
+                raise ValueError(f'line {number}: a sequence inside a sequence item is outside the YAML subset')
             if not rest:
                 value, i = nested(i + 1, indent, same_indent_sequence=False)
             elif rest[0] not in '{[' and KEY.match(rest):
