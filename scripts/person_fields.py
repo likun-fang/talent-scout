@@ -97,9 +97,34 @@ def past_position(person: dict) -> bool:
     return bool(until) and until < (int(read[:4]), int(read[5:7]))
 
 
+# A roster heading that names a group leader ("Research Group Leaders", "Independent Group Leader").
+GROUP_LEADER_HEADING = r'\b(?:research |independent |junior )?group leaders?\b'
+# Titles of a second post held beside the main one; they never set the group's institution.
+SECONDARY_TITLE = (r'\b(?:(?:affiliated|adjunct|honorary) professors?|honorarprofessor\w*|privatdozent\w*|'
+                   r'au(?:ß|ss)erplanm(?:ä|ae|a)(?:ß|ss)ige[rn]? professor\w*)\b|\bapl\.\s*prof\w*')
+
+
+def secondary_post(person: dict) -> bool:
+    """A final pass that read a secondary post ("Affiliated Professor") at another academic institution than the
+    person's own record: the post goes to also_at, the record's institution stays."""
+    title, place = person.get('final_pass_title') or '', person.get('final_pass_affiliation') or ''
+    current = person.get('current_affiliation') or ''
+    return bool(re.search(SECONDARY_TITLE, title, re.I) and place and current and re.search(ACADEMIC_WORDS, place, re.I)
+                and distinct_institutions(place, current))
+
+
+def named_group_leader(person: dict) -> bool:
+    """A group leader whom a roster lists under a group-leader heading leads a group of its own."""
+    return person.get('role_class') == 'group_leader' and any(
+        s.get('signal_type') in TEAM_SIGNALS and re.search(GROUP_LEADER_HEADING, s.get('role_title') or '', re.I)
+        for s in person.get('signals', []))
+
+
 def affiliation_for(person: dict) -> str:
     if past_position(person):
         return ''
+    if secondary_post(person):
+        return person['current_affiliation']
     if person.get('final_pass_affiliation'):
         return person['final_pass_affiliation']
     if person.get('current_affiliation'):
@@ -151,6 +176,8 @@ def roster_institutions(person: dict) -> list[str]:
 def group_affiliation(person: dict) -> tuple[str, list[str]]:
     """The institution a group is named after, and the other organisations its leader is at."""
     place, others = own_group_affiliation(person)
+    if secondary_post(person) and person['final_pass_affiliation'] not in others:
+        others = others + [person['final_pass_affiliation']]
     # The PI's own final pass names the group's institution; a roster read for the PI at another academic institution
     # is a second post (Lundin: Karolinska, with a group at FIMM Helsinki) and joins also_at.
     return place, others + [extra for extra in roster_institutions(person) if extra not in others]
@@ -495,7 +522,8 @@ def assign_groups(persons: list[dict]) -> list[dict]:
         pi = any(s.get('role') == 'pi' for s in person.get('signals', []))
         own = {'_leader': id(person), 'group': group_name(person), 'group_rule': 4,
                'group_evidence': f"rule 4: leader self {person['name']} | {evidence_url(person)}", 'group_link': 'team'}
-        match = own if (pi or person.get('role_class') == 'professor') and affiliation_for(person) else None
+        anchor = pi or person.get('role_class') == 'professor' or named_group_leader(person)
+        match = own if anchor and affiliation_for(person) else None
         if match is None:
             candidates = [(leader, rule_one(person, leader, lab_parents)) for leader in leaders if leader is not person]
             match = choose(person, [(leader, link, kind) for leader, (link, _, kind) in candidates if link], 1)

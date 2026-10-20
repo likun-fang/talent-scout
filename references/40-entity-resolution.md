@@ -83,7 +83,9 @@ and `fwf_start` with `role: pi` map to group_leader at medium confidence; `fwf_e
 
 Within rule 1 a supervisor mention ("… in the group of Prof. Meyer", "supervised by …") is cut off before matching,
 so the person's own title decides. One person's joined titles ("Professor and Head of Lab", "Senior Scientist and
-Group Leader") keep the highest class in the order phd_student, professor, group_leader, researcher.
+Group Leader") keep the highest class in the order phd_student, professor, group_leader, researcher. So does a roster
+that lists the person under a group-leader heading ("Research Group Leaders", "Independent Group Leader"): it outranks a
+researcher title read in the final pass, and the person is a group_leader.
 The patterns accept plural and German feminine forms ("Doctoral students", "Professors", "Wissenschaftliche
 Mitarbeiterinnen"), because a section heading is the usual `role_title` on people pages.
 Rule 1 sources are signal `role_title`, current ORCID employment `role-title`, and a final-pass
@@ -108,13 +110,17 @@ limited to five; do not paraphrase or case-fold the phrases.
 `group` is `<PI name> @ <institution>`, using the leader's displayed institution. When that affiliation lists an academic
 institution next to another organisation ("valeo.ai; Sorbonne Univ."), the group carries the academic institution;
 so it does when the leader's affiliation is an ORCID employment at a company and a record dated since that employment
-began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. When the leader's own final pass names one academic institution and a
+began places the leader at a university (a spin-off founder). A company read in the final pass is a move and stays. A final-pass title that names a secondary post (Affiliated,
+Adjunct or Honorary Professor, Honorarprofessor, außerplanmäßiger Professor, Privatdozent) at another academic
+institution than the person's record never sets the institution: the record's institution stays and the post joins
+`also_at`. When the leader's own final pass names one academic institution and a
 final-pass roster read for the leader as its head names another (Karolinska, and a group at FIMM Helsinki), the group sits
 at the final-pass institution and the roster's institution joins `also_at`; that roster's members are not stale. Two
 names count as two institutions only when they share no distinctive word, so a spelling or a unit of the same one
 ("KIT - Karlsruher Institut für Technologie", "EPFL Neuro-X Institute") adds nothing. Leaders are people with
 `role_class` professor/group_leader or a pi/last_author signal. A PI signal anchors its own group. Professors always anchor their own groups and never become members of
-another leader. A group_leader without a PI signal can belong to another leader's team. Apply these rules in order; ambiguity stops the search:
+another leader, and so does a group_leader whom a roster lists under a group-leader heading. Any other group_leader
+without a PI signal can belong to another leader's team. Apply these rules in order; ambiguity stops the search:
 
 | group rule | link evidence |
 |------------|---------------|
