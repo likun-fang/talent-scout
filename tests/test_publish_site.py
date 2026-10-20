@@ -294,6 +294,7 @@ class RemovalTests(unittest.TestCase):
         self.assertTrue(publish_site.name_in_url('John R. Smith', 'https://lab.example/people/John%20R.%20Smith'))
         self.assertFalse(publish_site.name_in_url('Søren Nielsen', 'https://lab.example/people/søren-nielsens'))
         self.assertTrue(publish_site.name_in_url('Hilde Kühne', 'https://lab.example/people/hilde-kuehne'))
+        self.assertTrue(publish_site.name_in_url('Hilde Kuehne', 'https://lab.example/people/hilde-k%C3%BChne'))
         self.assertTrue(publish_site.name_in_url('王明', 'https://lab.example/people/%E7%8E%8B%E6%98%8E'))
         self.assertFalse(publish_site.name_in_url('王明', 'https://lab.example/people/%E7%8E%8B%E6%98%8E%E5%8D%8E'))
         self.assertFalse(publish_site.name_in_url("John O'Connor", 'https://lab.example/john-oconnors-lab-x'.replace('oconnors', 'oconnorson')))
