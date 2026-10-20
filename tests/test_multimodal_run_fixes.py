@@ -99,6 +99,8 @@ class TitleRuleTests(unittest.TestCase):
         self.assertEqual(title_class('Scientific Director', affiliation='German Research Center for Artificial Intelligence (DFKI GmbH)'),
                          'professor')
         self.assertEqual(title_class('Scientific Director', affiliation='Siemens Healthineers GmbH'), '')
+        self.assertEqual(title_class("Master's Student supervised by Scientific Director Jane Doe", affiliation='DFKI GmbH'), '')
+        self.assertEqual(title_class("Master's Student supervised by Director Jane Doe", affiliation='MPI Informatics'), '')
         imprs = {'role_title': 'Scholars', 'parent': 'International Max Planck Research School for Intelligent Systems',
                  'affiliation_raw': 'MPI for Intelligent Systems / University of Tübingen / University of Stuttgart',
                  'evidence_url': 'https://imprs.is.mpg.de/scholars', 'signal_type': 'imprs_member'}
