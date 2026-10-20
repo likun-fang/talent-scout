@@ -3,15 +3,13 @@
 
   visit_page.py URL [--out runs/<run>/pages/x.json]
   visit_page.py URL --browser [--channel chrome] --out x.json        # JS-rendered lab/company pages only
-  visit_page.py --batch urls.txt --out-dir runs/<run>/pages/ [--delay 5]   # final-roster LinkedIn pass
+  visit_page.py --batch urls.txt --out-dir runs/<run>/pages/ [--delay 5]   # several pages, serially
 
 Pages that refuse or come back as a JavaScript shell climb a keyless ladder: plain HTTP with a browser
 User-Agent, then the closest Wayback Machine snapshot, then Jina Reader (r.jina.ai), then a local headless
 Chrome when Playwright is installed. Each attempt is recorded; `fetch_via` names the step that produced the text.
-LinkedIn never climbs: plain HTTP is the only mode that reads a public profile (a headless browser lands on the
-authwall), and no archive or reader proxy is used for it. For LinkedIn the record keeps the headline, Experience and Education excerpts, not the page
-text; pass --full-text to keep everything. Batch mode runs serially with a delay and stops at the first
-LinkedIn authwall / 999 / 429, because the anonymous quota is per outbound IP, not per profile.
+LinkedIn is outside the sources of this skill: a LinkedIn URL is refused before any request, and a page that redirects
+to LinkedIn keeps no text. Batch mode reads serially with a delay.
 Results are source material, not verified roles. Standard library only; browser mode needs Playwright.
 """
 from __future__ import annotations
@@ -40,7 +38,11 @@ VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'met
 BLOCK = {'p', 'div', 'section', 'article', 'li', 'h1', 'h2', 'h3', 'h4', 'header', 'footer', 'tr', 'br'}
 STOP_BATCH = {'login_required', 'blocked', 'rate_limited', 'challenge'}
 COOKIE_LINE = r'(?i)cookie|consent|privacy (?:policy|settings)|^\s*(?:accept(?: all)?|deny|allow (?:all|selection)|details|about)\s*$'
-LINKEDIN_SECTIONS = ('Experience', 'Education', 'Publications', 'Projects', 'Licenses & certifications')
+OUTSIDE_SOURCES = 'LinkedIn is outside the sources of this skill'
+
+
+class OutsideSources(ValueError):
+    """A URL the skill never reads (references/60-scope-and-ethics.md)."""
 
 
 def validate_url(url: str) -> str:
@@ -60,7 +62,7 @@ def validate_url(url: str) -> str:
     return url
 
 
-def is_linkedin(url: str) -> bool:
+def outside_sources(url: str) -> bool:
     host = (urllib.parse.urlsplit(url).hostname or '').lower()
     return host == 'linkedin.com' or host.endswith('.linkedin.com')
 
@@ -284,6 +286,8 @@ def climb(url: str, timeout: float, ladder: tuple, channel: str | None, wait_ms:
         status = classify(record)
         attempts.append({'via': step, 'status': status, 'http_status': record.get('http_status'),
                          'chars': len(record.get('text', '').strip())})
+        if status == 'outside_sources':
+            return {**record, 'fetch_via': step}, attempts  # no other route to the same page either
         if best is None or (status not in STOP_BATCH and len(record.get('text', '')) > len(best.get('text', ''))):
             best, best_via = record, step
         if not needs_escalation(record, min_chars) and not (render and step == 'http' and 'browser' in queue):
@@ -299,6 +303,8 @@ def classify(result: dict) -> str:
     'Join to view profile' appear on readable public profiles and are deliberately ignored."""
     if result.get('status'):
         return result['status']
+    if outside_sources(result.get('final_url', '')):
+        return 'outside_sources'
     code = result.get('http_status')
     final_url = result.get('final_url', '')
     path = urllib.parse.urlsplit(final_url).path.lower()
@@ -316,10 +322,7 @@ def classify(result: dict) -> str:
                                       'complete the check below to continue')):
         return 'challenge'
     if code == 401 or result.get('password_form') or any(
-            segment in path.split('/') for segment in ('login', 'authwall', 'checkpoint', 'signin', 'uas')):
-        return 'login_required'
-    if is_linkedin(final_url) and title.split('|')[0].strip().startswith(
-            ('sign in', 'sign up', 'log in', 'join linkedin', '登录', '登入', '领英: 登录', '領英: 登入')):
+            segment in path.split('/') for segment in ('login', 'checkpoint', 'signin')):
         return 'login_required'
     if code in {403, 999}:
         return 'blocked'
@@ -335,41 +338,14 @@ def classify(result: dict) -> str:
     return 'readable'
 
 
-def section_excerpts(text: str, lines_per_section: int = 14, page_truncated: bool = False) -> dict:
-    """A flag per excerpt distinguishes a line/page cap from a natural section boundary."""
-    lines = text.splitlines()
-    result = {}
-    for i, line in enumerate(lines):
-        if line.strip() not in LINKEDIN_SECTIONS:
-            continue
-        block = []
-        truncated = page_truncated
-        for candidate in lines[i + 1:]:
-            if candidate.strip() in LINKEDIN_SECTIONS or candidate.startswith('View '):
-                truncated = False
-                break
-            if len(block) >= lines_per_section:
-                truncated = True
-                break
-            block.append(candidate)
-        key = line.strip().lower().replace(' & ', '_')
-        result[key] = {'lines': block, 'section_truncated': truncated}
-    return result
-
-
-def linkedin_sections(text: str, lines_per_section: int = 14) -> dict:
-    """Compatibility view: section names mapped to excerpt lines."""
-    return {key: value['lines'] for key, value in section_excerpts(text, lines_per_section).items()}
-
-
 def visit(url: str, browser: bool = False, timeout: float = 30, channel: str | None = None,
-          wait_ms: int = 1500, max_chars: int = 60000, full_text: bool = False,
+          wait_ms: int = 1500, max_chars: int = 60000,
           ladder: tuple = DEFAULT_LADDER, min_chars: int = MIN_TEXT, render: bool = False) -> dict:
     validate_url(url)
-    linkedin = is_linkedin(url)
+    if outside_sources(url):
+        raise OutsideSources(OUTSIDE_SOURCES)
     result = {'requested_url': url, 'retrieved_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              'source_type': 'linkedin' if linkedin else 'webpage',
-              'method': 'browser' if browser else 'http', 'final_url': url}
+              'source_type': 'webpage', 'method': 'browser' if browser else 'http', 'final_url': url}
     if browser:
         try:
             result.update(browser_read(url, timeout, channel, wait_ms), fetch_via='browser')
@@ -379,32 +355,21 @@ def visit(url: str, browser: bool = False, timeout: float = 30, channel: str | N
             # Do not serialize exception strings: URLs can contain access tokens.
             result.update(status='fetch_error', error=type(exc).__name__)
     else:
-        record, attempts = climb(url, timeout, ('http',) if linkedin else ladder, channel, wait_ms,
-                                 min_chars, render and not linkedin)
+        record, attempts = climb(url, timeout, ladder, channel, wait_ms, min_chars, render)
         result.update(record, attempts=attempts)
         if not record.get('text') and attempts and all(a['status'] in {'fetch_error', 'dependency_missing'} for a in attempts):
             result['status'] = attempts[0]['status']
             result['error'] = attempts[0].get('error', 'Install scripts/requirements-browser.txt to use --browser')
     result['status'] = classify(result)
-    if is_linkedin(result.get('final_url', '')):
-        result['source_type'] = 'linkedin'
+    if result['status'] == 'outside_sources':
+        # A page that redirected to LinkedIn: nothing of it is kept.
+        result.update(text='', links=[], title='', error=OUTSIDE_SOURCES)
     result.setdefault('text', '')
     result.setdefault('links', [])
     result.setdefault('title', '')
     result['truncated'] = result.get('truncated', False) or len(result['text']) > max_chars
     result['text'] = result['text'][:max_chars]
-    if result['source_type'] == 'linkedin':
-        result['headline'] = result['title'].rsplit('|', 1)[0].strip()
-        excerpts = section_excerpts(result['text'], page_truncated=result['truncated'])
-        result['sections'] = {key: value['lines'] for key, value in excerpts.items()}
-        result['section_truncated'] = {key: value['section_truncated'] for key, value in excerpts.items()}
-        result['content_scope'] = 'public_page_may_be_partial'
-        if not full_text:
-            result['text'] = ''
-            result['links'] = []
-            result['text_dropped'] = 'linkedin: only professional excerpts are retained (data minimisation)'
-    else:
-        result['content_scope'] = 'page_text'
+    result['content_scope'] = 'page_text'
     result['needs_review'] = True
     result['role_verified'] = False
     return result
@@ -416,11 +381,13 @@ def save(record: dict, path: Path) -> None:
 
 
 def batch(urls: list[str], out_dir: Path, delay: float, **options) -> dict:
-    """Serial pass over the final roster's URLs. Stops at the first LinkedIn access refusal."""
-    summary = {'read': 0, 'refused': 0, 'other': 0, 'stopped_at': None, 'files': []}
+    """Serial pass over a list of URLs, one record file each."""
+    summary = {'read': 0, 'refused': 0, 'other': 0, 'files': []}
     for n, url in enumerate(urls):
         try:
             record = visit(url, **options)
+        except OutsideSources as exc:
+            record = {'requested_url': url, 'status': 'outside_sources', 'error': str(exc), 'role_verified': False}
         except ValueError as exc:
             record = {'requested_url': url, 'status': 'invalid_url', 'error': str(exc), 'role_verified': False}
         path = out_dir / f"{n + 1:03d}-{re.sub(r'[^a-z0-9]+', '-', url.lower())[:80].strip('-')}.json"
@@ -430,10 +397,6 @@ def batch(urls: list[str], out_dir: Path, delay: float, **options) -> dict:
         key = 'read' if status == 'readable' else 'refused' if status in STOP_BATCH else 'other'
         summary[key] += 1
         print(f"{status:16} {url}", file=sys.stderr)
-        if status in STOP_BATCH and is_linkedin(record.get('final_url', url)):
-            summary['stopped_at'] = url
-            summary['remaining'] = urls[n + 1:]
-            break
         if n + 1 < len(urls):
             time.sleep(delay)
     return summary
@@ -446,13 +409,12 @@ def main():
     parser.add_argument('--out', help='Save UTF-8 JSON evidence; otherwise print JSON to stdout')
     parser.add_argument('--out-dir', help='Directory for batch records (default: pages/)', default='pages')
     parser.add_argument('--delay', type=float, default=5.0, help='Seconds between batch requests (default 5)')
-    parser.add_argument('--browser', action='store_true', help='Render JavaScript with an isolated Playwright browser (not for LinkedIn)')
+    parser.add_argument('--browser', action='store_true', help='Render JavaScript with an isolated Playwright browser')
     parser.add_argument('--channel', choices=['chrome', 'msedge'],
                         help='Use installed Chrome/Edge instead of Playwright Chromium for --browser, --render and the browser ladder step')
     parser.add_argument('--timeout', type=float, default=30)
     parser.add_argument('--wait-ms', type=int, default=1500, help='Browser settling time after DOM load, maximum 10000')
     parser.add_argument('--max-chars', type=int, default=60000)
-    parser.add_argument('--full-text', action='store_true', help='Keep full page text for LinkedIn records too')
     parser.add_argument('--render', action='store_true',
                         help='People/roster page built client-side: read it with the local browser after the plain fetch, whatever --ladder says')
     parser.add_argument('--min-chars', type=int, default=MIN_TEXT,
@@ -470,7 +432,7 @@ def main():
     if args.min_chars < 0:
         parser.error('--min-chars must be non-negative')
     options = dict(browser=args.browser, timeout=args.timeout, channel=args.channel, wait_ms=args.wait_ms,
-                   max_chars=args.max_chars, full_text=args.full_text, ladder=ladder, min_chars=args.min_chars,
+                   max_chars=args.max_chars, ladder=ladder, min_chars=args.min_chars,
                    render=args.render)
     if args.batch:
         try:
@@ -478,26 +440,22 @@ def main():
                 urls = [l.strip() for l in source if l.strip() and not l.startswith('#')]
         except OSError as exc:
             parser.error(f'cannot read --batch file: {exc}')
-        if args.browser and any(is_linkedin(u) for u in urls):
-            parser.error('Browser mode lands on the LinkedIn authwall; run LinkedIn URLs without --browser')
         summary = batch(urls, Path(args.out_dir), args.delay, **options)
         save(summary, Path(args.out_dir) / 'summary.json')
-        print(f"batch: {summary['read']} readable, {summary['refused']} refused, {summary['other']} other"
-              + (f"; stopped at {summary['stopped_at']}" if summary['stopped_at'] else ''), file=sys.stderr)
-        return 0 if summary['stopped_at'] is None else 2
+        print(f"batch: {summary['read']} readable, {summary['refused']} refused, {summary['other']} other", file=sys.stderr)
+        return 0
     try:
         validate_url(args.url)
     except ValueError as exc:
         parser.error(str(exc))
-    if args.browser and is_linkedin(args.url):
-        parser.error('Browser mode lands on the LinkedIn authwall; read LinkedIn profiles without --browser')
+    if outside_sources(args.url):
+        raise SystemExit(f'visit_page.py: {OUTSIDE_SOURCES}; the URL was not read')
     result = visit(args.url, **options)
     if args.out:
         save(result, Path(args.out))
     else:
         print(json.dumps(result, ensure_ascii=False, indent=2))
-    kept = len(result['text']) or sum(len(v) for v in result.get('sections', {}).values())
-    print(f"page status: {result['status']} via {result.get('fetch_via')}; kept {kept} {'lines' if result['source_type'] == 'linkedin' else 'characters'}", file=sys.stderr)
+    print(f"page status: {result['status']} via {result.get('fetch_via')}; kept {len(result['text'])} characters", file=sys.stderr)
     return 0 if result['status'] == 'readable' else 2
 
 

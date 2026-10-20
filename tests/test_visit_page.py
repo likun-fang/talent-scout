@@ -6,16 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import visit_page
-from visit_page import TextPage, batch, classify, is_linkedin, linkedin_sections, validate_url, visit
-
-PUBLIC_PROFILE = '\n'.join([
-    'Skip to main content', 'LinkedIn', 'Sign in', 'Join now', 'Alex Example',
-    'Research Scientist at Example Lab', 'Join to view profile', 'Experience', 'Research Scientist',
-    'Example Lab', '2023 - Present', '3 years', 'PhD student', 'Example University', '2018 - 2023',
-    'Education', 'Example University', 'PhD, Robotics', '2018 - 2023', 'View Alex’s full profile',
-    'Join to view full profile', 'Other similar profiles',
-])
-
+from visit_page import OutsideSources, TextPage, batch, classify, validate_url, visit
 
 class ReaderTests(unittest.TestCase):
     def test_html_text_and_links(self):
@@ -37,10 +28,7 @@ class ReaderTests(unittest.TestCase):
             ({'http_status': 429}, 'rate_limited'),
             ({'http_status': 403}, 'blocked'),
             ({'http_status': 999}, 'blocked'),
-            ({'final_url': 'https://www.linkedin.com/authwall?trk=x', 'text': 'Join'}, 'login_required'),
-            ({'final_url': 'https://www.linkedin.com/in/example', 'title': 'Sign In | LinkedIn'}, 'login_required'),
-            ({'final_url': 'https://www.linkedin.com/', 'title': '领英: 登录或注册'}, 'login_required'),
-            ({'final_url': 'https://www.linkedin.com/uas/login'}, 'login_required'),
+            ({'final_url': 'https://intranet.example.org/login?next=/team'}, 'login_required'),
             ({'text': 'Verify you are human'}, 'challenge'),
             ({'http_status': 200, 'text': "Making sure you're not a bot! Loading... Anubis to protect the server"}, 'challenge'),
             ({'password_form': True}, 'login_required'),
@@ -51,31 +39,32 @@ class ReaderTests(unittest.TestCase):
             with self.subTest(expected=expected, record=record):
                 self.assertEqual(classify(record), expected)
 
-    def test_public_profile_with_join_buttons_is_readable(self):
-        record = {'http_status': 200, 'final_url': 'https://www.linkedin.com/in/alex-example',
-                  'title': 'Alex Example - Research Scientist at Example Lab | LinkedIn', 'text': PUBLIC_PROFILE}
-        self.assertEqual(classify(record), 'readable')
+    def test_a_linkedin_url_is_refused_before_any_request(self):
+        for url in ('https://www.linkedin.com/in/alex-example', 'https://uk.linkedin.com/in/x', 'https://linkedin.com/company/y'):
+            with self.subTest(url=url), patch('visit_page.http_read') as read, self.assertRaises(OutsideSources) as stop:
+                visit(url)
+            self.assertIn('LinkedIn is outside the sources', str(stop.exception))
+            self.assertFalse(read.called)
+        with patch('visit_page.http_read', return_value={'text': 'ok', 'final_url': 'https://linkedin.com.example.org/'}):
+            self.assertEqual(visit('https://linkedin.com.example.org/', ladder=('http',))['status'], 'readable')
 
-    def test_linkedin_record_keeps_excerpts_only(self):
-        page = {'http_status': 200, 'final_url': 'https://www.linkedin.com/in/alex-example',
-                'title': 'Alex Example - Research Scientist at Example Lab | LinkedIn', 'text': PUBLIC_PROFILE}
-        with patch('visit_page.http_read', return_value=page):
-            record = visit('https://www.linkedin.com/in/alex-example')
-            full = visit('https://www.linkedin.com/in/alex-example', full_text=True)
-        self.assertEqual(record['status'], 'readable')
-        self.assertEqual(record['headline'], 'Alex Example - Research Scientist at Example Lab')
-        self.assertEqual(record['sections']['experience'][:3], ['Research Scientist', 'Example Lab', '2023 - Present'])
-        self.assertEqual(record['sections']['education'][0], 'Example University')
-        self.assertEqual(record['text'], '')
-        self.assertEqual(record['links'], [])
-        self.assertIn('text_dropped', record)
-        self.assertFalse(record['role_verified'])
-        self.assertIn('Other similar profiles', full['text'])
+    def test_a_page_that_redirects_to_linkedin_keeps_nothing_and_does_not_climb(self):
+        page = {'http_status': 200, 'final_url': 'https://www.linkedin.com/in/alex-example', 'title': 'Alex | LinkedIn',
+                'text': 'Alex Example\nResearch Scientist at Example Lab\nExperience', 'links': ['https://example.org/x']}
+        with patch('visit_page.http_read', return_value=page), patch('visit_page.wayback_read') as wayback:
+            record = visit('https://lab.example.org/alex')
+        self.assertEqual(record['status'], 'outside_sources')
+        self.assertEqual((record['text'], record['links'], record['title']), ('', [], ''))
+        self.assertFalse(wayback.called)
 
-    def test_sections_stop_at_next_heading(self):
-        sections = linkedin_sections(PUBLIC_PROFILE)
-        self.assertNotIn('Education', sections['experience'])
-        self.assertNotIn('View Alex’s full profile', sections['education'])
+    def test_the_command_line_refuses_a_linkedin_url_in_one_line(self):
+        for argv in (['visit_page.py', 'https://www.linkedin.com/in/alex'],
+                     ['visit_page.py', 'https://www.linkedin.com/in/alex', '--browser']):
+            with self.subTest(argv=argv), patch.object(sys, 'argv', argv), patch('visit_page.http_read') as read, \
+                    self.assertRaises(SystemExit) as stop:
+                visit_page.main()
+            self.assertEqual(str(stop.exception), 'visit_page.py: LinkedIn is outside the sources of this skill; the URL was not read')
+            self.assertFalse(read.called)
 
     def test_does_not_verify_roles_and_marks_truncation(self):
         with patch('visit_page.http_read', return_value={'text': 'PhD student at Example', 'final_url': 'https://example.org/person'}):
@@ -99,39 +88,31 @@ class ReaderTests(unittest.TestCase):
                     'http://[::1]/', 'http://[fd00::1]/', 'http://host.local/', 'http://svc.internal/'):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 validate_url(url)
-        for url in ('https://example.org/', 'http://93.184.216.34/', 'https://uk.linkedin.com/in/example'):
+        for url in ('https://example.org/', 'http://93.184.216.34/'):
             self.assertEqual(validate_url(url), url)
-        self.assertTrue(is_linkedin('https://uk.linkedin.com/in/example'))
-        self.assertFalse(is_linkedin('https://linkedin.com.example.org'))
 
-    def test_batch_stops_at_first_linkedin_refusal(self):
+    def test_batch_reads_serially_and_records_a_linkedin_url_as_outside_the_sources(self):
         responses = {
-            'https://www.linkedin.com/in/a': {'http_status': 200, 'final_url': 'https://www.linkedin.com/in/a',
-                                               'title': 'A - X | LinkedIn', 'text': PUBLIC_PROFILE},
             'https://lab.example.org/team': {'http_status': 200, 'final_url': 'https://lab.example.org/team', 'text': 'Team: A, B'},
-            'https://www.linkedin.com/in/b': {'http_status': 999, 'final_url': 'https://www.linkedin.com/in/b', 'text': ''},
-            'https://www.linkedin.com/in/c': {'http_status': 200, 'final_url': 'https://www.linkedin.com/in/c', 'text': 'never read'},
+            'https://lab.example.org/blocked': {'http_status': 403, 'final_url': 'https://lab.example.org/blocked', 'text': ''},
+            'https://lab.example.org/more': {'http_status': 200, 'final_url': 'https://lab.example.org/more', 'text': 'More'},
         }
-        urls = list(responses)
-        with patch('visit_page.http_read', side_effect=lambda url, timeout: responses[url]), \
+        urls = ['https://lab.example.org/team', 'https://www.linkedin.com/in/b', 'https://lab.example.org/blocked',
+                'https://lab.example.org/more']
+        with patch('visit_page.http_read', side_effect=lambda url, timeout: responses[url]) as read, \
                 patch('visit_page.time.sleep') as sleep, tempfile.TemporaryDirectory() as tmp:
             summary = batch(urls, Path(tmp), 5.0, ladder=('http',))
-            files = sorted(Path(tmp).iterdir())
-            first = json.loads(files[0].read_text())
-        self.assertEqual((summary['read'], summary['refused'], summary['other']), (2, 1, 0))
-        self.assertEqual(summary['stopped_at'], 'https://www.linkedin.com/in/b')
-        self.assertEqual(summary['remaining'], ['https://www.linkedin.com/in/c'])
-        self.assertEqual(len(files), 3)
-        self.assertEqual(sleep.call_count, 2)
-        self.assertEqual(first['text'], '')
-        self.assertIn('experience', first['sections'])
+            records = [json.loads(path.read_text()) for path in sorted(Path(tmp).iterdir())]
+        self.assertEqual((summary['read'], summary['refused'], summary['other']), (2, 1, 1))
+        self.assertEqual([r['status'] for r in records], ['readable', 'outside_sources', 'blocked', 'readable'])
+        self.assertNotIn('https://www.linkedin.com/in/b', [call.args[0] for call in read.call_args_list])
+        self.assertEqual(sleep.call_count, 3)
 
     def test_batch_skips_invalid_urls_without_stopping(self):
         with patch('visit_page.http_read', return_value={'text': 'ok', 'final_url': 'https://example.org/'}), \
                 patch('visit_page.time.sleep'), tempfile.TemporaryDirectory() as tmp:
             summary = batch(['http://localhost/x', 'https://example.org/'], Path(tmp), 0, ladder=('http',))
         self.assertEqual((summary['read'], summary['other']), (1, 1))
-        self.assertIsNone(summary['stopped_at'])
 
 
 if __name__ == '__main__':
@@ -159,13 +140,6 @@ class LadderTests(unittest.TestCase):
             record = visit('https://lab.example/people')
         self.assertEqual(record['fetch_via'], 'http')
         self.assertFalse(wayback.called)
-
-    def test_linkedin_never_climbs(self):
-        with patch('visit_page.http_read', return_value={'http_status': 999, 'final_url': 'https://www.linkedin.com/in/x', 'text': ''}), \
-                patch('visit_page.wayback_read') as wayback, patch('visit_page.jina_read') as jina:
-            record = visit('https://www.linkedin.com/in/x')
-        self.assertEqual(record['status'], 'blocked')
-        self.assertFalse(wayback.called or jina.called)
 
     def test_404_only_tries_the_archive(self):
         with patch('visit_page.http_read', return_value={'http_status': 404, 'final_url': 'https://lab.example/old', 'text': ''}), \
