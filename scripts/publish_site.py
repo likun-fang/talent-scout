@@ -18,7 +18,7 @@ a `notes` field, or when it or a page built from it names an email address or a 
 Standard library only.
 """
 from __future__ import annotations
-import argparse, datetime, html, json, re, sys
+import argparse, datetime, html, json, os, re, sys, tempfile, urllib.parse
 from pathlib import Path
 from check_groups import RECALL_MIN, STALE_MAX, recall, stale_groups
 from group_export import linkedin_hits
@@ -32,15 +32,54 @@ CORRECTION_FORM = f'{REPOSITORY}/issues/new?template=correction.yml'
 OPT_OUT_FORM = f'{REPOSITORY}/issues/new?template=opt-out.yml'
 SAMPLE_SIZE = 30  # check_groups.py's default spot-check sample
 SLUG = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
-EMAIL = re.compile(r'[\w.+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')
-# A path on the machine that built the run, or into a run directory; inside a web URL the same words follow a host or
-# another path segment and do not count.
-LOCAL_PATH = re.compile(r'file://|(?<![\w/.-])(?:/Users/|/home/|/private/|/tmp/|/var/folders/|[A-Za-z]:\\|runs/)')
+EMAIL = re.compile(r'(?:"[^"\n]+"|[\w.+%-]+)@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b')
+# A path on the machine that built the run, or into a run directory. Inside a web URL the same words follow a host or
+# another path segment and do not count, so data values that are web URLs are checked for email addresses only.
+LOCAL_PATH = re.compile(r'file://|(?<![\w/.%-])(?:~/|\.\.?/|/(?:Users|home|private|tmp|var|Volumes|mnt|opt|root)/'
+                        r'|[A-Za-z]:\\|runs/)')
+WEB_URL = re.compile(r'^https?://\S+$', re.I)
+# The pages link each other relatively ("../about.html"), so a page is checked for absolute and run paths only.
+PAGE_PATH = re.compile(r'file://|(?<![\w/.%-])(?:/(?:Users|home|private|tmp|var|Volumes|mnt|opt|root)/|[A-Za-z]:\\|runs/)')
 
 
 def private_text(text: str) -> list[str]:
-    """Email addresses and local or run paths in a text."""
-    return [match.group(0) for pattern in (EMAIL, LOCAL_PATH) for match in pattern.finditer(text)]
+    """Email addresses and absolute or run paths in a page."""
+    return [match.group(0) for pattern in (EMAIL, PAGE_PATH) for match in pattern.finditer(text)]
+
+
+def strings(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key)
+            yield from strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings(item)
+    elif isinstance(value, str):
+        yield value
+
+
+def private_values(doc: dict) -> list[str]:
+    """Private text in the data's decoded strings: each value is checked on its own, so an escape such as a newline
+    written as \\n cannot hide a path."""
+    found = []
+    for text in strings(doc):
+        found += [m.group(0) for m in EMAIL.finditer(text)]
+        if not WEB_URL.match(text.strip()):
+            found += [m.group(0) for m in LOCAL_PATH.finditer(text)]
+    return found
+
+
+def decoded_linkedin(doc: dict) -> list[str]:
+    """LinkedIn hosts written with percent escapes ("%6cinkedin.com"), which a browser decodes."""
+    found = []
+    for text in strings(doc):
+        decoded = text
+        for _ in range(3):
+            decoded = urllib.parse.unquote(decoded)
+        if decoded != text and linkedin_hits(decoded):
+            found.append(text)
+    return found
 
 
 def notes_fields(value, path: str = '$') -> list[str]:
@@ -70,10 +109,10 @@ def checks(doc: dict, known: list[dict]) -> dict:
     hits, misses = recall(groups, known, None)
     as_of = datetime.date.fromisoformat(doc['meta']['as_of'])
     stale = stale_groups(groups, as_of)
-    linkedin = linkedin_hits(doc)
+    linkedin = linkedin_hits(doc) + decoded_linkedin(doc)
     values = {'recall': {'found': len(hits), 'known': len(known)},
               'stale': {'groups': len(stale), 'of': len(groups), 'verified_since': window_start(as_of, 12).isoformat()},
-              'linkedin': len(linkedin), 'sample': min(SAMPLE_SIZE, len(groups))}
+              'banned_source_hits': len(linkedin), 'sample': min(SAMPLE_SIZE, len(groups))}
     failed = []
     if known and len(hits) / len(known) < RECALL_MIN:
         failed.append(f"recall {len(hits)}/{len(known)} below {RECALL_MIN:.0%} (missing: "
@@ -87,9 +126,30 @@ def checks(doc: dict, known: list[dict]) -> dict:
     return values
 
 
+def published_field(path: Path) -> dict:
+    """An earlier publication, read back for the index and about pages: its values reach those pages, so they are
+    checked again here."""
+    doc = load_json(path, 'published groups')
+    meta = doc.get('meta') if isinstance(doc, dict) else None
+    checks = (meta or {}).get('checks')
+    count = lambda value: isinstance(value, int) and not isinstance(value, bool) and value >= 0
+    if not (isinstance(meta, dict) and isinstance(doc.get('groups'), list) and isinstance(meta.get('domain'), str)
+            and isinstance(meta.get('as_of'), str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', meta['as_of'])
+            and isinstance(checks, dict) and isinstance(checks.get('recall'), dict) and isinstance(checks.get('stale'), dict)
+            and all(count(v) for v in (checks['recall'].get('found'), checks['recall'].get('known'),
+                                       checks['stale'].get('groups'), checks['stale'].get('of'),
+                                       checks.get('banned_source_hits'), checks.get('sample')))):
+        raise SystemExit(f'{path}: an earlier publication without valid meta and meta.checks; publish that field again')
+    found = private_values(doc) + linkedin_hits(doc) + decoded_linkedin(doc)
+    if found:
+        raise SystemExit(f'{path}: an earlier publication with private or LinkedIn text: {found[:5]}')
+    return doc
+
+
 def published_fields(out: Path, slug: str, doc: dict) -> list[tuple[str, dict]]:
     """(slug, groups.json) of every field under out, with this publication in place of its earlier one."""
-    fields = {path.parent.name: load_json(path, 'published groups') for path in sorted(out.glob('*/groups.json'))}
+    fields = {path.parent.name: published_field(path) for path in sorted(out.glob('*/groups.json'))
+              if path.parent.name != slug}
     fields[slug] = doc
     return sorted(fields.items(), key=lambda item: (normalized(item[1]['meta'].get('domain', '')), item[0]))
 
@@ -177,9 +237,10 @@ def check_rows(fields: list[tuple[str, dict]], zh: bool) -> str:
         if not c:
             continue
         sample = f'{c["sample"]} 个' if zh else f'{c["sample"]} group{"" if c["sample"] == 1 else "s"}'
+        cells = [f'{c["recall"]["found"]}/{c["recall"]["known"]}', f'{c["stale"]["groups"]}/{c["stale"]["of"]}',
+                 str(c['banned_source_hits']), sample]
         rows.append(f'<tr><td><a href="{html.escape(slug)}/">{html.escape(doc["meta"].get("domain", slug))}</a></td>'
-                    f'<td>{c["recall"]["found"]}/{c["recall"]["known"]}</td><td>{c["stale"]["groups"]}/{c["stale"]["of"]}</td>'
-                    f'<td>{c["linkedin"]}</td><td>{sample}</td></tr>')
+                    + ''.join(f'<td>{html.escape(cell)}</td>' for cell in cells) + '</tr>')
     return f'<table>{head}{"".join(rows)}</table>'
 
 
@@ -260,6 +321,9 @@ def publish(run_dir: Path, slug: str, out: Path, known_path: Path) -> dict:
     notes = notes_fields(doc)
     if notes:
         raise SystemExit(f'not published: notes fields stay in the run: {notes[:5]}')
+    found = private_values(doc)
+    if found:
+        raise SystemExit(f'not published: private text (email addresses or local paths) in the data: {found[:5]}')
     doc = {**doc, 'meta': {**doc['meta'], 'checks': checks(doc, known['groups'])}}
     data = json.dumps(doc, ensure_ascii=False, indent=1) + '\n'
     fields = published_fields(out, slug, doc)
@@ -269,10 +333,34 @@ def publish(run_dir: Path, slug: str, out: Path, known_path: Path) -> dict:
     found = sorted({hit for text in files.values() for hit in private_text(text)})
     if found:
         raise SystemExit(f'not published: private text (email addresses or local paths): {found[:5]}')
-    for path, text in files.items():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding='utf-8')
+    write_all(files)
     return doc['meta']['checks']
+
+
+def write_all(files: dict[Path, str]) -> None:
+    """Write every file or none: each goes to a temporary file beside its target first, and a failure while the
+    targets are replaced puts the earlier contents back."""
+    earlier = {path: path.read_bytes() if path.exists() else None for path in files}
+    staged, replaced = {}, []
+    try:
+        for path, text in files.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            handle, name = tempfile.mkstemp(dir=path.parent, prefix='.publish-')
+            with os.fdopen(handle, 'w', encoding='utf-8') as temporary:
+                temporary.write(text)
+            staged[path] = name
+        for path, name in staged.items():
+            os.replace(name, path)
+            replaced.append(path)
+    except OSError as exc:
+        for path in replaced:
+            if earlier[path] is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(earlier[path])
+        for name in staged.values():
+            Path(name).unlink(missing_ok=True)
+        raise SystemExit(f'not published: writing failed ({exc}); the earlier files are back in place')
 
 
 def main() -> None:
@@ -284,7 +372,7 @@ def main() -> None:
     args = parser.parse_args()
     values = publish(args.run_dir, args.slug, args.out, args.known or ROOT / 'assets' / 'known-groups' / f'{args.slug}.json')
     print(f"published {args.slug} into {args.out}: recall {values['recall']['found']}/{values['recall']['known']}, "
-          f"stale {values['stale']['groups']}/{values['stale']['of']}, LinkedIn {values['linkedin']}", file=sys.stderr)
+          f"stale {values['stale']['groups']}/{values['stale']['of']}, LinkedIn {values['banned_source_hits']}", file=sys.stderr)
 
 
 if __name__ == '__main__':

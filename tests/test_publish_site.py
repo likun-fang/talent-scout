@@ -81,7 +81,7 @@ class PublishTests(unittest.TestCase):
                 publish_site.RECALL_MIN, publish_site.STALE_MAX = old
             doc = json.loads((site.docs / 'multimodal-ai' / 'groups.json').read_text(encoding='utf-8'))
             self.assertEqual(doc['meta']['checks'], {'recall': {'found': 1, 'known': 2}, 'stale': {'groups': 1, 'of': 2,
-                             'verified_since': '2025-10-15'}, 'linkedin': 0, 'sample': 2})
+                             'verified_since': '2025-10-15'}, 'banned_source_hits': 0, 'sample': 2})
             schema = json.loads((ROOT / 'assets/groups.schema.json').read_text(encoding='utf-8'))
             self.assertEqual(validate(doc, schema, schema), [])
 
@@ -145,13 +145,31 @@ class RefusalTests(unittest.TestCase):
             with self.subTest(extra=extra):
                 self.assertIn('LinkedIn', self.refused(groups_doc(group('Anna Meyer', 'TUM', **extra))))
 
+    def test_a_percent_encoded_linkedin_host_stops_the_publication(self):
+        message = self.refused(groups_doc(group('Anna Meyer', 'TUM', homepage='https://www.%6cinkedin.com/in/anna')))
+        self.assertIn('LinkedIn', message)
+
+    def test_an_earlier_field_with_malformed_check_values_stops_the_publication(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Fixture(tmp, groups_doc(group('Anna Meyer', 'TUM')), KNOWN)
+            site.publish('old-field')
+            old = site.docs / 'old-field' / 'groups.json'
+            doc = json.loads(old.read_text(encoding='utf-8'))
+            doc['meta']['checks']['sample'] = '<img src=x onerror=alert(1)>'
+            old.write_text(json.dumps(doc), encoding='utf-8')
+            with self.assertRaises(SystemExit) as stop:
+                site.publish('multimodal-ai')
+            self.assertIn('old-field', str(stop.exception))
+            self.assertFalse((site.docs / 'multimodal-ai').exists())
+
     def test_a_notes_field_stops_the_publication(self):
         message = self.refused(groups_doc(group('Anna Meyer', 'TUM', notes='moved in 2025')))
         self.assertIn('$.groups[0].notes', message)
 
     def test_an_email_address_or_a_local_path_stops_the_publication(self):
         for topic in ('write to anna.meyer@tum.de', '/Users/someone/projects/x', 'runs/multimodal-ai-2026-10-14/site',
-                      'file:///tmp/x.html'):
+                      'file:///tmp/x.html', '../runs/private/site', '/Volumes/Private/run/site', '"anna meyer"@tum.de',
+                      'line one\n/Users/alice/private', '~/projects/x', 'mailto:anna@tum.de'):
             with self.subTest(topic=topic):
                 self.assertIn('private', self.refused(groups_doc(group('Anna Meyer', 'TUM', topics=[topic]))))
 
@@ -165,6 +183,30 @@ class RefusalTests(unittest.TestCase):
             with self.assertRaises(SystemExit) as stop:
                 publish(Path(tmp), 'multimodal-ai', Path(tmp) / 'docs', Path(tmp) / 'known.json')
             self.assertIn('groups.json', str(stop.exception))
+
+
+class WriteTests(unittest.TestCase):
+    def test_a_failed_write_leaves_the_earlier_publication_whole(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Fixture(tmp, groups_doc(group('Anna Meyer', 'TUM')), KNOWN)
+            site.publish()
+            before = {p: p.read_bytes() for p in site.docs.rglob('*') if p.is_file()}
+            (site.run / 'site' / 'groups.json').write_text(json.dumps(groups_doc(group('Anna Meyer', 'TUM'), group('Cara Lin', 'TUM'))),
+                                                           encoding='utf-8')
+            original, calls = publish_site.os.replace, []
+
+            def failing_replace(source, target):
+                calls.append(target)
+                if len(calls) == 2:
+                    raise OSError('disk full')
+                return original(source, target)
+            publish_site.os.replace = failing_replace
+            try:
+                with self.assertRaises(SystemExit):
+                    site.publish()
+            finally:
+                publish_site.os.replace = original
+            self.assertEqual({p: p.read_bytes() for p in site.docs.rglob('*') if p.is_file()}, before)
 
 
 class CommandLineTests(unittest.TestCase):

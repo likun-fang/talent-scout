@@ -98,7 +98,8 @@ class PublishedPageTests(unittest.TestCase):
         self.assertIn('g.homepage && g.pi.homepage && g.pi.homepage !== g.homepage', html)
 
     def test_a_url_that_could_break_out_of_the_script_is_refused(self):
-        for url in ('https://x.example/"; alert(1); "', 'https://x.example/</script>', 'https://x.example/a b'):
+        for url in ('https://x.example/"; alert(1); "', 'https://x.example/</script>', 'https://x.example/a b',
+                    'https://x.example/new?template=correction.yml#details'):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 render_html(doc(record('Anna Meyer', 'TUM')), correction_url=url)
 

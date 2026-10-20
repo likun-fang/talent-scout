@@ -27,10 +27,11 @@ def render_html(doc: dict, correction_url: str = CORRECTION_URL, about_url: str 
                .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
     meta = doc.get('meta', {})
     title = html.escape(f"Research groups · {meta.get('domain') or 'field'} · {meta.get('as_of', '')}")
-    # Neither URL may carry markup into the script block; json.dumps quotes them for JavaScript.
+    # Neither URL may carry markup into the script block; json.dumps quotes them for JavaScript. The card appends the
+    # group to the correction URL's query, which a fragment would swallow.
     urls = {'__CORRECTION_URL__': correction_url, '__ABOUT_URL__': about_url}
-    if any(re.search(r'[<>"\'\\\s]', url) for url in urls.values()):
-        raise ValueError(f'a correction or about URL with quotes, brackets or spaces: {urls}')
+    if any(re.search(r'[<>"\'\\\s]', url) for url in urls.values()) or '#' in correction_url:
+        raise ValueError(f'a correction or about URL with quotes, brackets or spaces, or a correction URL with a fragment: {urls}')
     page = TEMPLATE.replace('__TITLE__', title)
     for marker, url in urls.items():
         page = page.replace(marker, json.dumps(url))
