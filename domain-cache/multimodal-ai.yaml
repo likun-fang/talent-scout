@@ -1,0 +1,180 @@
+domain: "multimodal AI (vision-language models, multimodal foundation models, multimodal generation and understanding)"
+slug: multimodal-ai
+derived_on: "2026-10-14"
+window: {from: "2023-10-14", to: "2026-10-14"}   # OpenAlex counts below use this window
+sources_used:
+  - "openalex-topics (searches: multimodal, vision-language, image generation, text-to-image diffusion, video understanding, image captioning; stage1/topic-search.txt)"
+  - openalex-group-by (venues, institutions, authors for T11714+T10775, any author in EU27+UK+CH+NO; second institution list restricted to DE|CH)
+  - openalex-institutions (country and type of each listed institution; MCML and Tübingen AI Center carry no country_code, set to DE)
+  - erc-panels, euroscivoc
+  - gepris (fachkolleg aggregation for vision-language, vision language model, multimodal learning, multimodal large language model, text-to-image, visual question answering, image captioning, diffusion model image, cross-modal; stage1/gepris-fachkolleg.txt)
+  - snsf grants.csv (MainDiscipline of keyword-matching grants decided 2022+)
+  - github (topic search vision-language-model, multimodal, multimodal-large-language-models, text-to-image, vlm; org locations; stage1/github-*.txt)
+  - web-search (tc.computer.org TCPAMI award lists for CVPR/ICCV/ECCV; NeurIPS 2025 competitions; challenge winners)
+  - "dropped topic hits: language/discourse, emotion recognition, biometrics, surgery, terahertz, fluorescence microscopy and other non-ML meanings of 'multimodal' / 'image generation'"
+region_core: "DE+CH"
+region_extended: "EU27+UK+CH+NO"
+facets_file: assets/facets/multimodal-ai.json  # relative to SKILL_ROOT
+scope: {core: [], conditional: [], excluded: []}  # not derived in this run
+directions: []
+discovery_seeds: []
+collection_requirements: []
+openalex_topics:
+  - {id: T11714, name: Multimodal Machine Learning Applications, fit: core, selection_reason: "first hit for every phrase tried (multimodal, vision-language, image generation, video understanding, image captioning)"}
+  - {id: T10775, name: Generative Adversarial Networks and Image Synthesis, fit: adjacent, selection_reason: "only hit for 'text-to-image diffusion'; carries the generation side (latent diffusion) but also unconditional GANs and medical image synthesis, so downstream use needs a title keyword filter (text, language, caption, prompt, multimodal, vision-language)"}
+topic_discovery_queries: []  # the topic searches are listed in sources_used
+venues:
+  conferences:
+    - {name: CVPR, openalex_source_id: S4210176548, award_page_pattern: "https://tc.computer.org/tcpami/awards/cvpr-paper-awards/ (all years); cvpr.thecvf.com/Conferences/<year>/News/Awards"}
+    - {name: ICCV, openalex_source_id: S4363607764, award_page_pattern: "https://tc.computer.org/tcpami/awards/iccv-paper-awards/ (Marr Prize + honorable mentions)"}
+    - {name: ECCV, openalex_source_id: null, award_page_pattern: "https://tc.computer.org/tcpami/awards/eccv-paper-awards/; eccv<year>.ecva.net", selection_reason: "published inside Lecture Notes in Computer Science (S106296714, 1544 works), which OpenAlex does not split by conference"}
+    - {name: NeurIPS, openalex_source_id: S4363606243, award_page_pattern: "blog.neurips.cc/<year>/ announcing-the-neurips-<year>-best-paper-awards; datasets & benchmarks track included"}
+    - {name: ICLR, openalex_source_id: null, award_page_pattern: "blog.iclr.cc/<year>/ outstanding paper awards", selection_reason: "OpenReview-hosted, absent from the OpenAlex venue facet; the field's main ML venue"}
+    - {name: ICML, openalex_source_id: null, award_page_pattern: "icml.cc/virtual/<year>/awards_detail", selection_reason: "PMLR-hosted, absent from the facet"}
+    - {name: ACL, openalex_source_id: S4363608652, award_page_pattern: "<year>.aclweb.org/program/best_papers/"}
+    - {name: EMNLP, openalex_source_id: S4363608991, award_page_pattern: "<year>.emnlp.org/program/best_papers/"}
+    - {name: ACM Multimedia, openalex_source_id: S4363608757, award_page_pattern: "acmmm<year>.org awards"}
+    - {name: AAAI, openalex_source_id: S4210191458, award_page_pattern: "aaai.org/conference/aaai/aaai-<yy>/awards"}
+  journals:
+    - {name: IEEE TPAMI, openalex_source_id: S199944782}
+    - {name: IJCV, openalex_source_id: S25538012}
+    - {name: IEEE Transactions on Multimedia, openalex_source_id: S137030581}
+  dropped: "LNCS/CCIS/LNNS series, IEEE Access, Applied Sciences, Expert Systems with Applications, Neurocomputing, Pattern Recognition, Information Fusion (no award pages); ICASSP and ISBI (audio/medical side); WACV, CVPRW, ICCVW (workshop awards only through the main venue lists)"
+panels_to_sweep:
+  - {panel: PE6, reason: "computer vision, ML and NLP all sit here"}
+  - {panel: SH4, reason: "language and cognition; catches vision-language projects led from linguistics or cognitive science, keyword filter decides"}
+  - {panel: PE7, reason: "signal and image processing; audio-visual work"}
+euroscivoc_paths:
+  - "/natural sciences/computer and information sciences/artificial intelligence/computer vision"
+  - "/natural sciences/computer and information sciences/artificial intelligence/machine learning"
+  - "/natural sciences/computer and information sciences/artificial intelligence/natural language processing"
+register_subject_filters:
+  dfg_review_boards: ["4.43", "4.41"]
+  dfg_note: "4.43 (computer science) leads every specific keyword (vision-language 56/122, multimodal learning 230/920, MLLM 29/62); 4.41 (systems engineering) carries robotics VLA. Bare 'multimodal' returns 20315 projects across all boards (multimodal imaging, linguistics, psychology), so it is never used without a board filter. 1.14/1.22/2.22/2.23 hits are linguistics, psychology and medicine."
+  snsf_main_disciplines: ["Information Technology", "Multi-disciplinary MINT", "MINT + LS"]
+  snsf_note: "of keyword-matching grants decided 2022+, 26 are Information Technology; psychology, neurology, ethnology and linguistics hits are other meanings of 'multimodal'"
+competitions:
+  - {name: "Perception Test Challenge (ECCV 2024, ICCV 2025 workshop)", results_url_pattern: "ptchallenge-workshop.github.io; challenge report on arXiv", roster_source: repo, fit: core, selection_reason: "multimodal video QA and grounding, run by Google DeepMind London; report names winning teams and affiliations"}
+  - {name: "NeurIPS competition track, multimodal entries (DCVLR 2025, MMU-RAG 2025, later years)", results_url_pattern: "neurips.cc/virtual/<year>/competition/...", roster_source: team_site, fit: core, selection_reason: "listed under 'Generative AI, LLMs and Reasoning' in the NeurIPS 2025 competitions announcement"}
+  - {name: "EPIC-KITCHENS challenges (CVPR workshop)", results_url_pattern: "epic-kitchens.github.io/<year>; annual technical report", roster_source: tdp, fit: adjacent, selection_reason: "egocentric video-language tasks; Bristol-run, report lists winners with affiliations"}
+  - {name: "Ego4D / Ego-Exo4D challenges (CVPR/ECCV workshops)", results_url_pattern: "ego4d-data.org/workshops/<venue><yy>", roster_source: repo, fit: adjacent, selection_reason: "video-language queries, NLQ and captioning tracks"}
+  - {name: "NTIRE / AIM challenges, text-to-image and generation quality tracks only", results_url_pattern: "cvlai.net/ntire/<year>; challenge report on arXiv", roster_source: tdp, fit: adjacent, selection_reason: "organised from Würzburg (core region); reports list every team with members and affiliations"}
+  - {name: "ImageCLEF multimodal tasks (MultimodalReasoning, medical caption / VQA)", results_url_pattern: "ceur-ws.org overview paper per year", roster_source: tdp, fit: adjacent, selection_reason: "European evaluation campaign (CLEF); overview papers list participating teams"}
+  - {name: "MediaEval multimodal tasks", results_url_pattern: "multimediaeval.github.io/editions/<year>", roster_source: tdp, fit: adjacent, selection_reason: "European multimedia benchmark; working-notes papers carry authors"}
+  - {name: "SemEval multimodal tasks", results_url_pattern: "semeval.github.io/SemEval<year>/tasks", roster_source: tdp, fit: adjacent, selection_reason: "multimodal meme / image-text tasks; system papers carry authors"}
+labs:
+  - {name: "Technical University of Munich", country: DE, type: education, openalex_institution_id: I62916508, works: 639, list: core-top, people_page: ""}
+  - {name: "ETH Zurich", country: CH, type: education, openalex_institution_id: I35440088, works: 486, list: core-top, people_page: ""}
+  - {name: "École Polytechnique Fédérale de Lausanne", country: CH, type: education, openalex_institution_id: I5124864, works: 274, list: core-top, people_page: ""}
+  - {name: "Ludwig-Maximilians-Universität München", country: DE, type: education, openalex_institution_id: I8204097, works: 224, list: core-top, people_page: ""}
+  - {name: "Munich Center for Machine Learning", country: DE, type: education, openalex_institution_id: I4403386549, works: 190, list: core-top, people_page: "", note: "country_code empty in OpenAlex; DE by its own address"}
+  - {name: "University of Tübingen", country: DE, type: education, openalex_institution_id: I8087733, works: 166, list: core-top, people_page: ""}
+  - {name: "Friedrich-Alexander-Universität Erlangen-Nürnberg", country: DE, type: education, openalex_institution_id: I181369854, works: 145, list: core-top, people_page: ""}
+  - {name: "Technische Universität Darmstadt", country: DE, type: education, openalex_institution_id: I31512782, works: 136, list: core-top, people_page: ""}
+  - {name: "Max Planck Institute for Informatics", country: DE, type: facility, openalex_institution_id: I4210109712, works: 135, list: core-top, people_page: ""}
+  - {name: "University of Zurich", country: CH, type: education, openalex_institution_id: I202697423, works: 134, list: core-top, people_page: ""}
+  - {name: "German Research Centre for Artificial Intelligence", country: DE, type: funder, openalex_institution_id: I33256026, works: 122, list: core-top, people_page: ""}
+  - {name: "Technische Universität Berlin", country: DE, type: education, openalex_institution_id: I4577782, works: 108, list: core-top, people_page: ""}
+  - {name: "University of Stuttgart", country: DE, type: education, openalex_institution_id: I100066346, works: 106, list: core-top, people_page: ""}
+  - {name: "Karlsruhe Institute of Technology", country: DE, type: education, openalex_institution_id: I102335020, works: 105, list: core-top, people_page: ""}
+  - {name: "RWTH Aachen University", country: DE, type: education, openalex_institution_id: I887968799, works: 105, list: core-top, people_page: ""}
+  - {name: "Technische Universität Dresden", country: DE, type: education, openalex_institution_id: I78650965, works: 92, list: core-top, people_page: ""}
+  - {name: "Universität Hamburg", country: DE, type: education, openalex_institution_id: I159176309, works: 88, list: core-top, people_page: ""}
+  - {name: "University of Bonn", country: DE, type: education, openalex_institution_id: I135140700, works: 84, list: core-top, people_page: ""}
+  - {name: "Heidelberg University", country: DE, type: education, openalex_institution_id: I223822909, works: 83, list: core-top, people_page: ""}
+  - {name: "Saarland University", country: DE, type: education, openalex_institution_id: I91712215, works: 81, list: core-top, people_page: ""}
+  - {name: "Helmholtz Center for Information Security", country: DE, type: facility, openalex_institution_id: I4210128801, works: 77, list: core-top, people_page: ""}
+  - {name: "TUM Klinikum", country: DE, type: healthcare, openalex_institution_id: I2802619606, works: 73, list: core-top, people_page: ""}
+  - {name: "Max Planck Institute for Intelligent Systems", country: DE, type: facility, openalex_institution_id: I4210135521, works: 73, list: core-top, people_page: ""}
+  - {name: "University of Würzburg", country: DE, type: education, openalex_institution_id: I25974101, works: 72, list: core-top, people_page: ""}
+  - {name: "University of Freiburg", country: DE, type: education, openalex_institution_id: I161046081, works: 70, list: core-top, people_page: ""}
+  - {name: "Helmholtz Munich", country: DE, type: facility, openalex_institution_id: I3018134672, works: 60, list: core-top, people_page: ""}
+  - {name: "Idiap Research Institute", country: CH, type: facility, openalex_institution_id: I7495430, works: 57, list: core-top, people_page: ""}
+  - {name: "University Hospital Heidelberg", country: DE, type: healthcare, openalex_institution_id: I2802164966, works: 55, list: core-top, people_page: ""}
+  - {name: "Humboldt-Universität zu Berlin", country: DE, type: education, openalex_institution_id: I39343248, works: 54, list: core-top, people_page: ""}
+  - {name: "Rheinland-Pfälzische Technische Universität Kaiserslautern-Landau", country: DE, type: education, openalex_institution_id: I4387152675, works: 52, list: core-top, people_page: ""}
+  - {name: "Tübingen AI Center", country: DE, type: education, openalex_institution_id: I4401726832, works: 49, list: core-top, people_page: "", note: "country_code empty in OpenAlex; DE by its own address"}
+  - {name: "Leibniz University Hannover", country: DE, type: education, openalex_institution_id: I114112103, works: 48, list: core-top, people_page: ""}
+  - {name: "University of Geneva", country: CH, type: education, openalex_institution_id: I114457229, works: 48, list: core-top, people_page: ""}
+  - {name: "University of Potsdam", country: DE, type: education, openalex_institution_id: I176453806, works: 48, list: core-top, people_page: ""}
+  - {name: "Universitätsklinikum Aachen", country: DE, type: healthcare, openalex_institution_id: I4210120689, works: 47, list: core-top, people_page: ""}
+  - {name: "Hessian Center for Artificial Intelligence", country: DE, type: facility, openalex_institution_id: I4392021234, works: 46, list: core-top, people_page: ""}
+  - {name: "Freie Universität Berlin", country: DE, type: education, openalex_institution_id: I75951250, works: 46, list: core-top, people_page: ""}
+  - {name: "University of Basel", country: CH, type: education, openalex_institution_id: I1850255, works: 45, list: core-top, people_page: ""}
+  - {name: "University of Bern", country: CH, type: education, openalex_institution_id: I118564535, works: 43, list: core-top, people_page: ""}
+  - {name: "Hasso Plattner Institute", country: DE, type: facility, openalex_institution_id: I143288331, works: 41, list: core-top, people_page: ""}
+  - {name: "Robert Bosch (Germany)", country: DE, type: company, openalex_institution_id: I889804353, works: 40, list: core-top, people_page: ""}
+  - {name: "Deutsches Zentrum für Luft- und Raumfahrt e. V. (DLR)", country: DE, type: facility, openalex_institution_id: I2898391981, works: 39, list: core-top, people_page: ""}
+  - {name: "University of Oxford", country: GB, type: education, openalex_institution_id: I40120149, works: 592, list: extended-top, people_page: ""}
+  - {name: "Imperial College London", country: GB, type: education, openalex_institution_id: I47508984, works: 531, list: extended-top, people_page: ""}
+  - {name: "Centre National de la Recherche Scientifique", country: FR, type: government, openalex_institution_id: I1294671590, works: 523, list: extended-top, people_page: ""}
+  - {name: "University of Cambridge", country: GB, type: education, openalex_institution_id: I241749, works: 430, list: extended-top, people_page: ""}
+  - {name: "University College London", country: GB, type: education, openalex_institution_id: I45129253, works: 428, list: extended-top, people_page: ""}
+  - {name: "University of Edinburgh", country: GB, type: education, openalex_institution_id: I98677209, works: 377, list: extended-top, people_page: ""}
+  - {name: "University of Amsterdam", country: NL, type: education, openalex_institution_id: I887064364, works: 294, list: extended-top, people_page: ""}
+  - {name: "University of Surrey", country: GB, type: education, openalex_institution_id: I28290843, works: 262, list: extended-top, people_page: ""}
+  - {name: "Google DeepMind (United Kingdom)", country: GB, type: company, openalex_institution_id: I4210090411, works: 259, list: extended-top, people_page: ""}
+  - {name: "University of Trento", country: IT, type: education, openalex_institution_id: I193223587, works: 238, list: extended-top, people_page: ""}
+  - {name: "Queen Mary University of London", country: GB, type: education, openalex_institution_id: I166337079, works: 234, list: extended-top, people_page: ""}
+  - {name: "University of Liverpool", country: GB, type: education, openalex_institution_id: I146655781, works: 225, list: extended-top, people_page: ""}
+  - {name: "Institut national de recherche en sciences et technologies du numérique", country: FR, type: government, openalex_institution_id: I1326498283, works: 224, list: extended-top, people_page: ""}
+  - {name: "University of Manchester", country: GB, type: education, openalex_institution_id: I28407311, works: 218, list: extended-top, people_page: ""}
+  - {name: "University of Glasgow", country: GB, type: education, openalex_institution_id: I7882870, works: 211, list: extended-top, people_page: ""}
+  - {name: "Nvidia (United Kingdom)", country: GB, type: company, openalex_institution_id: I1304085615, works: 201, list: extended-top, people_page: ""}
+  - {name: "King's College London", country: GB, type: education, openalex_institution_id: I183935753, works: 200, list: extended-top, people_page: ""}
+  - {name: "Université Paris-Saclay", country: FR, type: education, openalex_institution_id: I277688954, works: 184, list: extended-top, people_page: ""}
+  - {name: "Sapienza University of Rome", country: IT, type: education, openalex_institution_id: I861853513, works: 155, list: extended-top, people_page: ""}
+  - {name: "Cardiff University", country: GB, type: education, openalex_institution_id: I79510175, works: 154, list: extended-top, people_page: ""}
+  - {name: "Institut Polytechnique de Paris", country: FR, type: education, openalex_institution_id: I4210145102, works: 147, list: extended-top, people_page: ""}
+  - {name: "University of Bristol", country: GB, type: education, openalex_institution_id: I36234482, works: 139, list: extended-top, people_page: ""}
+  - {name: "Sorbonne Université", country: FR, type: education, openalex_institution_id: I39804081, works: 137, list: extended-top, people_page: ""}
+  - {name: "KU Leuven", country: BE, type: education, openalex_institution_id: I99464096, works: 134, list: extended-top, people_page: ""}
+  - {name: "University of Copenhagen", country: DK, type: education, openalex_institution_id: I124055696, works: 132, list: extended-top, people_page: ""}
+  - {name: "University of Bologna", country: IT, type: education, openalex_institution_id: I9360294, works: 131, list: extended-top, people_page: ""}
+  - {name: "University of Sheffield", country: GB, type: education, openalex_institution_id: I91136226, works: 126, list: extended-top, people_page: ""}
+  - {name: "University of Birmingham", country: GB, type: education, openalex_institution_id: I79619799, works: 119, list: extended-top, people_page: ""}
+  - {name: "Aalto University", country: FI, type: education, openalex_institution_id: I9927081, works: 119, list: extended-top, people_page: ""}
+companies:
+  - {name: "Google DeepMind (United Kingdom)", country: GB, reason: openalex-company, openalex_institution_id: I4210090411, works: 259}
+  - {name: "Nvidia (United Kingdom)", country: GB, reason: openalex-company, openalex_institution_id: I1304085615, works: 201}
+  - {name: "Robert Bosch (Germany)", country: DE, reason: openalex-company, openalex_institution_id: I889804353, works: 40}
+  - {name: "Dolby (Netherlands)", country: NL, reason: openalex-company, openalex_institution_id: I116121188, works: 31}
+  - {name: "Google (Switzerland)", country: CH, reason: openalex-company, openalex_institution_id: I4210100430, works: 29}
+  - {name: "Microsoft Research (United Kingdom)", country: GB, reason: openalex-company, openalex_institution_id: I4210164937, works: 26}
+  - {name: "BMW (Germany) / BMW Group", country: DE, reason: openalex-company, openalex_institution_id: "I1283382300, I4210156768", works: 49}
+  - {name: "Black Forest Labs", country: DE, reason: hand-pick, selection_reason: "FLUX text-to-image models (black-forest-labs/flux), founded by latent-diffusion authors; not an OpenAlex company institution"}
+  - {name: "Stability AI", country: GB, reason: hand-pick, selection_reason: "Stability-AI/generative-models, GitHub org location United Kingdom"}
+  - {name: "Meta FAIR Paris", country: FR, reason: hand-pick, selection_reason: "DINOv2 and multimodal pretraining work from Paris; bare 'Meta' affiliations need the raw-string search in industry.md"}
+  - {name: "NAVER LABS Europe", country: FR, reason: hand-pick, selection_reason: "Grenoble lab (DUSt3R/MASt3R, vision-language); no ROR record, use raw_affiliation_strings.search"}
+  - {name: "Mistral AI", country: FR, reason: hand-pick, selection_reason: "Pixtral vision-language models"}
+  - {name: "Kyutai", country: FR, reason: hand-pick, selection_reason: "non-profit lab, Moshi speech-text foundation model (kyutai-labs/moshi), GitHub org location France"}
+  - {name: "Hugging Face (Paris team)", country: FR, reason: hand-pick, selection_reason: "SmolVLM (huggingface/smollm); org location 'NYC + Paris'"}
+  - {name: "Aleph Alpha", country: DE, reason: hand-pick, selection_reason: "Heidelberg, multimodal Luminous models"}
+  - {name: "Synthesia", country: GB, reason: hand-pick, selection_reason: "text-to-video avatars"}
+  - {note: "EIC Accelerator selected-company PDFs are read in the startups channel at stage 2"}
+open_source_anchors:
+  - {repo: CompVis/stable-diffusion, selection_reason: "org location Germany (LMU, ommer-lab.com); 73.5k stars, last push 2024-06"}
+  - {repo: CompVis/latent-diffusion, selection_reason: "same org; 14k stars"}
+  - {repo: black-forest-labs/flux, selection_reason: "Black Forest Labs (Freiburg); 26k stars, last push 2025-07"}
+  - {repo: Stability-AI/generative-models, selection_reason: "org location United Kingdom; 27k stars"}
+  - {repo: mlfoundations/open_clip, selection_reason: "org in US but maintained with LAION / Jülich contributors; 14k stars, active 2026-09"}
+  - {repo: LAION-AI/CLIP_benchmark, selection_reason: "org location Germany; active 2026-07"}
+  - {repo: kyutai-labs/moshi, selection_reason: "org location France; 11k stars, active 2026-09"}
+  - {repo: huggingface/smollm, selection_reason: "SmolVLM; Hugging Face Paris; active 2026-10"}
+  - {repo: ExplainableML (org), selection_reason: "lab org of a seed group, location Germany (eml-munich.de)"}
+  - {repo: naver/dust3r, fit: adjacent, selection_reason: "NAVER LABS Europe; 3D vision foundation model"}
+  - {repo: facebookresearch/dinov2, fit: adjacent, selection_reason: "vision foundation model from Meta FAIR Paris"}
+  - {note: "GitHub topic searches (vision-language-model, multimodal, multimodal-large-language-models, text-to-image, vlm) are dominated by US and Chinese owners: LLaVA, InternVL, Qwen-VL, DeepSeek-VL; none in region in the top 15"}
+keywords: [vision-language, vision language model, VLM, multimodal large language model, MLLM, multimodal foundation model, multimodal learning, multimodal representation, cross-modal, text-to-image, text-to-video, image generation, video generation, diffusion model, latent diffusion, visual question answering, image captioning, visual grounding, contrastive language-image, CLIP, audio-visual, video-language, vision-language-action, "multimodale Sprachmodelle", "Bildgenerierung", "Bild-Text"]
+keyword_rules: "bare 'multimodal' only together with a computer-science subject filter (DFG 4.43/4.41, SNSF Information Technology, ERC PE6, EuroSciVoc AI paths) or a second ML term in the title; it otherwise matches imaging, transport, linguistics and clinical work"
+prizes_filter: computing
+historical_snapshot: {}
+# Field-specific rules the scripts hold in code today, written down so the next field changes a pack, not a script.
+quirks:
+  title_words: []
+  institution_patterns:
+    - {pattern: "NAVER|DeepMind|Google|Facebook|Sony|Bosch|Mistral|Aleph Alpha|Microsoft|NVIDIA|Hugging Face", kind: company, reason: "employer names the role rules read as companies (scripts/current_affiliation.py COMPANY_NAMES)"}
+    - {pattern: "Meta|FAIR|Apple|Amazon", kind: not-by-name, reason: "too short or too common to decide alone; a company suffix or the provider type decides (references/40-entity-resolution.md)"}
+  evidence_venues:
+    - {name: "CVPR, ICCV and ECCV paper awards", evidence: paper_award, reason: "tc.computer.org TCPAMI award lists (venues.conferences award_page_pattern)"}
+    - {name: "NeurIPS competition track", evidence: competition_result, reason: "multimodal entries and challenge winners (competitions)"}

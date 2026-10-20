@@ -1,0 +1,30 @@
+{
+  "_comment": "Research-direction facets for the multimodal-AI run of 2026-10-14, adapted from assets/facets.template.json (RoboDojo-style facets: what kind of model, which capability, which setting). Keywords were taken from the topic vocabulary of this run's signals.",
+  "facets": [
+    {"id": "modality", "label": {"en": "modality", "zh": "模态"}, "tags": [
+      {"id": "vision-language", "label": {"en": "vision–language", "zh": "视觉-语言"}, "keywords": ["vision-language", "vision language", "visual language", "vlm", "vlms", "lvlm", "lvlms", "mllm", "mllms", "multimodal large language", "clip", "image-text", "text-image", "visual question answering", "vqa", "captioning", "image caption", "visual grounding", "referring expression", "visual instruction", "vision-and-language", "vision and language"]},
+      {"id": "video", "label": {"en": "video", "zh": "视频"}, "keywords": ["video", "videos", "egocentric", "temporal grounding", "action recognition", "video-language", "text-to-video"]},
+      {"id": "3d", "label": {"en": "3D and scenes", "zh": "三维/场景"}, "keywords": ["3d", "gaussian splatting", "splatting", "nerf", "neural rendering", "radiance field", "point cloud", "point clouds", "reconstruction", "mesh", "depth estimation", "scene understanding", "scenes", "novel view", "3d generation"]},
+      {"id": "audio", "label": {"en": "speech and audio", "zh": "语音/音频"}, "keywords": ["speech", "audio", "spoken", "audio-visual", "audiovisual", "sound", "music", "text-to-speech", "tts", "voice"]},
+      {"id": "language", "label": {"en": "language models", "zh": "语言模型"}, "keywords": ["language model", "language models", "llm", "llms", "large language", "multilingual", "translation", "natural language processing", "nlp", "text generation", "dialogue", "discourse"]},
+      {"id": "embodied", "label": {"en": "embodied / robotics", "zh": "具身/机器人"}, "keywords": ["robot", "robots", "robotic", "robotics", "embodied", "manipulation", "vision-language-action", "vla", "navigation", "policy learning", "autonomous driving", "driving"]},
+      {"id": "medical", "label": {"en": "medical imaging", "zh": "医学影像"}, "keywords": ["medical", "clinical", "radiology", "oncology", "surgical", "surgery", "pathology", "histopathology", "mri", "ct", "patient", "patients", "healthcare", "biomedical", "radiotherapy", "ultrasound"]},
+      {"id": "documents", "label": {"en": "documents and charts", "zh": "文档/图表"}, "keywords": ["document", "documents", "ocr", "chart", "charts", "table", "tables", "handwriting", "historical documents", "manuscripts"]},
+      {"id": "remote-sensing", "label": {"en": "remote sensing", "zh": "遥感"}, "keywords": ["remote sensing", "satellite", "earth observation", "aerial", "geospatial"]}
+    ]},
+    {"id": "task", "label": {"en": "task", "zh": "任务"}, "tags": [
+      {"id": "generation", "label": {"en": "generation", "zh": "生成"}, "keywords": ["generation", "generative", "generating", "diffusion", "text-to-image", "text-to-3d", "text-to-video", "synthesis", "latent diffusion", "flow matching", "gan", "gans", "autoregressive", "editing", "inpainting", "stable diffusion"]},
+      {"id": "understanding", "label": {"en": "understanding and QA", "zh": "理解/问答"}, "keywords": ["understanding", "question answering", "vqa", "captioning", "reasoning", "retrieval", "detection", "segmentation", "recognition", "classification", "comprehension", "grounding", "matching", "tracking"]},
+      {"id": "trust", "label": {"en": "alignment, safety, explainability", "zh": "对齐/安全/可解释"}, "keywords": ["alignment", "bias", "biases", "fairness", "explainable", "explainability", "explanation", "explanations", "interpretable", "interpretability", "hallucination", "hallucinations", "robust", "robustness", "uncertainty", "uncertainty-aware", "safety", "fact-checking", "misinformation", "memes", "harmful", "privacy", "watermark", "adversarial", "trustworthy"]},
+      {"id": "efficiency", "label": {"en": "efficiency", "zh": "高效/压缩"}, "keywords": ["efficient", "efficiency", "compression", "quantization", "quantisation", "distillation", "pruning", "low-rank", "lora", "fast inference", "lightweight", "small models", "token reduction"]},
+      {"id": "evaluation", "label": {"en": "benchmarks and data", "zh": "评测/数据"}, "keywords": ["benchmark", "benchmarks", "benchmarking", "dataset", "datasets", "evaluation", "evaluating", "corpus", "annotation", "data curation", "synthetic data"]}
+    ]},
+    {"id": "approach", "label": {"en": "approach", "zh": "方法"}, "tags": [
+      {"id": "foundation", "label": {"en": "foundation models and pretraining", "zh": "基础模型/预训练"}, "keywords": ["foundation model", "foundation models", "pre-training", "pretraining", "pre-trained", "pretrained", "self-supervised", "contrastive", "representation learning", "representations", "zero-shot", "few-shot", "in-context", "scaling"]},
+      {"id": "adaptation", "label": {"en": "adaptation and tuning", "zh": "适配/微调"}, "keywords": ["adaptation", "fine-tuning", "finetuning", "prompt", "prompting", "prompt learning", "instruction tuning", "transfer learning", "domain adaptation", "continual learning", "test-time"]},
+      {"id": "agents", "label": {"en": "agents and tool use", "zh": "智能体"}, "keywords": ["agent", "agents", "agentic", "tool use", "planning", "web agents", "embodied agents"]},
+      {"id": "compositional", "label": {"en": "compositional and neuro-symbolic", "zh": "组合/神经符号"}, "keywords": ["compositional", "compositionality", "neuro-symbolic", "neurosymbolic", "symbolic", "program synthesis", "knowledge graph", "knowledge graphs", "structured"]},
+      {"id": "human", "label": {"en": "human-centred and cognition", "zh": "人因/认知"}, "keywords": ["human", "humans", "cognitive", "cognition", "perception", "eye tracking", "human-ai", "human-centered", "human-centred", "user study", "social"]}
+    ]}
+  ]
+}

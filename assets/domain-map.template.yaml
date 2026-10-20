@@ -5,8 +5,14 @@ window: {from: "", to: ""}   # publication-date window the counts below were com
 sources_used: []      # e.g., [openalex-topics, erc-panels, euroscivoc, gepris, web-search]; note dropped leads here
 region_core: "DE+CH"
 region_extended: "EU27+UK+CH+NO"
+facets_file: ""      # assets/facets/<slug>.json, relative to SKILL_ROOT
+scope: {core: [], conditional: [], excluded: []}   # one sentence each: what is in, in only under a condition, out
+directions: []       # {id, queries, inclusion, exclusion, seed_ids}: research directions the channel briefs cover
+discovery_seeds: []  # {id, url, selection_reason, follow_up}: benchmarks or lists that lead to models and groups, never people
+collection_requirements: []   # sentences every channel brief repeats
 # Every entry chosen or added by hand carries selection_reason; entries taken unchanged from a source may omit it.
 openalex_topics: []   # {id, name, fit: core|adjacent, selection_reason}
+topic_discovery_queries: []  # phrases tried for openalex_topics
 venues:
   conferences: []     # {name, openalex_source_id, award_page_pattern, selection_reason}
   journals: []
@@ -18,4 +24,11 @@ labs: []              # {name, country, openalex_institution_id, people_page}; c
 companies: []         # {name, country, reason: eic|openalex-company|user}
 open_source_anchors: []  # repo URLs
 keywords: []          # for CORDIS / ERC / GEPRIS / SNSF title filtering
+keyword_rules: ""     # when a keyword alone is too broad, the filter it needs
 prizes_filter: ""     # discipline value to select from assets/national-prizes.yaml
+historical_snapshot: {}   # an earlier derivation kept for comparison
+# Field-specific rules the scripts hold in code today; a new field writes them here (references/15-domain-pack.md).
+quirks:
+  title_words: []           # {pattern, role_class, reason}
+  institution_patterns: []  # {pattern, kind, reason}
+  evidence_venues: []       # {name, evidence, reason}
