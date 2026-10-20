@@ -125,8 +125,8 @@ def flow(text: str, pos: int, stops: str) -> tuple[object, int]:
                 raise ValueError(f'unclosed {"mapping" if mapping else "sequence"}')
             if mapping:
                 key, pos = flow(text, pos, ':,' + closing)
-                if not isinstance(key, str):
-                    raise ValueError(f'a key must be text, not {key!r}')
+                if not isinstance(key, str) or key == '<<':
+                    raise ValueError(f'a key must be text (and not the merge key), not {key!r}')
                 while text[pos:pos + 1] in (' ', '\t'):
                     pos += 1
                 if text[pos:pos + 1] != ':':
@@ -234,14 +234,14 @@ def load_yaml(text: str):
         result = []
         while i < len(lines) and lines[i][1] == indent and lines[i][2].startswith('-') and lines[i][2][1:2] in ('', ' '):
             number, _, content = lines[i]
-            rest = content[1:].strip()
+            rest = content[1:].strip(' ')
             if rest.startswith('-') and rest[1:2] in ('', ' '):
                 raise ValueError(f'line {number}: a sequence inside a sequence item is outside the YAML subset')
             if not rest:
                 value, i = nested(i + 1, indent, same_indent_sequence=False)
             elif rest[0] not in '{[' and KEY.match(rest):
                 # "- key: value" opens a mapping whose further keys sit at the column of that key.
-                lines[i] = [number, indent + len(content) - len(content[1:].lstrip()), rest]
+                lines[i] = [number, indent + len(content) - len(content[1:].lstrip(' ')), rest]
                 value, i = mapping(i, lines[i][1])
             else:
                 try:
@@ -304,8 +304,7 @@ def examine(path: Path, template: bool = False) -> tuple[list[str], dict | None]
         return [f'{path.name}: expected a mapping at the top'], None
     schema = json.loads(SCHEMA.read_text(encoding='utf-8'))
     errors = validate(data, schema, schema)
-    text = json.dumps(data, ensure_ascii=False)
-    errors += [f'personal data: {what} in the pack' for pattern, what in PERSONAL if re.search(pattern, text, re.I)]
+    errors += personal(data, 'the pack')
     if not template:
         if data.get('slug') != path.stem:
             errors.append(f'slug {data.get("slug")!r} is not the file name {path.stem!r}')
@@ -316,13 +315,43 @@ def examine(path: Path, template: bool = False) -> tuple[list[str], dict | None]
     return errors, data
 
 
+def texts(value):
+    """Every decoded string of a parsed pack or JSON file, keys included, for the personal-data scan."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key)
+            yield from texts(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from texts(item)
+    elif isinstance(value, str):
+        yield value
+
+
+def personal(value, where: str) -> list[str]:
+    return [f'personal data: {what} in {where}' for pattern, what in PERSONAL
+            if any(re.search(pattern, text, re.I) for text in texts(value))]
+
+
+def unique_keys(pairs):
+    keys = [key for key, _ in pairs]
+    duplicates = sorted({key for key in keys if keys.count(key) > 1})
+    if duplicates:
+        raise ValueError(f'duplicate key {duplicates[0]!r}')
+    return dict(pairs)
+
+
+def read_json(path: Path):
+    return json.loads(path.read_text(encoding='utf-8'), object_pairs_hook=unique_keys)
+
+
 def check_file(path: Path, template: bool = False) -> list[str]:
     return examine(path, template)[0]
 
 
 def json_list(path: Path, key: str) -> tuple[list | None, str]:
     try:
-        value = json.loads(path.read_text(encoding='utf-8')).get(key)
+        value = read_json(path).get(key)
     except (OSError, ValueError, AttributeError) as exc:
         return None, str(exc)
     return (value, '') if isinstance(value, list) else (None, f'expected a "{key}" list')
@@ -338,10 +367,10 @@ def check_pack(slug: str, root: Path = SKILL_ROOT) -> tuple[list[str], list[str]
         errors.append(f'facets_file {facets_file!r} is not assets/facets/{slug}.json')
     for name in (f'assets/facets/{slug}.json', f'assets/known-groups/{slug}.json'):
         try:
-            text = json.dumps(json.loads((root / name).read_text(encoding='utf-8')), ensure_ascii=False)  # escapes decoded
+            content = read_json(root / name)
         except (OSError, ValueError):
-            continue  # json_list reports a file that is missing, not UTF-8 or not JSON
-        errors += [f'personal data: {what} in {name}' for pattern, what in PERSONAL if re.search(pattern, text, re.I)]
+            continue  # json_list reports a file that is missing, not UTF-8, not JSON or with a duplicate key
+        errors += personal(content, name)
     facets, problem = json_list(root / f'assets/facets/{slug}.json', 'facets')
     if facets is None:
         errors.append(f'facets file assets/facets/{slug}.json: {problem}')

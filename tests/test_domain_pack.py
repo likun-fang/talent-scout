@@ -78,7 +78,8 @@ class YamlSubsetTests(unittest.TestCase):
                  'keyword_rules: use a "robotics term # comment\n': {'keyword_rules': 'use a "robotics term'},
                  'keyword_rules: search vision, "robotics # comment\n': {'keyword_rules': 'search vision, "robotics'},
                  'labs: [{name: "a, #1", url: https://x.example/#top}] # c\n': {'labs': [{'name': 'a, #1', 'url': 'https://x.example/#top'}]},
-                 'keywords: [1\u0662, \u00a0robot\u00a0]\n': {'keywords': ['1\u0662', '\u00a0robot\u00a0']}}
+                 'keywords: [1\u0662, \u00a0robot\u00a0]\n': {'keywords': ['1\u0662', '\u00a0robot\u00a0']},
+                 'keywords:\n  - \u00a0robot\u00a0\n': {'keywords': ['\u00a0robot\u00a0']}}
         for text, expected in cases.items():
             with self.subTest(text=text):
                 self.assertEqual(load_yaml(text), expected)
@@ -91,7 +92,7 @@ class YamlSubsetTests(unittest.TestCase):
                      'keywords: [0123]\n', 'derived_on: 2026-10-14\n', 'keywords: [? robot]\n', 'keywords: [|]\n',
                      'keywords: [- robot]\n', 'snapshot: {true: x}\n', '1: x\n', 'keywords: [\t"robot", x]\n',
                      'keywords: [0b1010]\n', 'keywords: [-1:20]\n', 'keywords: [1:20.5]\n', 'snapshot:\n  <<: {a: b}\n',
-                     'snapshot:\n  ? a: b\n', 'snapshot:\n  @a: b\n', 'keyword_rules: ]robot\n'):
+                     'snapshot:\n  ? a: b\n', 'snapshot:\n  @a: b\n', 'keyword_rules: ]robot\n', 'snapshot: {<<: {a: b}}\n'):
             with self.subTest(text=text):
                 with self.assertRaises(ValueError) as stop:
                     load_yaml(text)
@@ -140,7 +141,7 @@ class PackTests(unittest.TestCase):
         self.assertIn('$.labs: expected array', line)
 
     def test_personal_data_is_an_error(self):
-        for value in ('[https://www.linkedin.com/in/someone]', '["author A5024508073 dropped"]'):
+        for value in ('[https://www.linkedin.com/in/someone]', '["author A5024508073 dropped"]', '["\\nA5024508073"]'):
             with self.subTest(value=value):
                 errors, _ = self.check(pack_text(sources_used=value))
                 self.assertTrue(any('personal data' in e for e in errors), errors)
@@ -148,12 +149,13 @@ class PackTests(unittest.TestCase):
     def test_personal_data_in_the_facets_or_known_groups_file_is_an_error(self):
         for name, content in (('assets/facets/demo-field.json', {'facets': [{'keywords': ['https://www.linkedin.com/in/x']}]}),
                               ('assets/facets/demo-field.json', '{"facets": [{"keywords": ["https://www.linked\\u0069n.com/in/x"]}]}'),
+                              ('assets/facets/demo-field.json', '{"facets": [], "note": "https://www.linkedin.com/in/x", "note": ""}'),
                               ('assets/known-groups/demo-field.json', {'groups': [{'pi': 'A', 'ids': 'https://openalex.org/A5024508073'}]})):
             with self.subTest(name=name):
                 original = (self.root / name).read_text(encoding='utf-8')
                 (self.root / name).write_text(content if isinstance(content, str) else json.dumps(content), encoding='utf-8')
                 errors, _ = self.check(pack_text())
-                self.assertTrue(any('personal data' in e for e in errors), errors)
+                self.assertTrue(any('personal data' in e or 'duplicate key' in e for e in errors), errors)
                 (self.root / name).write_text(original, encoding='utf-8')
 
     def test_a_companion_file_that_is_not_utf8_is_an_error(self):
