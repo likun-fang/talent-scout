@@ -331,7 +331,7 @@ def about_page(fields: list[tuple[str, dict]]) -> str:
 <p>There is no ranking and there are no tiers. Groups are listed by institution, then by PI name.</p>
 {field_lines(fields, False)}</section>
 <section data-part="sources"><h2>Data sources</h2>
-<p>Public academic pages: lab, group and institutional pages, read by hand.</p>
+<p>Public academic pages: lab, group and institutional pages, read page by page; a sample is checked by hand.</p>
 <p>Public funding registers, publication metadata, and award and competition pages.</p>
 <p>Never LinkedIn and never paid sources.</p>
 <p>Each group shows the date its page was last read.</p></section>
@@ -366,7 +366,7 @@ the page was read. Nothing else.</p></section>'''
 <p>不排名，不分级。课题组按机构、再按负责人姓名排列。</p>
 {field_lines(fields, True)}</section>
 <section data-part="sources"><h2>数据来源</h2>
-<p>学术公开页面：实验室、课题组和机构页面，人工阅读。</p>
+<p>学术公开页面：实验室、课题组和机构页面，逐页阅读，抽样人工核查。</p>
 <p>公开的资助登记、论文元数据，以及奖项和竞赛页面。</p>
 <p>从不使用领英，也不使用付费来源。</p>
 <p>每个课题组都标明其页面最近一次阅读的日期。</p></section>

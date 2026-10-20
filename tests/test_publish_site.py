@@ -101,6 +101,10 @@ class PublishTests(unittest.TestCase):
             self.assertIn('issues/new?template=correction.yml', about)
             self.assertIn('members not yet collected', about)
             self.assertIn('成员未采集', about)
+            for page in (about, (site.docs / 'multimodal-ai' / 'index.html').read_text(encoding='utf-8')):
+                self.assertIn('read page by page; a sample is checked by hand', page)
+                self.assertIn('逐页阅读，抽样人工核查', page)
+                self.assertNotIn('read by hand', page.replace('checked by hand', ''))
 
     def test_a_second_field_joins_the_index_and_the_first_stays(self):
         with tempfile.TemporaryDirectory() as tmp:
