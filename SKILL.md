@@ -1,14 +1,15 @@
 ---
 name: talent-scout
-description: Find the research groups and people behind notable work in a technical domain, core region Germany + Switzerland and extended region EU27 + UK + CH + NO, and deliver a sourced roster and group table for technology discovery and collaboration. Use when asked to find talent, researchers, engineers, labs or teams in a field, to list who is doing notable work in a domain, or to build a roster from public signals such as paper awards, prizes, EU, DFG and SNSF funding, competitions, startups and open source.
+description: Build a public, correctable map of the research groups of a technical domain in Europe (EU27 + UK + CH + NO), group by group with PI, institution, homepage and named members, from the public academic record; no ranking, no LinkedIn.
 ---
 
 # Talent Scout
 
-Deliverable: `roster.csv` + `roster.md`, one row per person, and `groups.csv` + `groups.md`, one row per research
-group, every row carrying at least one evidence URL, plus a Coverage block saying what was read and what was skipped.
-It is a finding tool for new technology and collaboration partners: it records roles, tiers and groups as data and
-leaves judgements about people to the reader.
+Deliverable: `groups.json`, one record per research group with its PI, institution, homepage, named members and
+evidence URLs, and the map and about page written from it (`references/50-output.md`). `roster.csv`, `roster.md`,
+`groups.csv` and `groups.md` are working tables of the run, with a Coverage block saying what was read and what was
+skipped; they stay in the run directory. It records roles and groups as data taken from public pages and makes no
+judgement about anyone.
 
 Read `references/60-scope-and-ethics.md` once before stage 0.
 
@@ -28,6 +29,8 @@ Each stage names the file to read when you reach it and the condition that ends 
 Two moments to stop for the user: after stage 1 (the domain map and the chosen OpenAlex topics, one screen) and after
 stage 2 (the raw candidate count, before budget goes into enrichment). Show the screen, stop, and wait for the user's
 reply before the next stage.
+
+The tier in stages 4 and 5 is a sort order of the working table only and never reaches the map.
 
 Channels are independent: run them as parallel subagents sharing one brief (`assets/channel-brief.template.md`),
 each doing its own hops and writing its own coverage note. A first real run (embodied AI, 2026-10-08) did this
@@ -72,8 +75,8 @@ live in `assets/`.
 ## Final pass: current roles and affiliations, by group
 
 After the stage 5 export, and only then, check current roles and affiliations. Work group by group, tier 1 first:
-read the PI's team page once, which verifies the PI and lists the current members, then individual pages, then public
-LinkedIn profiles read one at a time with a delay (`references/45-web-verification.md`). The budget counts pages, so
+read the PI's team page once, which verifies the PI and lists the current members, then individual pages
+(`references/45-web-verification.md`); LinkedIn is not read (`references/60-scope-and-ethics.md`). The budget counts pages, so
 one team page covers a whole group. The optional `scripts/visit_page.py` records page excerpts and access status;
 reading a page does not itself verify a role. Write what the page says into `final_pass_title`,
 `final_pass_affiliation` and `final_pass_country`, then re-export: a corrected country or role changes the tier,

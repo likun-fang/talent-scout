@@ -1,52 +1,39 @@
 # talent-scout
 
-An [Agent Skills](https://agentskills.io) package: give it a technical domain, get back a sourced roster of the
-people and research groups doing notable work in it, for technology discovery and collaboration. The core region is
-Germany + Switzerland, the extended region EU27 + UK + CH + NO; people are discovered across paper awards, national prizes,
-EU, DFG and SNSF funding, competitions, startups, industry labs and open source.
+Public maps of research groups in Europe, one per field, built from the public academic record. The maps are served at https://likun-fang.github.io/talent-scout/ . One entry is one group: a PI, an institution and the group's homepage. Members appear by name and role under their group. There is no ranking and there are no tiers, and no LinkedIn data is read or stored.
 
-Runs in any skills-aware agent (Claude.ai, Claude Code, ChatGPT, Codex, Cursor, ...) using only
-web search, page reading and keyless public APIs. Bundled Python scripts are optional accelerators, including a
-page reader used once, on the final table, to check current roles from public pages.
+## The maps
 
-## What it does
+- Fields published: multimodal AI. Prepared, not yet run: embodied AI (`domain-cache/embodied-ai.yaml`).
+- Each group card shows the PI, the institution, the homepage, the members a public team page names, the topics, the date the page was read and the evidence links. A card that says "members not yet collected" has no member linked from a public page yet.
+- Four checks run before every publication and their current values are on the about page: recall against a list of well-known groups of the field (`assets/known-groups/<slug>.json`), the share of groups read more than 12 months ago, the absence of any LinkedIn key or URL, and a seeded sample for a check by hand.
+- Every card links a correction form; a removal form takes a name and a group and needs no reason. Removals are applied at the next publication and are kept outside the repository.
 
-- Input: a domain phrase (semiconductors, computer architecture, embodied AI, ...). Output: a roster table and a
-  group table (CSV + Markdown), each row carrying evidence URLs.
-- Two region layers. Every row is in the extended region; rows are sorted into tiers: professors in DE/CH first,
-  then DE/CH researchers and doctoral students, then doctoral students elsewhere in the extended region, then everyone
-  else. Each person carries a role class (professor, researcher, doctoral student, industry, unknown) with the
-  verbatim page evidence it rests on, and a research group (`<PI> @ <institution>`); `groups.csv` lists the groups
-  with members, recent outputs, active funding and open-source work.
-- Every channel uses the same window: the 36 months ending on the run date. Older evidence stays visible in a
-  row but does not qualify or rank anyone.
-- It finds people and records their public work. Role, tier and group are data columns and a sort order, nothing more.
-- The domain map is derived at run time from universal sources (OpenAlex topics, ERC panels, EuroSciVoc, DFG review
-  boards) and cached under `domain-cache/`; switching domains changes no procedure.
-- Depth lives in the hop rules (`references/30-hops.md`): orgs, works, teams and companies are turned into
-  people with recorded provenance, then people expand one hop to co-authors.
-- Portable: follows the Agent Skills open standard and depends on no local MCP server, paid database or
-  vendor-specific tool. OpenAlex works keyless; a free API key is needed only once the shared keyless quota runs out.
-- Paths: skill files resolve against the directory holding `SKILL.md`; each run writes only into its own run
-  directory.
+## How a map is built
 
-## Published maps
+This repository is an [Agent Skills](https://agentskills.io) package. An agent runs it stage by stage (`SKILL.md`) with web search, page reading and keyless public APIs; the stdlib Python scripts under `scripts/` do the merging, enrichment, export and checks.
 
-The public group maps live in `docs/` for GitHub Pages: one map per field, with an about page that names the
-sources, the method and the current check values. `scripts/publish_site.py` writes them from a run and refuses when a
-check fails. Each group
-card has a "Report a correction" link to an issue form; the removal form takes a name and a group and needs no reason,
-and a removal is made at the next publication.
+1. The field's pack (`references/15-domain-pack.md`): a domain map, facets and known groups. A new field starts from ten questions, not from code.
+2. Channels: paper awards, national prizes, EU, DFG and SNSF funding, competitions, open source, startups and industry labs are swept into signals, which hop to people and groups (`references/30-hops.md`).
+3. People are merged and their current role read from public pages (`references/40-entity-resolution.md`, `references/45-web-verification.md`): institutional pages, team pages, funding registers and publication metadata. Login-gated sites, social networks and people-search aggregators are never read.
+4. Groups form around their PI; members attach through public team pages and shared grants (`references/50-output.md`). `scripts/group_export.py` writes `groups.json`, `scripts/check_groups.py` runs the four checks, `scripts/publish_site.py` writes `docs/` and refuses when a check fails or private text is present.
+
+A run writes only into its own run directory, which stays local; the per-person working tables of a run are never published.
 
 ## Layout
 
 ```
-SKILL.md                 entry point (directory page)
+SKILL.md                 entry point for the agent
 references/              stage-by-stage procedures
   channels/              one playbook per signal channel
-assets/                  universal data: country sets, ERC panels, prize registry, schemas, table template
-domain-cache/            derived domain maps (cache, refreshable)
-scripts/                 optional stdlib-only helpers
-docs/                    the published group maps (generated by scripts/publish_site.py; served by GitHub Pages)
+assets/                  universal data: country sets, ERC panels, prize registry, schemas, institution aliases,
+                         facets and known groups per field
+domain-cache/            one domain map per field (the pack)
+scripts/                 stdlib-only helpers: merge, enrich, export, check, publish
+docs/                    the published maps, generated by scripts/publish_site.py and served by GitHub Pages
 notes/                   design notes and run reports
 ```
+
+## Corrections
+
+Use the forms linked from every group card, or open an issue with the templates under `.github/ISSUE_TEMPLATE/`. Name a public page that shows the correct fact.
